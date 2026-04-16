@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UbeZap - Master Preview</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/styled-components/dist/styled-components.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background-color: #1a1a1a; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; color: white; }
+        #phone-frame { width: 375px; height: 812px; background: white; border-radius: 40px; border: 8px solid #333; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        #app-root { height: 100%; width: 100%; }
+        .app-toggle { margin-bottom: 20px; display: flex; gap: 10px; }
+        .toggle-btn { padding: 10px 20px; border-radius: 20px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .toggle-btn.active { background: #3ab56b; color: white; }
+        .toggle-btn:not(.active) { background: #444; color: #888; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body>
+    <div class="app-toggle">
+        <button id="btn-pass" class="toggle-btn active" onclick="switchApp('passenger')">APP PASSAGEIRO</button>
+        <button id="btn-driver" class="toggle-btn" onclick="switchApp('driver')">APP MOTORISTA</button>
+    </div>
+
+    <div id="phone-frame">
+        <div id="app-root"></div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const styled = window.styled;
+
+        // --- THEME TOKENS ---
+        const colors = {
+            primary: '#3ab56b',
+            secondary: '#111111', // Predominant Black for Driver
+            background: '#FFFFFF',
+            surface: '#F8F9FA',
+            text: '#1f2120',
+            textSecondary: '#6C757D',
+            border: '#DEE2E6',
+            white: '#FFFFFF',
+        };
+
+        const Screen = styled.div`
+            height: 100%; width: 100%; display: flex; flex-direction: column; background: ${props => props.dark ? colors.secondary : colors.background};
+            position: absolute; top: 0; left: 0; animation: fadeIn 0.3s ease-out; color: ${props => props.dark ? 'white' : 'black'};
+            @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        `;
+
+        const Button = styled.button`
+            background: ${props => props.secondary ? colors.secondary : colors.primary};
+            color: white; border: none; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 16px;
+        `;
+
+        // --- PASSENGER SCREENS ---
+        const PassLogin = ({ onLogin }) => (
+            <Screen style={{ padding: 24, justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center', marginBottom: 40 }}>
+                    <div style={{ width: 60, height: 60, background: '#eee', borderRadius: 15, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><i className="material-icons" style={{color:colors.primary}}>person</i></div>
+                    <h2>UbeZap</h2><p>Passageiro</p>
+                </div>
+                <input style={{ width: '100%', padding: 15, marginBottom: 10, borderRadius: 10, border: '1px solid #ddd' }} placeholder="CPF" defaultValue="123.456.789-00" />
+                <input style={{ width: '100%', padding: 15, marginBottom: 10, borderRadius: 10, border: '1px solid #ddd' }} type="password" placeholder="Senha" defaultValue="123456" />
+                <Button onClick={onLogin}>Entrar</Button>
+            </Screen>
+        );
+
+        const PassHome = ({ onSearch }) => (
+            <Screen>
+                <div style={{ flex: 1, background: '#eee', position: 'relative' }}>
+                    <img src="https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/-46.63,-23.55,13,0/375x600?access_token=pk.eyJ1IjoiZGV2LW1vY2siLCJhIjoiY2p4eHgxIn0.mock" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+                <div style={{ padding: 24, background: 'white', borderTopLeftRadius: 30, borderTopRightRadius: 30 }}>
+                    <h3 style={{ textAlign: 'center', margin: 0 }}>Bom dia, Passageiro!</h3>
+                    <Button onClick={onSearch} style={{background:'#000'}}>Escolher Destino</Button>
+                </div>
+            </Screen>
+        );
+
+        // --- DRIVER SCREENS ---
+        const DriverHome = ({ onTaximeter }) => {
+            const [ride, setRide] = useState(null);
+            useEffect(() => {
+                const t = setTimeout(() => setRide({ valor: 'R$ 14,90', cliente: 'João Silva', dist: '1.2km' }), 3000);
+                return () => clearTimeout(t);
+            }, []);
+
+            return (
+                <Screen dark>
+                    <div style={{ padding: '40px 16px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <div style={{ fontSize: 12, color: colors.textSecondary }}>Disponibilidade:</div>
+                            <div style={{ fontSize: 18, fontWeight: 'bold', color: colors.primary }}>DISPONÍVEL</div>
+                        </div>
+                        <div style={{ width: 40, height: 20, background: colors.primary, borderRadius: 10, position: 'relative' }}>
+                            <div style={{ width: 16, height: 16, background: 'white', borderRadius: '50%', position: 'absolute', right: 2, top: 2 }}></div>
+                        </div>
+                    </div>
+                    <div style={{ flex: 1, background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                       <img src="https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/-46.63,-23.55,13,0/375x600?access_token=pk.eyJ1IjoiZGV2LW1vY2siLCJhIjoiY2p4eHgxIn0.mock" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }} />
+                       
+                       {ride ? (
+                           <div style={{ position: 'absolute', bottom: 20, left: 10, right: 10, background: colors.primary, padding: 20, borderRadius: 20, textAlign: 'center', animation: 'slideUp 0.3s ease-out' }}>
+                                <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
+                                <b style={{fontSize: 12}}>NOVA CORRIDA!</b>
+                                <h1 style={{margin: '5px 0'}}>{ride.valor}</h1>
+                                <p style={{margin: 0}}>{ride.cliente} • {ride.dist}</p>
+                                <button onClick={() => { setRide(null); alert('Corrida Aceita!'); }} style={{ width: '100%', padding: 15, marginTop: 15, borderRadius: 10, border: 'none', background: 'white', fontWeight: 'bold', color: colors.primary }}>ACEITAR</button>
+                           </div>
+                       ) : (
+                           <div style={{ position: 'absolute', color: colors.primary, textAlign: 'center' }}>
+                                <i className="material-icons" style={{fontSize: 60}}>navigation</i>
+                                <p>Buscando Corridas...</p>
+                           </div>
+                       )}
+                    </div>
+                    <div style={{ height: 70, display: 'flex', justifyContent: 'space-around', alignItems: 'center', borderTop: '1px solid #333' }}>
+                        <i className="material-icons" style={{color:colors.primary}}>home</i>
+                        <i className="material-icons">list</i>
+                        <i className="material-icons" onClick={onTaximeter} style={{fontSize: 40}}>speed</i>
+                        <i className="material-icons">history</i>
+                        <i className="material-icons">assessment</i>
+                    </div>
+                </Screen>
+            );
+        };
+
+        const Taximeter = ({ onBack }) => (
+            <Screen dark>
+                <div style={{ padding: '40px 16px 16px', textAlign: 'center', borderBottom: '1px solid #333' }}>
+                    <i className="material-icons" style={{ position: 'absolute', left: 16, cursor: 'pointer' }} onClick={onBack}>arrow_back</i>
+                    <span style={{ fontWeight: 'bold' }}>Taxímetro</span>
+                </div>
+                <div style={{ flex: 1, background: 'white', borderTopLeftRadius: 40, borderTopRightRadius: 40, marginTop: 20, padding: 30, color: 'black', alignItems: 'center', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ textAlign: 'center', marginTop: 40 }}>
+                        <div style={{ color: '#888', fontWeight: 'bold' }}>VALOR R$</div>
+                        <div style={{ fontSize: 60, fontWeight: 'bold', color: colors.primary }}>0,00</div>
+                    </div>
+                    <div style={{ width: '100%', marginTop: 40 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px 0', borderBottom: '1px solid #eee' }}><span>TEMPO</span><b>0</b></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px 0', borderBottom: '1px solid #eee' }}><span>DISTÂNCIA</span><b>0 KM</b></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px 0', borderBottom: '1px solid #eee' }}><span>TAXA BASE</span><b>R$ 5,00</b></div>
+                    </div>
+                    <Button style={{ marginTop: 'auto', background: '#008b8b', borderRadius: 30, height: 60 }}>INICIAR</Button>
+                </div>
+            </Screen>
+        );
+
+        const App = () => {
+            const [appMode, setAppMode] = useState('passenger');
+            const [view, setView] = useState('login');
+
+            // Listen to global function call from HTML
+            window.switchApp = (mode) => {
+                setAppMode(mode);
+                setView('login');
+                document.getElementById('btn-pass').className = mode === 'passenger' ? 'toggle-btn active' : 'toggle-btn';
+                document.getElementById('btn-driver').className = mode === 'driver' ? 'toggle-btn active' : 'toggle-btn';
+            }
+
+            if (appMode === 'passenger') {
+                if (view === 'login') return <PassLogin onLogin={() => setView('home')} />;
+                return <PassHome onSearch={() => alert('Abrindo Seleção...')} />;
+            } else {
+                if (view === 'login') return <PassLogin onLogin={() => setView('home')} />; // Reusing login for demo
+                if (view === 'home') return <DriverHome onTaximeter={() => setView('taxi')} />;
+                if (view === 'taxi') return <Taximeter onBack={() => setView('home')} />;
+            }
+            return null;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('app-root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

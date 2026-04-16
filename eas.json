@@ -1,0 +1,26 @@
+{
+  "cli": {
+    "version": ">= 12.0.0"
+  },
+  "build": {
+    "passenger": {
+      "env": {
+        "APP_VARIANT": "passenger"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "driver": {
+      "env": {
+        "APP_VARIANT": "driver"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
