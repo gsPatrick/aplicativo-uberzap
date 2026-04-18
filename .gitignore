@@ -1,0 +1,27 @@
+# macOS em volume externo (AppleDouble / resource fork) — nunca versionar
+._*
+**/._*
+**/.DS_Store
+
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native (gerados pelo prebuild local; EAS gera de novo na nuvem)
+android/
+ios/
+
+# Env / OS
+.env
+.env.*
+.DS_Store
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/

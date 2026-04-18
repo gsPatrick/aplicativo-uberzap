@@ -38,6 +38,12 @@
           "locationWhenInUsePermission": "O UbeZap usa sua localização para definir o embarque e calcular o valor da corrida."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "appVariant": "passenger",
+      "eas": {
+        "projectId": "d35aaa76-d451-403c-a38c-6e96ccced364"
+      }
+    }
   }
 }
