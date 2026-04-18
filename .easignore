@@ -1,0 +1,8 @@
+# Reduz upload para o EAS (além do .gitignore)
+node_modules/
+.expo/
+android/
+ios/
+*.log
+**/.DS_Store
+**/._*
