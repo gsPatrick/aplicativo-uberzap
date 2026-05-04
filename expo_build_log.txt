@@ -1,0 +1,69 @@
+Starting Metro Bundler
+SyntaxError: SyntaxError: /Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/src/screens/driver/HomeScreen.js: Identifier 'StyleSheet' has already been declared. (898:6)
+
+[0m [90m 896 |[39m ][33m;[39m
+ [90m 897 |[39m
+[31m[1m>[22m[39m[90m 898 |[39m [36mconst[39m [33mStyleSheet[39m [33m=[39m {
+ [90m     |[39m       [31m[1m^[22m[39m
+ [90m 899 |[39m     absoluteFillObject[33m:[39m {
+ [90m 900 |[39m         position[33m:[39m [32m'absolute'[39m[33m,[39m
+ [90m 901 |[39m         top[33m:[39m [35m0[39m[33m,[39m left[33m:[39m [35m0[39m[33m,[39m right[33m:[39m [35m0[39m[33m,[39m bottom[33m:[39m [35m0[39m[0m
+SyntaxError: /Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/src/screens/driver/HomeScreen.js: Identifier 'StyleSheet' has already been declared. (898:6)
+
+[0m [90m 896 |[39m ][33m;[39m
+ [90m 897 |[39m
+[31m[1m>[22m[39m[90m 898 |[39m [36mconst[39m [33mStyleSheet[39m [33m=[39m {
+ [90m     |[39m       [31m[1m^[22m[39m
+ [90m 899 |[39m     absoluteFillObject[33m:[39m {
+ [90m 900 |[39m         position[33m:[39m [32m'absolute'[39m[33m,[39m
+ [90m 901 |[39m         top[33m:[39m [35m0[39m[33m,[39m left[33m:[39m [35m0[39m[33m,[39m right[33m:[39m [35m0[39m[33m,[39m bottom[33m:[39m [35m0[39m[0m
+    at constructor (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:365:19)
+    at FlowParserMixin.raise (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:6599:19)
+    at FlowScopeHandler.checkRedeclarationInScope (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:1619:19)
+    at FlowScopeHandler.declareName (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:1585:12)
+    at FlowScopeHandler.declareName (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:1686:11)
+    at FlowParserMixin.declareNameFromIdentifier (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:7567:16)
+    at FlowParserMixin.checkIdentifier (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:7563:12)
+    at FlowParserMixin.checkLVal (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:7500:12)
+    at FlowParserMixin.parseVarId (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:13412:10)
+    at FlowParserMixin.parseVarId (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:3474:11)
+    at FlowParserMixin.parseVar (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:13383:12)
+    at FlowParserMixin.parseVarStatement (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:13230:10)
+    at FlowParserMixin.parseStatementContent (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:12851:23)
+    at FlowParserMixin.parseStatementLike (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:12767:17)
+    at FlowParserMixin.parseStatementLike (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:2918:24)
+    at FlowParserMixin.parseModuleItem (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:12744:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:13316:36)
+    at FlowParserMixin.parseBlockBody (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:13309:10)
+    at FlowParserMixin.parseProgram (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:12622:10)
+    at FlowParserMixin.parseTopLevel (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:12612:25)
+    at FlowParserMixin.parseTopLevel (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:3685:28)
+    at FlowParserMixin.parse (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:14488:25)
+    at parse (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/parser/lib/index.js:14501:26)
+    at parser (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/core/lib/parser/index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/core/lib/transformation/normalize-file.js:64:37)
+    at normalizeFile.next (<anonymous>)
+    at run (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/core/lib/transformation/index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/core/lib/transform.js:22:33)
+    at transform.next (<anonymous>)
+    at evaluateSync (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/gensync/index.js:251:28)
+    at sync (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/gensync/index.js:89:14)
+    at stopHiding - secret - don't use this - v1 (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/core/lib/errors/rewrite-stack-trace.js:47:12)
+    at Object.transformSync (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@babel/core/lib/transform.js:40:76)
+    at parseWithBabel (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@expo/metro-config/build/transformSync.js:65:18)
+    at transformSync (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@expo/metro-config/build/transformSync.js:54:12)
+    at Object.transform (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@expo/metro-config/build/babel-transformer.js:115:58)
+    at transformJSWithBabel (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js:440:47)
+    at Object.transform (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js:549:12)
+    at Object.transform (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/@expo/metro-config/build/transform-worker/transform-worker.js:117:23)
+    at transformFile (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/metro/src/DeltaBundler/Worker.flow.js:54:36)
+    at Object.transform (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/metro/src/DeltaBundler/Worker.flow.js:30:10)
+    at execFunction (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/jest-worker/build/workers/processChild.js:149:17)
+    at execHelper (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/jest-worker/build/workers/processChild.js:137:5)
+    at execMethod (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/jest-worker/build/workers/processChild.js:140:5)
+    at process.messageListener (/Volumes/Lexar/trabalho/99Freelas/Uberzap/frontend/node_modules/jest-worker/build/workers/processChild.js:44:7)
+    at process.emit (node:events:508:28)
+    at emit (node:internal/child_process:948:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:91:21)

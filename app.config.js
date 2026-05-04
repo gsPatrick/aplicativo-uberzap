@@ -13,7 +13,11 @@ module.exports = ({ config }) => {
     {
       android: {
         kotlinVersion: '1.9.25',
+        newArchEnabled: false,
       },
+      ios: {
+        newArchEnabled: false,
+      }
     },
   ];
   const basePlugins = config.plugins || [];
@@ -26,6 +30,7 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
+    newArchEnabled: false,
     plugins,
     name: isDriver ? 'UbeZap Motorista' : config.name,
     // Mantém o mesmo slug do projeto Expo (um projeto EAS, dois binários).

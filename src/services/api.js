@@ -38,18 +38,34 @@ axiosInstance.interceptors.response.use(
     if (error.code === 'ECONNABORTED') {
       console.error('Timeout na chamada da API');
     }
+    console.error('[API Error]', error?.config?.url, error?.message);
     return Promise.reject(error);
   }
 );
 
 /**
- * Utilitário para transformar objeto em Form Data (Padrão esperado pelo seu PHP)
+ * Converte objeto para string URL-encoded (application/x-www-form-urlencoded).
+ * Muito mais confiável que FormData em builds Android nativas do React Native.
+ * PHP lê via $_POST normalmente.
  */
 const toFormData = (data) => {
-  const formData = new FormData();
+  const parts = [];
   if (data) {
-    Object.keys(data).forEach(key => formData.append(key, data[key]));
+    Object.keys(data).forEach(key => {
+      const value = data[key];
+      if (value !== null && value !== undefined) {
+        parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(value)));
+      }
+    });
   }
+  parts.push(encodeURIComponent('secret') + '=' + encodeURIComponent(CONFIG.SECRET_KEY));
+  return parts.join('&');
+};
+
+/**
+ * Para upload de arquivos (cadastro de docs do motorista), usa FormData nativa.
+ */
+const toMultipartFormData = (formData) => {
   formData.append('secret', CONFIG.SECRET_KEY);
   return formData;
 };

@@ -13,9 +13,11 @@ import { getSession, saveSession, clearSession } from '../../utils/session';
 
 // Fallback for MapView
 let MapView = View;
+let PROVIDER_GOOGLE = null;
 try {
   const Maps = require('react-native-maps');
   MapView = Maps.default || Maps;
+  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
 } catch (e) {}
 
 const { width, height } = Dimensions.get('window');
@@ -155,6 +157,7 @@ const DriverHomeScreen = () => {
     const isFocused = useIsFocused();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuAnim = useRef(new Animated.Value(-width * 0.8)).current;
+    const mapRef = useRef(null);
     
     const [isAvailable, setIsAvailable] = useState(true);
     const [isOnRide, setIsOnRide] = useState(false);
@@ -305,6 +308,15 @@ const DriverHomeScreen = () => {
             );
         } catch (e) {
             console.warn('Erro ao atualizar localização:', e);
+        }
+        
+        if (mapRef.current && location && location.coords) {
+            mapRef.current.animateToRegion({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
+            }, 1000);
         }
     };
 
@@ -640,7 +652,9 @@ const DriverHomeScreen = () => {
             <MapContainer>
                 {Platform.OS !== 'web' ? (
                     <MapView 
+                        ref={mapRef}
                         style={StyleSheet.absoluteFillObject}
+                        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
                         customMapStyle={darkMapStyle || []}
                         initialRegion={{
                             latitude: -23.5617,

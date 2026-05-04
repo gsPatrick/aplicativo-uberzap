@@ -3,7 +3,7 @@
     "name": "UbeZap",
     "slug": "ubezap-mobile",
     "version": "1.0.0",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,8 +17,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ubezap.app",
-      "newArchEnabled": true
+      "bundleIdentifier": "com.ubezap.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +25,17 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.ubezap.app",
-      "newArchEnabled": true
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "INTERNET"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyALug8RJH4w49LYiJWzQ3Y7iOBf1k5VbWY"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -131,7 +131,19 @@ const DriverLoginScreen = () => {
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Erro', 'Falha na conexão com o servidor.');
+      const serverMessage =
+        error?.response?.data?.erro ||
+        error?.response?.data?.mensagem ||
+        error?.response?.data?.message ||
+        (typeof error?.response?.data === 'string' ? error.response.data : '');
+
+      if (serverMessage) {
+        Alert.alert('Erro', String(serverMessage));
+      } else if (error?.code === 'ECONNABORTED') {
+        Alert.alert('Conexao', 'A API demorou para responder. Tente novamente.');
+      } else {
+        Alert.alert('Erro', 'Sem conexao com a API. Verifique internet/VPN e tente de novo.');
+      }
     } finally {
       setLoading(false);
     }

@@ -17,7 +17,7 @@
         "APP_VARIANT": "driver"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       }
     }
   },

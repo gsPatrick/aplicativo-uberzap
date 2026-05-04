@@ -768,6 +768,13 @@ const HomeScreen = () => {
           longitude: pos.coords.longitude,
         };
         setPickupCoords(coords);
+        if (mapRef.current) {
+          mapRef.current.animateToRegion({
+            ...coords,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          }, 1000);
+        }
         setPickup('Carregando endereço...');
         try {
           const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}`;
