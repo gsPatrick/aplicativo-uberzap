@@ -9,13 +9,27 @@
         "APP_VARIANT": "passenger"
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       }
     },
     "driver": {
       "env": {
         "APP_VARIANT": "driver"
       },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "passenger-apk": {
+      "extends": "passenger",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "driver-apk": {
+      "extends": "driver",
+      "distribution": "internal",
       "android": {
         "buildType": "apk"
       }

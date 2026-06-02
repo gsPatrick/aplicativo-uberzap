@@ -20,22 +20,43 @@ module.exports = ({ config }) => {
     : './assets/images/splash-passenger.png';
 
   /**
+   * Pacotes EXATAMENTE como publicados na Google Play (não alterar).
+   *   - Motorista  -> app.br.uberzap.motorista
+   *   - Passageiro -> br.app.uberzap.passageiro
+   */
+  const androidPackage = isDriver ? 'app.br.uberzap.motorista' : 'br.app.uberzap.passageiro';
+
+  /**
+   * versionCode DEVE ser maior que o publicado (motorista 30000, passageiro 10000).
+   * versionName é só rótulo de exibição (não afeta a aceitação da atualização).
+   */
+  const versionName = isDriver ? '3.0.1' : '1.0.1';
+  const versionCode = isDriver ? 30001 : 10001;
+
+  /**
    * google-services.json por variante (FCM / push remoto).
-   * Baixe do Firebase Console para CADA app Android e salve nestes caminhos:
-   *   - Passageiro (com.ubezap.app)    -> ./credentials/google-services.passenger.json
-   *   - Motorista  (com.ubezap.driver) -> ./credentials/google-services.driver.json
-   * Sem este arquivo o app NÃO registra token de push e nada chega em 2º plano.
+   * IMPORTANTE: precisam ser gerados no Firebase para os NOVOS pacotes acima
+   * (app.br.uberzap.motorista / br.app.uberzap.passageiro) e salvos nestes caminhos:
+   *   - Motorista  -> ./credentials/google-services.driver.json
+   *   - Passageiro -> ./credentials/google-services.passenger.json
+   * Sem o arquivo do pacote certo, o push NÃO funciona.
    */
   const googleServicesFile = isDriver
     ? './credentials/google-services.driver.json'
     : './credentials/google-services.passenger.json';
 
-  /** Corrige EAS: Compose Compiler do expo-modules-core exige Kotlin ≥ 1.9.25 */
+  /**
+   * Corrige EAS: Compose Compiler exige Kotlin ≥ 1.9.25.
+   * targetSdk/compileSdk 35 — os apps publicados já miram API 35 (Android 15) e a
+   * Play não aceita rebaixar o targetSdk.
+   */
   const buildProps = [
     'expo-build-properties',
     {
       android: {
         kotlinVersion: '1.9.25',
+        compileSdkVersion: 35,
+        targetSdkVersion: 35,
         newArchEnabled: false,
       },
       ios: {
@@ -64,7 +85,7 @@ module.exports = ({ config }) => {
     plugins,
     name: displayName,
     slug: 'ubezap-mobile',
-    version: '1.0.0',
+    version: versionName,
     orientation: 'portrait',
     icon: iconStore,
     userInterfaceStyle: 'light',
@@ -83,7 +104,8 @@ module.exports = ({ config }) => {
     },
     android: {
       ...config.android,
-      package: isDriver ? 'com.ubezap.driver' : (config.android?.package || 'com.ubezap.app'),
+      package: androidPackage,
+      versionCode,
       googleServicesFile,
       adaptiveIcon: {
         foregroundImage: adaptiveForeground,
