@@ -30,6 +30,7 @@ import {
 } from './src/services/rideNotification';
 import { requestDriverPermissionsFlow } from './src/utils/driverPermissions';
 import { recordRemotePush, rideAlertKey, tripStatusKey } from './src/utils/notificationDedup';
+import { registerBackgroundRideNotificationTask } from './src/services/backgroundRideNotification';
 import {
   presentRideRequest,
   processPendingRideActions,
@@ -320,6 +321,7 @@ export default function App() {
 
       if (appVariant === 'driver') {
         setupRideNotificationChannel().catch(() => {});
+        registerBackgroundRideNotificationTask().catch(() => {});
         try {
           await driverRideMonitor.restoreState();
           const session = await getSession();
