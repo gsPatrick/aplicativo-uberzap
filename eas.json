@@ -9,7 +9,8 @@
         "APP_VARIANT": "passenger"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "credentialsSource": "local"
       }
     },
     "driver": {
@@ -17,7 +18,8 @@
         "APP_VARIANT": "driver"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "credentialsSource": "local"
       }
     },
     "passenger-apk": {

@@ -33,3 +33,9 @@ check_rides.js
 fix_driver.js
 cancel_stuck_rides.php
 limpar_corridas.js
+
+# Chave de upload Android (Play) e credenciais locais — NUNCA versionar
+/credentials.json
+credentials/*.jks
+credentials/*.keystore
+credentials/*.pem
