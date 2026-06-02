@@ -16,6 +16,22 @@ Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const type = notification?.request?.content?.data?.type;
     const foreground = AppState.currentState === 'active';
+    const isRemotePush = notification?.request?.trigger?.type === 'push';
+
+    // Motorista: o push remoto de nova corrida é "simples". Com o app vivo, quem
+    // mostra é a notificação rica do Notifee (full-screen, Aceitar/Recusar), então
+    // suprimimos o banner do push remoto para não duplicar. App morto: este handler
+    // nem roda e o push remoto aparece como fallback.
+    if (isRemotePush && type === 'ride_alert') {
+      return {
+        shouldShowAlert: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
+
     const playSystemSound = foreground ? !IN_APP_SOUND_TYPES.has(type) : true;
     return {
       shouldShowAlert: true,

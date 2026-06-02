@@ -29,6 +29,7 @@ import {
   getInitialRideNotification,
 } from './src/services/rideNotification';
 import { requestDriverPermissionsFlow } from './src/utils/driverPermissions';
+import { recordRemotePush, rideAlertKey, tripStatusKey } from './src/utils/notificationDedup';
 import {
   presentRideRequest,
   processPendingRideActions,
@@ -193,6 +194,16 @@ export default function App() {
       const rideEndedEvent =
         data?.event === 'ride_unavailable' || data?.event === 'passenger_cancelled';
 
+      // Dedup: registra que o push remoto deste evento chegou, para o polling
+      // local não disparar uma 2ª notificação do mesmo evento.
+      const isRemotePush = notification.request.trigger?.type === 'push';
+      if (isRemotePush && data?.rideId && !rideEndedEvent) {
+        if (isRideAlert) recordRemotePush(rideAlertKey(data.rideId));
+        else if (isTripStatus && data?.status != null) {
+          recordRemotePush(tripStatusKey(data.rideId, data.status));
+        }
+      }
+
       if (isRideAlert && rideEndedEvent) {
         await stopRideAlertSound().catch(() => {});
         await cancelRideAlertNotification().catch(() => {});
@@ -200,8 +211,10 @@ export default function App() {
       }
 
       if (isRideAlert) {
-        // Push remoto ou local: busca corrida e salva pendente para ao abrir o app
-        if (data?.rideId && appVariant === 'driver') {
+        // App ABERTO: o modal interno (monitor com polling) cuida do alerta —
+        // não disparar o Notifee aqui para não duplicar. App em 2º plano: busca a
+        // corrida e renderiza a notificação rica.
+        if (data?.rideId && appVariant === 'driver' && AppState.currentState !== 'active') {
           try {
             const session = await getSession();
             if (session?.id) {

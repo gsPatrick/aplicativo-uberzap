@@ -32,6 +32,7 @@ export async function notifyDriverNewRide(rawRide) {
 
   let delivered = false;
 
+  // Notifee é a notificação RICA (full-screen, Aceitar/Recusar) — preferida.
   if (Platform.OS === 'android' && !IS_EXPO_GO) {
     try {
       await showRideRequestNotification(ride);
@@ -41,11 +42,15 @@ export async function notifyDriverNewRide(rawRide) {
     }
   }
 
-  try {
-    await triggerRideAlertNotification(rawRide);
-    delivered = true;
-  } catch (e) {
-    console.warn('[rideBackgroundAlert] Expo:', e?.message);
+  // Expo só como FALLBACK quando o Notifee não está disponível (Expo Go / iOS).
+  // Evita a duplicata Notifee + Expo que aparecia para o mesmo alerta.
+  if (!delivered) {
+    try {
+      await triggerRideAlertNotification(rawRide);
+      delivered = true;
+    } catch (e) {
+      console.warn('[rideBackgroundAlert] Expo:', e?.message);
+    }
   }
 
   try {

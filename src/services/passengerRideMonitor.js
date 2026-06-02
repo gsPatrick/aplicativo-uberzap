@@ -8,6 +8,7 @@ import {
 import { playStatusSoundOnce } from '../utils/statusSound';
 import { wakeScreenForRideAlert } from '../utils/androidOverlay';
 import { stopRideForegroundService } from './rideForegroundService';
+import { recentlyPushed, tripStatusKey } from '../utils/notificationDedup';
 
 const STORAGE_KEY = '@UbeZap:passengerMonitorState';
 const POLL_INTERVAL_MS = 4000;
@@ -212,13 +213,18 @@ class PassengerRideMonitor {
           (prevNotified === null || prevNotified !== status);
 
         if (shouldNotify) {
-          await wakeScreenForRideAlert().catch(() => {});
-          await triggerTripStatusNotification(status, data.motorista, rideId);
+          // Se o push remoto (FCM) deste mesmo status já chegou, ele já mostrou a
+          // notificação e tocou o som — não duplicar pelo caminho local.
+          const remoteAlreadyShown = recentlyPushed(tripStatusKey(rideId, status));
+          if (!remoteAlreadyShown) {
+            await wakeScreenForRideAlert().catch(() => {});
+            await triggerTripStatusNotification(status, data.motorista, rideId);
+            if (fromBackground || appInBackground) {
+              playStatusSoundOnce().catch(() => {});
+            }
+          }
           this.config.lastNotifiedStatus = status;
           await this.persistState();
-          if (fromBackground || appInBackground) {
-            playStatusSoundOnce().catch(() => {});
-          }
         }
 
         if (statusChanged) {
