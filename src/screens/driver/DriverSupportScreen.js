@@ -9,7 +9,7 @@ import { getSession } from '../../utils/session';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: ${colors.background};
 `;
 
 const Header = styled.View`
@@ -18,15 +18,15 @@ const Header = styled.View`
   justify-content: space-between;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
-  background-color: #1a1c1e;
+  background-color: #fff;
   border-bottom-width: 1px;
-  border-bottom-color: rgba(255, 255, 255, 0.05);
+  border-bottom-color: #e2e8f0;
 `;
 
 const HeaderTitle = styled.Text`
   font-size: 20px;
   font-weight: bold;
-  color: #fff;
+  color: ${colors.text};
 `;
 
 const Section = styled.View`
@@ -37,26 +37,28 @@ const Section = styled.View`
 const SectionTitle = styled.Text`
   font-size: 18px;
   font-weight: bold;
-  color: #fff;
+  color: ${colors.text};
   margin-bottom: 15px;
 `;
 
 const MessageCard = styled.View`
-  background-color: #1a1c1e;
+  background-color: #fff;
   padding: 15px;
   border-radius: 15px;
   margin-bottom: 12px;
+  border-width: 1px;
+  border-color: #e2e8f0;
   border-left-width: 4px;
   border-left-color: ${props => props.isUser ? colors.primary : '#3b82f6'};
 `;
 
 const MessageText = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 15px;
 `;
 
 const MessageDate = styled.Text`
-  color: #64748b;
+  color: #94a3b8;
   font-size: 11px;
   margin-top: 5px;
   text-align: right;
@@ -65,14 +67,14 @@ const MessageDate = styled.Text`
 const InputContainer = styled.View`
   padding: 20px;
   padding-bottom: ${Platform.OS === 'ios' ? 40 : 20}px;
-  background-color: #1a1c1e;
+  background-color: #fff;
   border-top-width: 1px;
-  border-top-color: rgba(255, 255, 255, 0.05);
+  border-top-color: #e2e8f0;
 `;
 
 const StyledInput = styled.TextInput`
-  background-color: #0c0d0d;
-  color: #fff;
+  background-color: #f8f9fa;
+  color: ${colors.text};
   padding: 15px;
   border-radius: 15px;
   font-size: 16px;
@@ -154,10 +156,10 @@ const DriverSupportScreen = () => {
 
     return (
         <Container>
-            <StatusBar barStyle="light-content" />
+            <StatusBar barStyle="dark-content" />
             <Header>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Icon name="arrow-back" size={28} color="#fff" />
+                    <Icon name="arrow-back" size={28} color={colors.text} />
                 </TouchableOpacity>
                 <HeaderTitle>Suporte Motorista</HeaderTitle>
                 <TouchableOpacity onPress={loadMessages}>

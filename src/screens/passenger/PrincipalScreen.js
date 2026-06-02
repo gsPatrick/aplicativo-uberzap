@@ -7,6 +7,8 @@ import api from '../../services/api';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSession, clearSession } from '../../utils/session';
+import { ensureNotificationPermissions } from '../../utils/notifications';
+import { ensureOverlayPermission } from '../../utils/androidOverlay';
 
 const { width } = Dimensions.get('window');
 
@@ -297,10 +299,19 @@ const PrincipalScreen = () => {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   /** true quando o hub foi aberto pelo menu com corrida ativa (não redirecionar de volta ao mapa) */
   const [hubOpenRide, setHubOpenRide] = useState(false);
+  const permissionsAskedRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       loadData();
+      if (!permissionsAskedRef.current) {
+        permissionsAskedRef.current = true;
+        (async () => {
+          await ensureNotificationPermissions().catch(() => {});
+          // ensureOverlayPermission tem cooldown interno — não chamar em todo focus
+          await ensureOverlayPermission({ variant: 'passenger' }).catch(() => {});
+        })();
+      }
     }, [])
   );
 
@@ -370,7 +381,20 @@ const PrincipalScreen = () => {
 
       const historyRes = await api.passenger.getHistory(session.telefone, session.senha);
       if (historyRes.data && Array.isArray(historyRes.data)) {
-        setRecentRides(historyRes.data.slice(0, 1));
+        const parsed = historyRes.data.slice(0, 1).map(ride => {
+          const latIni = parseFloat(String(ride.lat_ini).replace(',', '.'));
+          const lngIni = parseFloat(String(ride.lng_ini).replace(',', '.'));
+          const latFim = parseFloat(String(ride.lat_fim).replace(',', '.'));
+          const lngFim = parseFloat(String(ride.lng_fim).replace(',', '.'));
+          return {
+            ...ride,
+            lat_ini: !isNaN(latIni) ? latIni : null,
+            lng_ini: !isNaN(lngIni) ? lngIni : null,
+            lat_fim: !isNaN(latFim) ? latFim : null,
+            lng_fim: !isNaN(lngFim) ? lngFim : null,
+          };
+        });
+        setRecentRides(parsed);
       } else {
         setRecentRides([]);
       }
@@ -570,20 +594,20 @@ const PrincipalScreen = () => {
                       zoomEnabled={false}
                       rotateEnabled={false}
                       initialRegion={{
-                        latitude: ride.lat_ini || -23.5617,
-                        longitude: ride.lng_ini || -46.6623,
+                        latitude: parseFloat(ride.lat_ini) || -23.5617,
+                        longitude: parseFloat(ride.lng_ini) || -46.6623,
                         latitudeDelta: 0.02,
                         longitudeDelta: 0.02,
                       }}
                     >
-                      {ride.lat_ini && (
+                      {ride.lat_ini != null && ride.lng_ini != null && ride.lat_fim != null && ride.lng_fim != null && (
                          <>
-                            <Marker coordinate={{ latitude: ride.lat_ini, longitude: ride.lng_ini }} pinColor="green" />
-                            <Marker coordinate={{ latitude: ride.lat_fim, longitude: ride.lng_fim }} />
+                            <Marker coordinate={{ latitude: parseFloat(ride.lat_ini), longitude: parseFloat(ride.lng_ini) }} pinColor="green" />
+                            <Marker coordinate={{ latitude: parseFloat(ride.lat_fim), longitude: parseFloat(ride.lng_fim) }} />
                             <Polyline 
                               coordinates={[
-                                { latitude: ride.lat_ini, longitude: ride.lng_ini },
-                                { latitude: ride.lat_fim, longitude: ride.lng_fim }
+                                { latitude: parseFloat(ride.lat_ini), longitude: parseFloat(ride.lng_ini) },
+                                { latitude: parseFloat(ride.lat_fim), longitude: parseFloat(ride.lng_fim) }
                               ]}
                               strokeWidth={3}
                               strokeColor={colors.primary}

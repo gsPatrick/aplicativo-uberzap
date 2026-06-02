@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-import { Text, TouchableOpacity, ActivityIndicator, Alert, Platform, Image } from 'react-native';
+import { Text, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styled from 'styled-components/native';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
+import { getStoredPushToken, registerForPushNotificationsAsync } from '../../utils/notifications';
+import { syncPushTokenWithServer } from '../../services/pushSync';
 import api from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import { saveSession } from '../../utils/session';
+import { formatCpf, normalizeCpfForApi, isValidCpfDigits } from '../../utils/inputMasks';
+import DriverLogo from '../../components/DriverLogo';
 
 const Container = styled.KeyboardAvoidingView`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: ${colors.background};
 `;
 
 const Content = styled.ScrollView.attrs({
@@ -21,12 +25,12 @@ const Header = styled.View`
   margin-bottom: ${spacing.xl + spacing.md}px;
 `;
 
-const logoImageStyle = { width: 260, height: 100, marginBottom: spacing.md };
+const logoImageStyle = { marginBottom: spacing.md };
 
 const Title = styled.Text`
   font-size: 30px;
   font-weight: 900;
-  color: #fff;
+  color: ${colors.text};
   text-align: center;
 `;
 
@@ -50,13 +54,13 @@ const Label = styled.Text`
 
 const Input = styled.TextInput`
   height: 56px;
-  background-color: #1a1c1e;
+  background-color: ${colors.surface};
   border-radius: ${borderRadius.md}px;
   padding-horizontal: ${spacing.md}px;
   font-size: 16px;
-  color: #fff;
+  color: ${colors.text};
   border-width: 1px;
-  border-color: #334155;
+  border-color: ${colors.border};
   margin-bottom: ${spacing.md}px;
 `;
 
@@ -102,25 +106,34 @@ const DriverLoginScreen = () => {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!cpf || !senha) {
+    const cpfNorm = normalizeCpfForApi(cpf);
+    if (!cpfNorm || !senha) {
       Alert.alert('Erro', 'Preencha CPF e senha.');
+      return;
+    }
+    if (!isValidCpfDigits(cpfNorm)) {
+      Alert.alert('CPF inválido', 'Informe os 11 dígitos do CPF.');
       return;
     }
 
     setLoading(true);
     try {
-      const id_signal = '';
-      const response = await api.driver.login(cpf, senha, id_signal);
+      let id_signal = (await getStoredPushToken()) || '';
+      if (!id_signal) {
+        id_signal = (await registerForPushNotificationsAsync()) || '';
+      }
+      const response = await api.driver.login(cpfNorm, senha, id_signal);
       if (response.data && response.data.id) {
         const id = response.data.id;
         await AsyncStorage.setItem('driverId', String(id));
         await saveSession({
-          telefone: cpf,
+          telefone: cpfNorm,
           senha,
           id,
           userType: 'driver',
           cidade_id: response.data.cidade_id || 1,
         });
+        await syncPushTokenWithServer().catch(() => {});
         navigation.reset({
           index: 0,
           routes: [{ name: 'DriverHome' }],
@@ -153,13 +166,8 @@ const DriverLoginScreen = () => {
     <Container behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Content showsVerticalScrollIndicator={false}>
         <Header>
-          <Image
-            source={require('../../../assets/images/logomotorista.jpeg')}
-            style={logoImageStyle}
-            resizeMode="contain"
-            accessibilityLabel="UbeZap Motorista"
-          />
-          <Title>UbeZap Driver</Title>
+          <DriverLogo width={280} style={logoImageStyle} />
+          <Title>UbeZap Motorista</Title>
           <Subtitle>Acesse seu painel e fique online</Subtitle>
         </Header>
 
@@ -168,9 +176,10 @@ const DriverLoginScreen = () => {
           <Input
             placeholder="000.000.000-00"
             placeholderTextColor="#64748b"
-            keyboardType="numeric"
+            keyboardType="number-pad"
             value={cpf}
-            onChangeText={setCpf}
+            onChangeText={(text) => setCpf(formatCpf(text))}
+            maxLength={14}
           />
 
           <Label>Senha</Label>

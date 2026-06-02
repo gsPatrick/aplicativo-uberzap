@@ -4,7 +4,7 @@ import styled from 'styled-components/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getSession } from '../../utils/session';
 
 // Fallback para MapView
@@ -19,6 +19,36 @@ try {
   Polyline = Maps.Polyline;
   PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
 } catch (e) {}
+
+const decodePolyline = (t) => {
+    if (!t) return [];
+    let n, o, r = 0, l = 0, a = 0, h = [];
+    const d = t.length;
+    while (r < d) {
+        let i = 0, f = 0;
+        do {
+            n = t.charCodeAt(r++) - 63;
+            f |= (31 & n) << i;
+            i += 5;
+        } while (n >= 32);
+        let p = (1 & f) ? ~(f >> 1) : f >> 1;
+        l += p;
+        i = 0;
+        f = 0;
+        do {
+            o = t.charCodeAt(r++) - 63;
+            f |= (31 & o) << i;
+            i += 5;
+        } while (o >= 32);
+        let g = (1 & f) ? ~(f >> 1) : f >> 1;
+        a += g;
+        h.push({
+            latitude: l / 1e5,
+            longitude: a / 1e5
+        });
+    }
+    return h;
+};
 
 const { width } = Dimensions.get('window');
 
@@ -208,7 +238,7 @@ const RideItem = ({ item, index, onPress, onDriverPress }) => {
           <RideHeader>
             <RideDate>{item.date}</RideDate>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-               {item.status !== 'Cancelado' && (
+               {item.status !== 'Cancelado' && item.status !== 'Cancelada' && (
                  <RatingSmall style={{ marginRight: 10, backgroundColor: '#f8fafc' }}>
                    <Icon name="star" size={14} color="#f59e0b" />
                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#f59e0b', marginLeft: 4 }}>{item.avaliacao || '5'}.0</Text>
@@ -221,11 +251,11 @@ const RideItem = ({ item, index, onPress, onDriverPress }) => {
           </RideHeader>
 
           <AddressRow>
-            <Icon name="circle" size={10} color={item.status === 'Cancelado' ? "#cbd5e0" : "#2ecc71"} />
+            <Icon name="circle" size={10} color={(item.status === 'Cancelado' || item.status === 'Cancelada') ? "#cbd5e0" : "#2ecc71"} />
             <AddressText numberOfLines={1}>{item.endereco_ini || 'Origem não definida'}</AddressText>
           </AddressRow>
           <AddressRow>
-            <Icon name="location-on" size={12} color={item.status === 'Cancelado' ? "#cbd5e0" : "#ef4444"} />
+            <Icon name="location-on" size={12} color={(item.status === 'Cancelado' || item.status === 'Cancelada') ? "#cbd5e0" : "#ef4444"} />
             <AddressText numberOfLines={1}>{item.endereco_fim || 'Destino não definido'}</AddressText>
           </AddressRow>
 
@@ -258,11 +288,7 @@ const HistoryScreen = () => {
   const [rides, setRides] = useState([]);
   const [selectedRide, setSelectedRide] = useState(null);
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
-
-  const loadHistory = async () => {
+  const loadHistory = React.useCallback(async () => {
     setLoading(true);
     try {
       const session = await getSession();
@@ -271,13 +297,37 @@ const HistoryScreen = () => {
         return;
       }
       const response = await api.passenger.getHistory(session.telefone, session.senha);
-      if (response.data) setRides(response.data);
+      if (response.data && Array.isArray(response.data)) {
+        const parsed = response.data.map(ride => {
+          const latIni = parseFloat(String(ride.lat_ini).replace(',', '.'));
+          const lngIni = parseFloat(String(ride.lng_ini).replace(',', '.'));
+          const latFim = parseFloat(String(ride.lat_fim).replace(',', '.'));
+          const lngFim = parseFloat(String(ride.lng_fim).replace(',', '.'));
+          return {
+            ...ride,
+            lat_ini: !isNaN(latIni) ? latIni : null,
+            lng_ini: !isNaN(lngIni) ? lngIni : null,
+            lat_fim: !isNaN(latFim) ? latFim : null,
+            lng_fim: !isNaN(lngFim) ? lngFim : null,
+          };
+        });
+        setRides(parsed);
+      } else {
+        setRides([]);
+      }
     } catch (e) {
       console.error(e);
+      setRides([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigation]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadHistory();
+    }, [loadHistory])
+  );
 
   return (
     <Container>
@@ -305,7 +355,7 @@ const HistoryScreen = () => {
                 })}
             />
         )}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={(item, index) => item?.id ? String(item.id) : String(index)}
         onRefresh={loadHistory}
         refreshing={loading}
         contentContainerStyle={{ paddingVertical: 15 }}
@@ -333,15 +383,17 @@ const HistoryScreen = () => {
                       longitudeDelta: 0.05,
                     }}
                   >
-                    {selectedRide?.lat_ini && (
+                    {selectedRide?.lat_ini != null && selectedRide?.lng_ini != null && selectedRide?.lat_fim != null && selectedRide?.lng_fim != null && (
                         <>
                            <Marker coordinate={{ latitude: selectedRide.lat_ini, longitude: selectedRide.lng_ini }} title="Início" pinColor="green" />
                            <Marker coordinate={{ latitude: selectedRide.lat_fim, longitude: selectedRide.lng_fim }} title="Fim" />
                            <Polyline 
-                             coordinates={[
-                                { latitude: selectedRide.lat_ini, longitude: selectedRide.lng_ini },
-                                { latitude: selectedRide.lat_fim, longitude: selectedRide.lng_fim }
-                             ]}
+                             coordinates={
+                               selectedRide.polyline ? decodePolyline(selectedRide.polyline) : [
+                                 { latitude: selectedRide.lat_ini, longitude: selectedRide.lng_ini },
+                                 { latitude: selectedRide.lat_fim, longitude: selectedRide.lng_fim }
+                               ]
+                             }
                              strokeWidth={3}
                              strokeColor={colors.primary}
                            />

@@ -10,7 +10,7 @@ import { getSession } from '../../utils/session';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: ${colors.background};
 `;
 
 const Header = styled.View`
@@ -19,15 +19,15 @@ const Header = styled.View`
   justify-content: space-between;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
-  background-color: #1a1c1e;
+  background-color: #fff;
   border-bottom-width: 1px;
-  border-bottom-color: rgba(255, 255, 255, 0.05);
+  border-bottom-color: #e2e8f0;
 `;
 
 const HeaderTitle = styled.Text`
   font-size: 20px;
   font-weight: bold;
-  color: #fff;
+  color: ${colors.text};
 `;
 
 const Content = styled.ScrollView`
@@ -44,7 +44,7 @@ const ProfilePhoto = styled.View`
   width: 120px;
   height: 120px;
   border-radius: 60px;
-  background-color: #1a1c1e;
+  background-color: #e2e8f0;
   justify-content: center;
   align-items: center;
   border-width: 2px;
@@ -63,16 +63,16 @@ const EditPhotoBtn = styled.TouchableOpacity`
   justify-content: center;
   align-items: center;
   border-width: 3px;
-  border-color: #0c0d0d;
+  border-color: #fff;
 `;
 
 const Section = styled.View`
   margin-bottom: 30px;
-  background-color: #1a1c1e;
+  background-color: #fff;
   padding: 20px;
   border-radius: 25px;
   border-width: 1px;
-  border-color: rgba(255, 255, 255, 0.05);
+  border-color: #e2e8f0;
 `;
 
 const SectionTitle = styled.Text`
@@ -96,13 +96,13 @@ const Label = styled.Text`
 `;
 
 const StyledInput = styled.TextInput`
-  background-color: #0c0d0d;
-  color: #fff;
+  background-color: #f8f9fa;
+  color: ${colors.text};
   padding: 15px;
   border-radius: 12px;
   font-size: 16px;
   border-width: 1px;
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: #e2e8f0;
 `;
 
 const SaveButton = styled.TouchableOpacity`
@@ -200,10 +200,10 @@ const VehicleProfileScreen = () => {
 
     return (
         <Container>
-            <StatusBar barStyle="light-content" />
+            <StatusBar barStyle="dark-content" />
             <Header>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Icon name="arrow-back" size={28} color="#fff" />
+                    <Icon name="arrow-back" size={28} color={colors.text} />
                 </TouchableOpacity>
                 <HeaderTitle>Meu Perfil e Veículo</HeaderTitle>
                 <View style={{ width: 28 }} />
@@ -216,10 +216,10 @@ const VehicleProfileScreen = () => {
                             <Icon name="person" size={80} color="#64748b" />
                         </ProfilePhoto>
                         <EditPhotoBtn style={{ right: 0, bottom: 5 }}>
-                            <Icon name="photo-camera" size={20} color="#000" />
+                            <Icon name="photo-camera" size={20} color="#fff" />
                         </EditPhotoBtn>
                     </View>
-                    <Text style={{ color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 15 }}>{driverData.nome}</Text>
+                    <Text style={{ color: colors.text, fontSize: 24, fontWeight: 'bold', marginTop: 15 }}>{driverData.nome}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(58, 181, 107, 0.1)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, marginTop: 5 }}>
                         <Icon name="verified" size={14} color={colors.primary} />
                         <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '900', marginLeft: 5 }}>MOTORISTA {driverData.nivel.toUpperCase()}</Text>
@@ -266,26 +266,26 @@ const VehicleProfileScreen = () => {
                     </View>
 
                     <View style={{ marginTop: 20, marginBottom: 15 }}>
-                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>Fotos do Veículo</Text>
+                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>Fotos do Veículo</Text>
                         <Text style={{ color: '#64748b', fontSize: 12 }}>Essas fotos serão visíveis para os passageiros.</Text>
                     </View>
 
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <TouchableOpacity style={{ width: '48%' }} onPress={() => pickImage('img_frente')}>
                             <Label>VISTA FRONTAL</Label>
-                            <View style={{ height: 110, backgroundColor: '#0c0d0d', borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(255,255,255,0.05)' }}>
+                            <View style={{ height: 110, backgroundColor: '#f8f9fa', borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0' }}>
                                 <Image source={{ uri: driverData.img_frente }} style={{ flex: 1 }} resizeMode="cover" />
                                 <View style={{ position: 'absolute', bottom: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', elevation: 5 }}>
-                                    <Icon name="photo-camera" size={16} color="#000" />
+                                    <Icon name="photo-camera" size={16} color="#fff" />
                                 </View>
                             </View>
                         </TouchableOpacity>
                         <TouchableOpacity style={{ width: '48%' }} onPress={() => pickImage('img_lateral')}>
                             <Label>VISTA LATERAL</Label>
-                            <View style={{ height: 110, backgroundColor: '#0c0d0d', borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(255,255,255,0.05)' }}>
+                            <View style={{ height: 110, backgroundColor: '#f8f9fa', borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0' }}>
                                 <Image source={{ uri: driverData.img_lateral }} style={{ flex: 1 }} resizeMode="cover" />
                                 <View style={{ position: 'absolute', bottom: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', elevation: 5 }}>
-                                    <Icon name="photo-camera" size={16} color="#000" />
+                                    <Icon name="photo-camera" size={16} color="#fff" />
                                 </View>
                             </View>
                         </TouchableOpacity>
@@ -293,19 +293,19 @@ const VehicleProfileScreen = () => {
 
                     <TouchableOpacity style={{ marginTop: 25 }} onPress={() => pickImage('img_documento')}>
                         <Label>DOCUMENTO CRLV (CAPTURAR)</Label>
-                        <View style={{ height: 140, backgroundColor: '#0c0d0d', borderRadius: 20, overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(255,255,255,0.05)', justifyContent: 'center' }}>
+                        <View style={{ height: 140, backgroundColor: '#f8f9fa', borderRadius: 20, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0', justifyContent: 'center' }}>
                             <Image source={{ uri: driverData.img_documento }} style={{ flex: 1, opacity: 0.4 }} resizeMode="cover" />
                             <View style={{ position: 'absolute', alignSelf: 'center', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 15, flexDirection: 'row', alignItems: 'center' }}>
-                                <Icon name="document-scanner" size={22} color="#000" style={{ marginRight: 10 }} />
-                                <Text style={{ color: '#000', fontWeight: '900', fontSize: 13 }}>ATUALIZAR DOCUMENTO</Text>
+                                <Icon name="document-scanner" size={22} color="#fff" style={{ marginRight: 10 }} />
+                                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>ATUALIZAR DOCUMENTO</Text>
                             </View>
                         </View>
                     </TouchableOpacity>
                 </Section>
 
                 <SaveButton activeOpacity={0.8} onPress={handleSave} disabled={isSaving}>
-                    {isSaving ? <ActivityIndicator color="#000" /> : (
-                        <Text style={{ color: '#000', fontSize: 18, fontWeight: '900', letterSpacing: 1 }}>SALVAR ALTERAÇÕES</Text>
+                    {isSaving ? <ActivityIndicator color="#fff" /> : (
+                        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 1 }}>SALVAR ALTERAÇÕES</Text>
                     )}
                 </SaveButton>
             </Content>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StatusBar, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Platform, ImageBackground, Animated, Image, StyleSheet, LayoutAnimation, UIManager, Dimensions, AppState } from 'react-native';
-import { Audio } from 'expo-av';
 import * as Location from 'expo-location';
 import styled from 'styled-components/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
@@ -8,6 +7,26 @@ import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { getSession, clearSession } from '../../utils/session';
+import { triggerLocalNotification, TRIP_STATUS_CHANNEL_ID, ensureNotificationPermissions } from '../../utils/notifications';
+import { ensureOverlayPermission, wakeScreenForRideAlert } from '../../utils/androidOverlay';
+import {
+  reverseGeocodeLocation,
+  searchAddressesNearUser,
+  resolvePickupAddressForRide,
+  isPickupPlaceholder,
+  formatCoordsFallback,
+  DEFAULT_SEARCH_RADIUS_METERS,
+} from '../../utils/geocoding';
+import passengerRideMonitor from '../../services/passengerRideMonitor';
+import { startRideForegroundService, stopRideForegroundService } from '../../services/rideForegroundService';
+import { getFreshPassengerLocation, safeRemoveLocationSubscription } from '../../utils/locationSubscription';
+import { playStatusSoundOnce, stopStatusSound } from '../../utils/statusSound';
+import {
+  extractPendingRating,
+  isRatingSkipped,
+  markRatingSkipped,
+  clearRatingSkipped,
+} from '../../utils/ratingPrompt';
 
 const parseMoneyToApi = (val) => {
   if (val == null || val === '') return '';
@@ -16,10 +35,26 @@ const parseMoneyToApi = (val) => {
   return Number.isFinite(n) ? n.toFixed(2) : String(val).replace(',', '.');
 };
 
+const coordsChanged = (a, b, epsilon = 0.00015) => {
+  if (!a || !b) return true;
+  return (
+    Math.abs(a.latitude - b.latitude) > epsilon ||
+    Math.abs(a.longitude - b.longitude) > epsilon
+  );
+};
+
 const { width } = Dimensions.get('window');
 
 /** Centro padrão (SP) — usado se GPS falhar ou permissão for negada */
 const DEFAULT_PICKUP_COORDS = { latitude: -23.5617, longitude: -46.6623 };
+
+// Função de segurança robusta para evitar rotas SP-MT por tolerância de floats do GPS
+const isSameAsDefault = (coords, def) => {
+  if (!coords || !def) return false;
+  return Math.abs(coords.latitude - def.latitude) < 0.001 &&
+         Math.abs(coords.longitude - def.longitude) < 0.001;
+};
+
 /** Nominatim exige User-Agent identificável (política de uso). */
 const NOMINATIM_USER_AGENT = 'UbeZapPassenger/1.0 (contato: suporte@ubezap.com)';
 
@@ -81,8 +116,6 @@ try {
 } catch (e) {
   console.warn("Maps not available, using fallback");
 }
-
-const AnimatedMarker = Animated.createAnimatedComponent(Marker);
 
 const Container = styled.View`
   flex: 1;
@@ -464,6 +497,20 @@ const HomeScreen = () => {
   const [isSelectingPayment, setIsSelectingPayment] = useState(false);
   const [isSearchingDriver, setIsSearchingDriver] = useState(false);
   const [driverDetails, setDriverDetails] = useState(null);
+  const driverDetailsRef = useRef(null);
+
+  const updateDriverDetails = (value) => {
+    if (typeof value === 'function') {
+      setDriverDetails((prev) => {
+        const next = value(prev);
+        driverDetailsRef.current = next;
+        return next;
+      });
+    } else {
+      setDriverDetails(value);
+      driverDetailsRef.current = value;
+    }
+  };
   const [loading, setLoading] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -471,43 +518,65 @@ const HomeScreen = () => {
 
   const [showRating, setShowRating] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [finalPrice, setFinalPrice] = useState('0,00');
   const [ratingValue, setRatingValue] = useState(5);
   const [ratingComment, setRatingComment] = useState('');
   const mapRef = useRef(null);
   const [banners, setBanners] = useState([]);
   const [cityData, setCityData] = useState(null);
+  const [currentLocationLabel, setCurrentLocationLabel] = useState('');
   const [user, setUser] = useState({ id: 0, nome: 'Passageiro', cidade_id: 1 });
-  const appState = useRef(AppState.currentState);
+  const overlayAskedRef = useRef(false);
+  const notificationsAskedRef = useRef(false);
 
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const carouselAnim = useRef(new Animated.Value(0)).current;
-  const driverMarkerAnim = useRef(new Animated.Value(0)).current; // 0 a 1 para animação de movimento
   const sensorAnim = useRef(new Animated.Value(1)).current; // Sensor de pulso para carros próximos
-  const [animCoords, setAnimCoords] = useState({
-    startLat: -23.5577,
-    startLng: -46.6583,
-    endLat: -23.5617,
-    endLng: -46.6623
-  });
 
-  const playStatusSound = async () => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../../assets/sounds/toque_status.mp3')
-      );
-      await sound.playAsync();
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.didJustFinish) sound.unloadAsync();
-      });
-    } catch (error) {
-      console.log('Error playing sound:', error);
-    }
+  const playStatusSound = () => {
+    playStatusSoundOnce();
   };
 
-  // Efeito para carregar motoristas ao redor periodicamente (estilo Monolito)
+  const notifyStatusChange = (title, body) => {
+    if (AppState.currentState === 'active') {
+      playStatusSound();
+    } else {
+      wakeScreenForRideAlert().catch(() => {});
+    }
+    triggerLocalNotification(title, body, { type: 'trip_status' }, TRIP_STATUS_CHANNEL_ID);
+  };
+
+  const ensurePassengerAlertPermissions = useCallback(async () => {
+    if (!notificationsAskedRef.current) {
+      notificationsAskedRef.current = true;
+      await ensureNotificationPermissions().catch(() => {});
+    }
+    if (Platform.OS === 'android') {
+      const { status: fg } = await Location.requestForegroundPermissionsAsync();
+      if (fg === 'granted') {
+        await Location.requestBackgroundPermissionsAsync().catch(() => {});
+      }
+    }
+    if (!overlayAskedRef.current) {
+      overlayAskedRef.current = true;
+      await ensureOverlayPermission({ variant: 'passenger' }).catch(() => {});
+    }
+  }, []);
+  const searchPulseLoopRef = useRef(null);
+  const searchCarouselLoopRef = useRef(null);
+  const sensorLoopRef = useRef(null);
+
+  // Motoristas próximos só na tela inicial (não durante busca/corrida — evita travamento)
   useEffect(() => {
     let interval;
-    if (user?.telefone && !driverDetails) {
+    const canShowNearby =
+      user?.telefone &&
+      !driverDetails &&
+      !isSearchingDriver &&
+      !isSelecting &&
+      !isChoosingDestination;
+
+    if (canShowNearby) {
       const fetchDrivers = async () => {
         try {
           const response = await api.passenger.getAllDrivers(user.telefone, user.senha);
@@ -520,22 +589,26 @@ const HomeScreen = () => {
       };
 
       fetchDrivers();
-      const ms = isSearchingDriver ? 5000 : 10000;
-      interval = setInterval(fetchDrivers, ms);
+      interval = setInterval(fetchDrivers, 15000);
     } else {
       setNearbyDrivers([]);
     }
     return () => interval && clearInterval(interval);
-  }, [user.telefone, user.senha, isSearchingDriver, driverDetails]);
+  }, [user.telefone, user.senha, isSearchingDriver, driverDetails, isSelecting, isChoosingDestination]);
 
   useEffect(() => {
-    // Carregar dados iniciais
+    rideActiveRef.current = isSearchingDriver || Boolean(driverDetails);
+  }, [isSearchingDriver, driverDetails]);
+
+  useEffect(() => {
+    if (initialDataLoadedRef.current) return;
+    initialDataLoadedRef.current = true;
+
     const fetchData = async () => {
       try {
         const session = await getSession();
         if (!session) return;
 
-        // Perfil e Cidade
         const profileRes = await api.passenger.getProfile(session.telefone, session.senha);
         if (profileRes.data && profileRes.data.status === 'sucesso') {
           const userData = {
@@ -545,11 +618,9 @@ const HomeScreen = () => {
           };
           setUser(userData);
 
-          // Agora busca os dados da cidade correta
           const cityRes = await api.passenger.getCityData(userData.cidade_id);
           setCityData(cityRes.data);
 
-          // Busca banners da cidade
           const bannersRes = await api.passenger.getBanners(userData.cidade_id);
           if (Array.isArray(bannersRes.data)) {
             setBanners(bannersRes.data);
@@ -561,48 +632,17 @@ const HomeScreen = () => {
     };
 
     fetchData();
+    ensurePassengerAlertPermissions();
+  }, [ensurePassengerAlertPermissions]);
 
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      appState.current = nextAppState;
-    });
-
-    return () => {
-      subscription.remove();
-    }
-  }, [user.cidade_id, user.id]);
-
-  useEffect(() => {
-    if (driverDetails && pickupCoords) {
-      driverMarkerAnim.setValue(0);
-      
-      if (driverDetails.status === 1) {
-        setAnimCoords({
-          startLat: driverDetails.coords.latitude,
-          startLng: driverDetails.coords.longitude,
-          endLat: pickupCoords.latitude,
-          endLng: pickupCoords.longitude
-        });
-      } else if (driverDetails.status === 2) {
-        const end = destCoords || pickupCoords;
-        setAnimCoords({
-          startLat: pickupCoords.latitude,
-          startLng: pickupCoords.longitude,
-          endLat: end.latitude,
-          endLng: end.longitude
-        });
-      }
-
-      Animated.timing(driverMarkerAnim, {
-        toValue: 1,
-        duration: 12000, // 12 segundos para a simulação de movimento
-        useNativeDriver: false
-      }).start();
-    }
-  }, [driverDetails?.status, pickupCoords, destCoords]);
+  // Permissões só na montagem — useFocusEffect removido para não repetir overlay
 
   useEffect(() => {
     if (isSearchingDriver) {
-      Animated.loop(
+      searchPulseLoopRef.current?.stop();
+      searchCarouselLoopRef.current?.stop();
+
+      searchPulseLoopRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1,
@@ -615,31 +655,49 @@ const HomeScreen = () => {
             useNativeDriver: true,
           })
         ])
-      ).start();
+      );
+      searchPulseLoopRef.current.start();
 
-      Animated.loop(
+      searchCarouselLoopRef.current = Animated.loop(
         Animated.timing(carouselAnim, {
           toValue: 2,
           duration: 4000,
           useNativeDriver: true,
         })
-      ).start();
+      );
+      searchCarouselLoopRef.current.start();
     } else {
+      searchPulseLoopRef.current?.stop();
+      searchCarouselLoopRef.current?.stop();
       pulseAnim.stopAnimation();
       carouselAnim.stopAnimation();
     }
+
+    return () => {
+      searchPulseLoopRef.current?.stop();
+      searchCarouselLoopRef.current?.stop();
+    };
   }, [isSearchingDriver]);
 
   useEffect(() => {
-    // Animação contínua do sensor (Ping... Ping... realístico)
-    Animated.loop(
+    sensorLoopRef.current?.stop();
+    if (isSearchingDriver) {
+      return () => sensorLoopRef.current?.stop();
+    }
+
+    sensorLoopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(sensorAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
         Animated.timing(sensorAnim, { toValue: 0.3, duration: 300, useNativeDriver: true }),
         Animated.delay(1200),
       ])
-    ).start();
-  }, []);
+    );
+    sensorLoopRef.current.start();
+
+    return () => {
+      sensorLoopRef.current?.stop();
+    };
+  }, [isSearchingDriver]);
 
   const pulseScale = pulseAnim.interpolate({
     inputRange: [0, 1],
@@ -698,6 +756,10 @@ const HomeScreen = () => {
   const [destCoords, setDestCoords] = useState(null);
   const [rideDetails, setRideDetails] = useState({ distance: 0, time: 0, arrivalTime: 0 });
   const [routePoints, setRoutePoints] = useState([]);
+  const [stop, setStop] = useState('');
+  const [stopCoords, setStopCoords] = useState(null);
+  const [isAddingStop, setIsAddingStop] = useState(false);
+  const [activeSearchInput, setActiveSearchInput] = useState('destination'); // 'destination' or 'stop'
 
   /** Busca de destino (equivalente ao Google Places Autocomplete do web monólito) */
   const [destSearchText, setDestSearchText] = useState('');
@@ -715,7 +777,29 @@ const HomeScreen = () => {
 
   const [rideId, setRideId] = useState(null);
   const [recentLocations, setRecentLocations] = useState([]);
-  const pollingInterval = useRef(null);
+  const rideIdRef = useRef(null);
+  const pickupCoordsRef = useRef(null);
+  const pickupRef = useRef('Obtendo localização...');
+  const destCoordsRef = useRef(null);
+  const rideFinishedHandledRef = useRef(false);
+  const ratingSubmittingRef = useRef(false);
+  /** Evita reabrir corrida após cancelamento local enquanto API confirma (ou falha) */
+  const userCancelledLocallyRef = useRef(false);
+  const cancelGuardTimerRef = useRef(null);
+  const rideActiveRef = useRef(false);
+  const initialDataLoadedRef = useRef(false);
+
+  useEffect(() => {
+    pickupCoordsRef.current = pickupCoords;
+  }, [pickupCoords]);
+
+  useEffect(() => {
+    pickupRef.current = pickup;
+  }, [pickup]);
+
+  useEffect(() => {
+    destCoordsRef.current = destCoords;
+  }, [destCoords]);
 
   useEffect(() => {
     const fetchRecent = async () => {
@@ -746,28 +830,49 @@ const HomeScreen = () => {
     fetchRecent();
   }, []);
 
-  /** GPS + endereço de embarque (obrigatório para calcular custos / categorias como no monólito) */
+  /** GPS + endereço de embarque + label de localização atual no header */
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          if (!cancelled) {
-            setPickupCoords(DEFAULT_PICKUP_COORDS);
-            setPickup('Ative a localização para um embarque mais preciso.');
-          }
-          return;
-        }
-        const pos = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        if (cancelled) return;
-        const coords = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        };
-        setPickupCoords(coords);
+    let locationWatcher = null;
+    let geocodeRetryTimer = null;
+
+    const resolveAddressForCoords = async (coords, attempt = 0) => {
+      const { label, displayName } = await reverseGeocodeLocation(
+        coords.latitude,
+        coords.longitude,
+        { timeoutMs: attempt === 0 ? 10000 : 15000 }
+      );
+      if (cancelled) return;
+
+      const coordsLabel = formatCoordsFallback(coords.latitude, coords.longitude);
+      const resolvedLabel = label || (displayName ? displayName.split(',')[0].trim() : '') || coordsLabel;
+      const resolvedPickup = displayName || label || (coordsLabel ? `Embarque (${coordsLabel})` : 'Obtendo localização...');
+
+      setCurrentLocationLabel(resolvedLabel);
+      setPickup(resolvedPickup);
+
+      if (isPickupPlaceholder(resolvedPickup) && attempt < 2) {
+        geocodeRetryTimer = setTimeout(() => {
+          resolveAddressForCoords(coords, attempt + 1);
+        }, 2500 * (attempt + 1));
+      }
+    };
+
+    const applyCoords = async (coords, { updatePickupAddress = true } = {}) => {
+      if (cancelled) return;
+      if (!coordsChanged(pickupCoordsRef.current, coords)) return;
+
+      setPickupCoords(coords);
+
+      if (!updatePickupAddress) {
+        return;
+      }
+
+      const skipPickupOverwrite =
+        rideActiveRef.current ||
+        (!isPickupPlaceholder(pickupRef.current));
+
+      if (skipPickupOverwrite) {
         if (mapRef.current) {
           mapRef.current.animateToRegion({
             ...coords,
@@ -775,33 +880,102 @@ const HomeScreen = () => {
             longitudeDelta: 0.02,
           }, 1000);
         }
-        setPickup('Carregando endereço...');
-        try {
-          const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}`;
-          const res = await fetch(url, { headers: { 'User-Agent': NOMINATIM_USER_AGENT } });
-          const j = await res.json();
-          if (!cancelled && j?.display_name) {
-            setPickup(j.display_name);
-          } else if (!cancelled) {
-            setPickup('Localização atual');
-          }
-        } catch {
-          if (!cancelled) setPickup('Localização atual');
+        return;
+      }
+
+      if (mapRef.current) {
+        mapRef.current.animateToRegion({
+          ...coords,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        }, 1000);
+      }
+
+      if (geocodeRetryTimer) {
+        clearTimeout(geocodeRetryTimer);
+        geocodeRetryTimer = null;
+      }
+
+      setPickup('Carregando endereço...');
+      setCurrentLocationLabel('...');
+
+      try {
+        await resolveAddressForCoords(coords);
+      } catch (e) {
+        console.warn('Geocode embarque:', e);
+        if (!cancelled) {
+          const coordsLabel = formatCoordsFallback(coords.latitude, coords.longitude);
+          setCurrentLocationLabel(coordsLabel || 'GPS ativo');
+          setPickup(coordsLabel ? `Embarque (${coordsLabel})` : 'Obtendo localização...');
         }
+      }
+    };
+
+    (async () => {
+      try {
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (!servicesEnabled) {
+          if (!cancelled) {
+            setPickupCoords(DEFAULT_PICKUP_COORDS);
+            setPickup('Ative o GPS do aparelho para localização precisa.');
+            setCurrentLocationLabel('');
+          }
+          return;
+        }
+
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (!cancelled) {
+            setPickupCoords(DEFAULT_PICKUP_COORDS);
+            setPickup('Ative a localização para um embarque mais preciso.');
+            setCurrentLocationLabel('');
+          }
+          return;
+        }
+
+        const pos = await getFreshPassengerLocation();
+        if (cancelled) return;
+
+        await applyCoords({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+
+        locationWatcher = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            distanceInterval: 40,
+            timeInterval: 20000,
+          },
+          (update) => {
+            if (rideActiveRef.current) return;
+            applyCoords(
+              {
+                latitude: update.coords.latitude,
+                longitude: update.coords.longitude,
+              },
+              { updatePickupAddress: isPickupPlaceholder(pickupRef.current) }
+            );
+          }
+        );
       } catch (e) {
         console.warn('GPS passageiro:', e);
         if (!cancelled) {
           setPickupCoords(DEFAULT_PICKUP_COORDS);
           setPickup('Não foi possível obter o GPS. Usando região padrão.');
+          setCurrentLocationLabel('');
         }
       }
     })();
+
     return () => {
       cancelled = true;
+      if (geocodeRetryTimer) clearTimeout(geocodeRetryTimer);
+      safeRemoveLocationSubscription(locationWatcher);
     };
   }, []);
 
-  /** Autocomplete de endereço ao digitar (Nominatim; web monólito usava Google Places) */
+  /** Autocomplete de endereço — Google Places (bias local) + fallback Mapbox/Nominatim */
   useEffect(() => {
     if (!isChoosingDestination) return;
     if (destSearchDebounceRef.current) {
@@ -816,18 +990,14 @@ const HomeScreen = () => {
     destSearchDebounceRef.current = setTimeout(async () => {
       setDestSearchLoading(true);
       try {
-        let list = [];
-        try {
-          const r = await api.passenger.searchAddresses(
-            q,
-            pickupCoords?.latitude,
-            pickupCoords?.longitude
-          );
-          const raw = r?.data;
-          list = Array.isArray(raw) ? raw : [];
-        } catch (e) {
-          console.warn('app/busca_endereco.php (faça deploy do PHP ou use fallback):', e?.message || e);
-        }
+        let list = await searchAddressesNearUser(
+          q,
+          pickupCoords?.latitude,
+          pickupCoords?.longitude,
+          (query, lat, lng, radius) => api.passenger.searchAddresses(query, lat, lng, radius),
+          DEFAULT_SEARCH_RADIUS_METERS
+        );
+
         if (list.length === 0) {
           list = await nominatimSearchQuery(q, pickupCoords, { useViewbox: false, bounded: false });
         }
@@ -850,164 +1020,410 @@ const HomeScreen = () => {
     };
   }, [destSearchText, isChoosingDestination, pickupCoords]);
 
-  const startPolling = (id) => {
-    if (pollingInterval.current) clearInterval(pollingInterval.current);
-    
-    let mockStep = 0;
+  const fitMapToRide = useCallback((motoristaCoords) => {
+    if (!mapRef.current) return;
+    const points = [];
+    const pickup = pickupCoordsRef.current;
+    if (pickup) points.push(pickup);
+    if (motoristaCoords?.latitude != null && motoristaCoords?.longitude != null) {
+      points.push({
+        latitude: parseFloat(motoristaCoords.latitude),
+        longitude: parseFloat(motoristaCoords.longitude),
+      });
+    }
+    const dest = destCoordsRef.current;
+    if (dest) points.push(dest);
+    if (points.length === 0) return;
+    mapRef.current.fitToCoordinates(points, {
+      edgePadding: { top: 120, right: 50, bottom: 420, left: 50 },
+      animated: true,
+    });
+  }, []);
 
-    const processStatus = (status, motorista) => {
-      // Se status for 1 (Aceito)
-      if (status == 1 && motorista) {
-        if (!driverDetails || driverDetails.status !== 1) {
-          playStatusSound();
-          setDriverDetails({
-            id: motorista.id,
-            nome: motorista.nome,
-            veiculo: motorista.veiculo,
-            placa: motorista.placa,
-            foto: motorista.foto,
-            rating: motorista.rating,
-            coords: {
-              latitude: parseFloat(motorista.latitude),
-              longitude: parseFloat(motorista.longitude)
-            },
-            tempo: motorista.tempo_chegada,
-            status: 1
-          });
-          setIsSearchingDriver(false);
-        }
-      }
-      
-      if (status == 2 && driverDetails?.status !== 2) {
-         playStatusSound();
-         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-         setDriverDetails(prev => ({ ...prev, status: 2, tempo: 'Aguardando passageiro no local' }));
-      }
-
-      if (status == 3 && driverDetails?.status !== 3) {
-         playStatusSound();
-         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-         setDriverDetails(prev => ({ ...prev, status: 3, tempo: 'Em viagem ao destino' }));
-      }
-
-      if (status == 4) {
-        stopPolling();
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setDriverDetails(null);
-        setIsSearchingDriver(false);
-        setShowSummary(true);
-      }
-
-      if (status == 5) {
-        stopPolling();
-        Alert.alert('Cancelada', 'A corrida foi cancelada.');
-        toggleSelection();
-      }
+  const buildDriverDetails = useCallback((motorista, status) => {
+    const pickup = pickupCoordsRef.current;
+    return {
+      id: motorista.id,
+      nome: motorista.nome,
+      veiculo: motorista.veiculo,
+      placa: motorista.placa,
+      foto: motorista.foto,
+      rating: motorista.rating,
+      coords: {
+        latitude: parseFloat(motorista.latitude) || pickup?.latitude || -23.55,
+        longitude: parseFloat(motorista.longitude) || pickup?.longitude || -46.63,
+      },
+      tempo: motorista.tempo_chegada || 'Calculando...',
+      status,
     };
+  }, []);
 
-    pollingInterval.current = setInterval(async () => {
-      try {
-        const session = await getSession();
-        if (!session) {
-          stopPolling();
-          return;
-        }
+  const clearLocalCancelGuardRef = useRef(() => {});
 
-        if (api.isMockEnabled()) {
-           mockStep++;
-           let simStatus = 1;
-           if (mockStep > 6) simStatus = 3;
-           else if (mockStep > 3) simStatus = 2;
-           processStatus(simStatus, api.getMockStatus().motorista);
-        } else {
-           const response = await api.passenger.getStatus(session.telefone, session.senha, id);
-           if (response.data) {
-             processStatus(response.data.status, response.data.motorista);
-           }
-        }
-      } catch (e) {
-        console.error('Polling error:', e.message);
-        // Se a sessão expirou no backend, paramos o polling e avisamos o usuário
-        if (e.message.includes('Sessão expirada')) {
-          stopPolling();
-          Alert.alert('Sessão Expirada', 'Por favor, faça login novamente.');
-          navigation.navigate('PassengerLogin');
+  const applyRideStatusUpdate = useCallback((rawStatus, motorista, taxa, rideData = {}, { notify = true } = {}) => {
+    const status = Number(rawStatus);
+    if (!Number.isFinite(status)) return;
+
+    // Finalização/cancelamento pelo motorista sempre entra — mesmo após saída otimista da tela
+    if (status === 4 || status === 5) {
+      userCancelledLocallyRef.current = false;
+      clearLocalCancelGuardRef.current();
+      rideFinishedHandledRef.current = false;
+    } else if (userCancelledLocallyRef.current) {
+      return;
+    }
+
+    if (rideData?.lat_ini != null && rideData?.lng_ini != null) {
+      const latIni = parseFloat(String(rideData.lat_ini).replace(',', '.'));
+      const lngIni = parseFloat(String(rideData.lng_ini).replace(',', '.'));
+      if (!isNaN(latIni) && !isNaN(lngIni)) {
+        const nextPickup = { latitude: latIni, longitude: lngIni };
+        if (coordsChanged(pickupCoordsRef.current, nextPickup)) {
+          setPickupCoords(nextPickup);
         }
       }
-    }, 5000);
+    }
+    if (rideData?.lat_fim != null && rideData?.lng_fim != null) {
+      const latFim = parseFloat(String(rideData.lat_fim).replace(',', '.'));
+      const lngFim = parseFloat(String(rideData.lng_fim).replace(',', '.'));
+      if (!isNaN(latFim) && !isNaN(lngFim)) {
+        const nextDest = { latitude: latFim, longitude: lngFim };
+        if (coordsChanged(destCoordsRef.current, nextDest)) {
+          setDestCoords(nextDest);
+        }
+      }
+    }
+
+    const prevStatus = driverDetailsRef.current != null
+      ? Number(driverDetailsRef.current.status)
+      : null;
+
+    if (status === 0) {
+      setIsSelecting(false);
+      setIsSearchingDriver(true);
+      return;
+    }
+
+    if (status >= 1 && status <= 3) {
+      setIsSelecting(false);
+      setIsSearchingDriver(false);
+
+      if (motorista) {
+        const next = buildDriverDetails(motorista, status);
+        if (status === 2) next.tempo = 'Aguardando passageiro no local';
+        if (status === 3) next.tempo = 'Em viagem ao destino';
+
+        updateDriverDetails((prev) => {
+          if (!prev || prevStatus !== status) return next;
+          if (!coordsChanged(prev.coords, next.coords)) return prev;
+          return { ...prev, ...next, status };
+        });
+
+        if (prevStatus !== status || !driverDetailsRef.current) {
+          fitMapToRide(next.coords);
+        }
+
+        if (notify && prevStatus !== status) {
+          if (status === 1) {
+            notifyStatusChange(
+              'Motorista a caminho!',
+              `O motorista ${motorista.nome} aceitou sua corrida no veículo ${motorista.veiculo} (${motorista.placa}).`
+            );
+          } else if (status === 2) {
+            notifyStatusChange(
+              'Motorista no local!',
+              'Seu motorista chegou ao local de embarque e está lhe aguardando.'
+            );
+          } else if (status === 3) {
+            notifyStatusChange(
+              'Corrida iniciada!',
+              'Boa viagem! Você está a caminho do seu destino.'
+            );
+          }
+        }
+      } else if (prevStatus !== status) {
+        updateDriverDetails((prev) => (prev ? { ...prev, status } : { status }));
+      }
+      return;
+    }
+
+    if (status === 4) {
+      if (rideFinishedHandledRef.current) {
+        stopPolling();
+        return;
+      }
+      if (rideData?.id) {
+        setRideId(rideData.id);
+        rideIdRef.current = String(rideData.id);
+      }
+      rideFinishedHandledRef.current = true;
+      stopPolling();
+      if (notify) {
+        notifyStatusChange(
+          'Corrida finalizada!',
+          'Sua viagem foi encerrada com sucesso. Obrigado por viajar com a UbeZap!'
+        );
+      }
+
+      if (motorista) {
+        updateDriverDetails({
+          id: motorista.id,
+          nome: motorista.nome,
+          veiculo: motorista.veiculo,
+          placa: motorista.placa,
+          foto: motorista.foto,
+          rating: motorista.rating,
+          status: 4,
+        });
+      } else if (driverDetailsRef.current) {
+        updateDriverDetails((prev) => (prev ? { ...prev, status: 4 } : null));
+      }
+
+      if (taxa != null) {
+        setFinalPrice(String(taxa).replace('.', ','));
+      } else if (selectedCat) {
+        const cat = categories.find((c) => c.id === selectedCat);
+        const price = cat?.taxa || cat?.valor || '0,00';
+        setFinalPrice(String(price || '0,00').replace('.', ','));
+      }
+
+      setIsSearchingDriver(false);
+      setShowSummary(true);
+      return;
+    }
+
+    if (status === 5) {
+      if (rideFinishedHandledRef.current) {
+        stopPolling();
+        return;
+      }
+      rideFinishedHandledRef.current = true;
+      stopPolling();
+      if (notify) {
+        Alert.alert('Cancelada', 'A corrida foi cancelada.');
+      }
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      ratingSubmittingRef.current = false;
+      setShowSummary(false);
+      setShowRating(false);
+      setRideId(null);
+      setIsSelecting(false);
+      setIsSelectingPayment(false);
+      setIsSearchingDriver(false);
+      updateDriverDetails(null);
+      setDestination('');
+      setDestCoords(null);
+      setIsNoDestination(false);
+      setRoutePoints([]);
+      setRideDetails({ distance: 0, time: 0, arrivalTime: 0 });
+      return;
+    }
+  }, [buildDriverDetails, categories, fitMapToRide, selectedCat]);
+
+  useEffect(() => {
+    const unsub = passengerRideMonitor.subscribe((event, payload) => {
+      if (event !== 'statusUpdate' || !payload) return;
+      applyRideStatusUpdate(payload.status, payload.motorista, payload.taxa, payload, { notify: true });
+    });
+    return unsub;
+  }, [applyRideStatusUpdate]);
+
+  const startPolling = (id, { resume = false } = {}) => {
+    if (!id) return;
+
+    rideIdRef.current = id;
+    setRideId(id);
+
+    if (!resume) {
+      rideFinishedHandledRef.current = false;
+      ratingSubmittingRef.current = false;
+    }
+
+    passengerRideMonitor.start(id, { reset: !resume }).catch((e) => console.warn('passengerRideMonitor:', e));
+
+    ensureNotificationPermissions().catch(() => {});
+    startRideForegroundService({
+      title: 'UbeZap — Corrida ativa',
+      body: 'Você receberá avisos sobre motorista e status da viagem',
+      timeInterval: 12000,
+      distanceInterval: 40,
+    }).catch((e) => console.warn('Passenger FG service:', e));
   };
+
+  const armLocalCancelGuard = useCallback((durationMs = 90000) => {
+    userCancelledLocallyRef.current = true;
+    if (cancelGuardTimerRef.current) clearTimeout(cancelGuardTimerRef.current);
+    cancelGuardTimerRef.current = setTimeout(() => {
+      userCancelledLocallyRef.current = false;
+      cancelGuardTimerRef.current = null;
+    }, durationMs);
+  }, []);
+
+  const clearLocalCancelGuard = useCallback(() => {
+    userCancelledLocallyRef.current = false;
+    if (cancelGuardTimerRef.current) {
+      clearTimeout(cancelGuardTimerRef.current);
+      cancelGuardTimerRef.current = null;
+    }
+  }, []);
+
+  clearLocalCancelGuardRef.current = clearLocalCancelGuard;
+
+  const resetRideUi = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowSummary(false);
+    setShowRating(false);
+    setIsSelecting(false);
+    setIsSelectingPayment(false);
+    setIsSearchingDriver(false);
+    updateDriverDetails(null);
+    setDestination('');
+    setDestCoords(null);
+    setIsNoDestination(false);
+    setRoutePoints([]);
+    setRideDetails({ distance: 0, time: 0, arrivalTime: 0 });
+  }, []);
+
+  const promptPendingRating = useCallback(async (pending) => {
+    if (!pending?.id) return;
+    const rideIdStr = String(pending.id);
+    if (await isRatingSkipped(rideIdStr)) return;
+
+    setRideId(pending.id);
+    rideIdRef.current = rideIdStr;
+
+    if (pending.endereco_ini_txt || pending.endereco_ini) {
+      const addr = pending.endereco_ini_txt || pending.endereco_ini;
+      if (!isPickupPlaceholder(addr)) setPickup(addr);
+    }
+    if (pending.endereco_fim_txt || pending.endereco_fim) {
+      setDestination(pending.endereco_fim_txt || pending.endereco_fim);
+    }
+    if (pending.taxa != null) {
+      setFinalPrice(String(pending.taxa).replace('.', ','));
+    }
+    if (pending.motorista) {
+      updateDriverDetails({
+        id: pending.motorista.id,
+        nome: pending.motorista.nome,
+        veiculo: pending.motorista.veiculo,
+        placa: pending.motorista.placa,
+        foto: pending.motorista.foto,
+        rating: pending.motorista.rating,
+        status: 4,
+      });
+    }
+
+    setIsSelecting(false);
+    setIsSearchingDriver(false);
+    setShowRating(false);
+    setShowSummary(true);
+    rideFinishedHandledRef.current = true;
+    stopPolling();
+  }, []);
+
+  const dismissRatingPrompt = useCallback(async () => {
+    const rid = rideIdRef.current || rideId;
+    if (rid) await markRatingSkipped(rid);
+    rideFinishedHandledRef.current = true;
+    resetRideUi();
+    ratingSubmittingRef.current = false;
+    setRideId(null);
+    rideIdRef.current = null;
+    passengerRideMonitor.stop().catch(() => {});
+    stopRideForegroundService().catch(() => {});
+    stopStatusSound().catch(() => {});
+  }, [rideId, resetRideUi]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!route.params?.resumeActiveRide) return;
-      navigation.setParams({ resumeActiveRide: undefined });
+      let mounted = true;
       (async () => {
         try {
           const session = await getSession();
-          if (!session?.telefone) return;
+          if (!session?.telefone || !mounted) return;
+
+          const statusRes = await api.passenger.getStatus(session.telefone, session.senha);
+          if (!mounted) return;
+
+          const pendingRating = extractPendingRating(statusRes.data);
+          if (pendingRating?.id) {
+            await promptPendingRating(pendingRating);
+            return;
+          }
+
+          const activeStatus = Number(statusRes.data?.status);
+          if (activeStatus >= 1 && activeStatus <= 3 && statusRes.data?.id) {
+            clearLocalCancelGuard();
+            if (statusRes.data.endereco_ini_txt || statusRes.data.endereco_ini) {
+              const addr = statusRes.data.endereco_ini_txt || statusRes.data.endereco_ini;
+              if (!isPickupPlaceholder(addr)) setPickup(addr);
+            }
+            if (statusRes.data.endereco_fim_txt || statusRes.data.endereco_fim) {
+              setDestination(statusRes.data.endereco_fim_txt || statusRes.data.endereco_fim);
+            }
+            applyRideStatusUpdate(
+              activeStatus,
+              statusRes.data.motorista,
+              statusRes.data.taxa,
+              statusRes.data,
+              { notify: false }
+            );
+            startPolling(statusRes.data.id, { resume: true });
+            return;
+          }
+
+          if (userCancelledLocallyRef.current) return;
+
+          let shouldCheck = Boolean(route.params?.resumeActiveRide);
+          if (!shouldCheck && !rideIdRef.current) {
+            const openRes = await api.passenger.hasOpenRide(session.telefone, session.senha);
+            if (openRes.data === true) shouldCheck = true;
+          }
+
+          if (!shouldCheck && rideIdRef.current) {
+            startPolling(rideIdRef.current, { resume: true });
+            return;
+          }
+
+          if (!shouldCheck || !mounted) return;
+          if (route.params?.resumeActiveRide) {
+            navigation.setParams({ resumeActiveRide: undefined });
+          }
+
           const response = await api.passenger.getStatus(session.telefone, session.senha);
+          if (!mounted) return;
           const d = response.data;
           if (!d || d.status === undefined) return;
           const sid = d.id;
-          if (!sid) return;
-          setRideId(sid);
-          if (d.lat_ini != null && d.lng_ini != null) {
-            setPickupCoords({
-              latitude: parseFloat(String(d.lat_ini).replace(',', '.')),
-              longitude: parseFloat(String(d.lng_ini).replace(',', '.')),
-            });
+          const st = Number(d.status);
+          if (!sid || st < 0 || st > 3) return;
+
+          if (d.endereco_ini_txt || d.endereco_ini) {
+            const addr = d.endereco_ini_txt || d.endereco_ini;
+            if (!isPickupPlaceholder(addr)) {
+              setPickup(addr);
+            } else if (d.lat_ini && d.lng_ini) {
+              resolvePickupAddressForRide(parseFloat(d.lat_ini), parseFloat(d.lng_ini), addr)
+                .then((resolved) => setPickup(resolved))
+                .catch(() => {});
+            }
           }
-          if (d.lat_fim != null && d.lng_fim != null) {
-            setDestCoords({
-              latitude: parseFloat(String(d.lat_fim).replace(',', '.')),
-              longitude: parseFloat(String(d.lng_fim).replace(',', '.')),
-            });
+          if (d.endereco_fim_txt || d.endereco_fim) {
+            setDestination(d.endereco_fim_txt || d.endereco_fim);
           }
-          setPickup('Embarque');
-          setDestination('Destino');
-          if (d.status === 0) {
-            setIsSelecting(false);
-            setIsSearchingDriver(true);
-            startPolling(sid);
-          } else if (d.status >= 1 && d.status <= 3 && d.motorista) {
-            setIsSelecting(false);
-            setIsSearchingDriver(false);
-            const m = d.motorista;
-            setDriverDetails({
-              id: m.id,
-              nome: m.nome,
-              veiculo: m.veiculo,
-              placa: m.placa,
-              foto: m.foto,
-              rating: m.rating,
-              coords: {
-                latitude: parseFloat(m.latitude),
-                longitude: parseFloat(m.longitude),
-              },
-              tempo: m.tempo_chegada,
-              status: d.status,
-            });
-            startPolling(sid);
-          } else if (d.status === 4) {
-            setIsSelecting(false);
-            setIsSearchingDriver(false);
-            setDriverDetails(null);
-            setShowSummary(true);
-          } else if (d.status === 5) {
-            Alert.alert('Corrida', 'Esta corrida foi cancelada.');
-          }
+
+          applyRideStatusUpdate(d.status, d.motorista, d.taxa, d, { notify: false });
+          startPolling(sid, { resume: true });
         } catch (e) {
           console.warn('Retomar corrida:', e);
         }
       })();
-    }, [route.params?.resumeActiveRide, navigation])
+      return () => { mounted = false; };
+    }, [route.params?.resumeActiveRide, navigation, applyRideStatusUpdate, promptPendingRating])
   );
 
-  const handleCancelRide = async () => {
-    // Verifica se a corrida já foi aceita há algum tempo (ex: 5 minutos)
-    // Para simplificar, vamos assumir que se o status for > 1 (Aceita/Em curso), 
-    // verificamos o tempo. Aqui usaremos um aviso padrão conforme solicitado.
-    
+  const handleCancelRide = () => {
     const st = driverDetails?.status;
     const message = st != null && st > 1
       ? 'Atenção: Cancelar agora poderá gerar uma multa de cancelamento. Deseja continuar?' 
@@ -1021,20 +1437,71 @@ const HomeScreen = () => {
         { 
           text: 'Sim, Cancelar', 
           style: 'destructive',
-          onPress: async () => {
-             setLoading(true);
-             try {
-               const session = await getSession();
-               if (!session) throw new Error('Sessão não encontrada');
-               await api.passenger.cancelRide(session.telefone, session.senha);
-               playStatusSound(); 
-               toggleSelection();
-               Alert.alert('Cancelada', 'Sua corrida foi cancelada.');
-             } catch (e) {
-               Alert.alert('Erro', 'Não foi possível cancelar a corrida.');
-             } finally {
-               setLoading(false);
-             }
+          onPress: () => {
+            (async () => {
+              const session = await getSession();
+              if (!session) {
+                Alert.alert('Erro', 'Sessão não encontrada');
+                return;
+              }
+
+              try {
+                const openRes = await api.passenger.hasOpenRide(session.telefone, session.senha);
+                if (!openRes.data) {
+                  Alert.alert('Corrida encerrada', 'Esta corrida já foi finalizada ou cancelada.');
+                  clearLocalCancelGuard();
+                  rideFinishedHandledRef.current = true;
+                  resetRideUi();
+                  stopPolling();
+                  setRideId(null);
+                  return;
+                }
+              } catch (e) {
+                console.warn('hasOpenRide:', e);
+              }
+
+              const savedRideId = rideIdRef.current;
+              armLocalCancelGuard();
+              playStatusSound();
+              resetRideUi();
+
+              try {
+                await api.passenger.cancelRide(session.telefone, session.senha);
+                clearLocalCancelGuard();
+                rideFinishedHandledRef.current = true;
+                setRideId(null);
+                rideIdRef.current = null;
+                stopPolling();
+              } catch (e) {
+                console.warn('Cancel ride API:', e);
+                clearLocalCancelGuard();
+                rideFinishedHandledRef.current = false;
+
+                if (savedRideId) {
+                  try {
+                    const res = await api.passenger.getStatus(session.telefone, session.senha, savedRideId);
+                    const d = res.data;
+                    if (d && d.status >= 1 && d.status <= 3) {
+                      setRideId(savedRideId);
+                      rideIdRef.current = savedRideId;
+                      applyRideStatusUpdate(d.status, d.motorista, d.taxa, d, { notify: false });
+                      startPolling(savedRideId, { resume: true });
+                    } else if (d?.status === 4) {
+                      applyRideStatusUpdate(4, d.motorista, d.taxa, d, { notify: false });
+                    } else if (d?.status === 5) {
+                      applyRideStatusUpdate(5, d.motorista, d.taxa, d, { notify: false });
+                    }
+                  } catch (restoreErr) {
+                    console.warn('Restaurar corrida após falha no cancel:', restoreErr);
+                  }
+                }
+
+                Alert.alert(
+                  'Atenção',
+                  'Não confirmamos o cancelamento no servidor. A corrida pode continuar ativa — verifique o status ou tente cancelar novamente.'
+                );
+              }
+            })();
           }
         }
       ]
@@ -1078,48 +1545,85 @@ const HomeScreen = () => {
   };
 
   const handleSendRating = async () => {
+    if (ratingSubmittingRef.current) return;
+    const corridaId = rideIdRef.current || rideId;
+    if (!corridaId) {
+      Alert.alert('Erro', 'Não foi possível identificar a corrida para avaliar.');
+      return;
+    }
+
+    ratingSubmittingRef.current = true;
     setLoading(true);
     try {
       const session = await getSession();
       if (!session) throw new Error('Sessão não encontrada');
-      await api.passenger.rateRide({
+      const res = await api.passenger.rateRide({
         telefone: session.telefone,
         senha: session.senha,
-        corrida_id: rideId,
+        corrida_id: corridaId,
         nota: ratingValue,
         comentario: ratingComment
       });
+      const body = res?.data;
+      const parsed = typeof body === 'string'
+        ? (() => { try { return JSON.parse(body); } catch { return null; } })()
+        : body;
+      if (!parsed || parsed.status !== 'ok') {
+        throw new Error(parsed?.mensagem || 'Falha ao enviar avaliação');
+      }
+
+      await clearRatingSkipped(corridaId);
+      rideFinishedHandledRef.current = true;
       setShowRating(false);
-      toggleSelection();
+      setShowSummary(false);
+      updateDriverDetails(null);
+      setRatingComment('');
+      setRatingValue(5);
+      ratingSubmittingRef.current = false;
+      setRideId(null);
+      rideIdRef.current = null;
+      resetRideUi();
       Alert.alert('Obrigado!', 'Sua avaliação foi enviada com sucesso.');
     } catch (e) {
-      Alert.alert('Erro', 'Não foi possível enviar a avaliação.');
+      ratingSubmittingRef.current = false;
+      Alert.alert('Erro', e?.message || 'Não foi possível enviar a avaliação.');
     } finally {
       setLoading(false);
     }
   };
 
   const stopPolling = () => {
-    if (pollingInterval.current) {
-      clearInterval(pollingInterval.current);
-      pollingInterval.current = null;
-    }
+    rideIdRef.current = null;
+    passengerRideMonitor.stop().catch(() => {});
+    stopRideForegroundService().catch(() => {});
+    stopStatusSound().catch(() => {});
   };
 
   const selectDestination = async (loc) => {
     try {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setDestination(loc.title);
-      setDestCoords(loc.coords);
-      setIsNoDestination(false);
-      setIsChoosingDestination(false);
-      setIsSelecting(true); // Garante que o painel de seleção abra
+      if (activeSearchInput === 'stop') {
+        setStop(loc.title);
+        setStopCoords(loc.coords);
+        // Após selecionar parada, foca no destino se ele estiver vazio
+        if (!destination) {
+           setActiveSearchInput('destination');
+        } else {
+           setIsChoosingDestination(false);
+           setIsSelecting(true);
+           loadCategories(destCoords, false, loc.coords);
+        }
+      } else {
+        setDestination(loc.title);
+        setDestCoords(loc.coords);
+        setIsNoDestination(false);
+        setIsChoosingDestination(false);
+        setIsSelecting(true); 
+        loadCategories(loc.coords, false, stopCoords);
+      }
       setRoutePoints([]); 
-      
-      // Chama o cálculo
-      loadCategories(loc.coords);
     } catch (e) {
-      console.error('Erro na seleção de destino:', e);
+      console.error('Erro na seleção:', e);
     }
   };
 
@@ -1137,13 +1641,13 @@ const HomeScreen = () => {
     loadCategories(null, true);
   };
 
-  const loadCategories = async (targetCoords = destCoords, forceNoDestination = false) => {
+  const loadCategories = async (targetCoords = destCoords, forceNoDestination = false, waypointCoords = stopCoords) => {
     const noDestinationMode = forceNoDestination || isNoDestination;
     const effectiveTarget = targetCoords || (noDestinationMode ? pickupCoords : null);
-    if (!pickupCoords) {
+    if (!pickupCoords || isSameAsDefault(pickupCoords, DEFAULT_PICKUP_COORDS)) {
       Alert.alert(
-        'Localização',
-        'Ainda estamos obtendo sua posição. Ative a localização ou aguarde um instante e tente de novo.'
+        'Sinal de GPS Fraco',
+        'Não foi possível obter sua localização exata. Por favor, certifique-se de que a localização/GPS do seu celular está ativa e aguarde obter as coordenadas corretas.'
       );
       setIsSelecting(false);
       return;
@@ -1160,7 +1664,9 @@ const HomeScreen = () => {
         pickupCoords.latitude,
         pickupCoords.longitude,
         effectiveTarget.latitude,
-        effectiveTarget.longitude
+        effectiveTarget.longitude,
+        waypointCoords?.latitude,
+        waypointCoords?.longitude
       );
       
       if (response.data && response.data.categorias) {
@@ -1231,13 +1737,26 @@ const HomeScreen = () => {
       }
 
       const finalDestCoords = destCoords || pickupCoords;
+      if (!pickupCoords?.latitude || !pickupCoords?.longitude) {
+        Alert.alert('Localização', 'Aguarde o GPS definir o ponto de embarque e tente novamente.');
+        setLoading(false);
+        return;
+      }
+
+      const pickupAddress = await resolvePickupAddressForRide(
+        pickupCoords.latitude,
+        pickupCoords.longitude,
+        pickup
+      );
+      setPickup(pickupAddress);
+
       const payload = {
         telefone: session.telefone,
         senha: session.senha,
         valor: finalPriceStr,
         forma_pagamento: paymentMethod.label,
-        endereco_ini: pickup,
-        endereco_fim: isNoDestination ? 'Sem Destino (A combinar)' : destination,
+        endereco_ini: pickupAddress,
+        endereco_fim: isNoDestination ? 'Sem Destino (A combinar)' : (stop ? `PARADA: ${stop} | DESTINO: ${destination}` : destination),
         categoria_id: selectedCat,
         lat_ini: pickupCoords.latitude,
         lng_ini: pickupCoords.longitude,
@@ -1246,7 +1765,7 @@ const HomeScreen = () => {
         km: rideDetails.distance,
         tempo: rideDetails.time,
         taxa: finalPriceStr,
-        obs: '',
+        obs: stop ? `Corrida com parada em: ${stop}` : '',
         cupom: appliedCoupon || '',
       };
 
@@ -1254,12 +1773,14 @@ const HomeScreen = () => {
 
       if (response && response.data && (response.data.status === 'ok' || response.data.status === 'sucesso' || response.data.id || response.data.id_corrida)) {
         const newRideId = response.data.id_corrida || response.data.id || 999;
-        
+
+        clearLocalCancelGuard();
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setRideId(newRideId);
         setIsSelecting(false);
         setIsSearchingDriver(true);
-        playStatusSound(); // Bipe ao começar procurar
+        playStatusSound();
+        ensurePassengerAlertPermissions();
         
         startPolling(newRideId);
       } else {
@@ -1275,27 +1796,52 @@ const HomeScreen = () => {
   };
 
   useEffect(() => {
-    return () => stopPolling();
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
   }, []);
 
-  if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
+  useEffect(() => {
+    return () => {
+      if (cancelGuardTimerRef.current) clearTimeout(cancelGuardTimerRef.current);
+      stopPolling();
+    };
+  }, []);
 
   const toggleSelection = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    resetRideUi();
     stopPolling();
+    ratingSubmittingRef.current = false;
     setRideId(null);
-    setIsSelecting(false);
-    setIsSelectingPayment(false);
-    setIsSearchingDriver(false);
-    setDriverDetails(null);
-    setDestination('');
-    setDestCoords(null);
-    setIsNoDestination(false);
-    setRoutePoints([]);
-    setRideDetails({ distance: 0, time: 0, arrivalTime: 0 });
+    rideIdRef.current = null;
   };
+
+  useEffect(() => {
+    if (!driverDetails || !pickupCoords) return;
+    const timer = setTimeout(() => {
+      fitMapToRide(driverDetails.coords);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [
+    Boolean(driverDetails),
+    driverDetails?.status,
+    pickupCoords?.latitude,
+    pickupCoords?.longitude,
+    destCoords?.latitude,
+    destCoords?.longitude,
+    fitMapToRide,
+  ]);
+
+  useEffect(() => {
+    if (!pickupCoords || driverDetails) return;
+    if (mapRef.current) {
+      mapRef.current.animateToRegion({
+        ...pickupCoords,
+        latitudeDelta: 0.04,
+        longitudeDelta: 0.04,
+      }, 600);
+    }
+  }, [pickupCoords?.latitude, pickupCoords?.longitude, driverDetails]);
 
   const renderMap = () => {
     if (Platform.OS === 'web') {
@@ -1308,6 +1854,7 @@ const HomeScreen = () => {
     }
 
     const mapCenter = pickupCoords || DEFAULT_PICKUP_COORDS;
+    const mapDelta = driverDetails ? 0.035 : 0.05;
 
     return (
       <MapView 
@@ -1317,12 +1864,15 @@ const HomeScreen = () => {
         initialRegion={{
           latitude: mapCenter.latitude,
           longitude: mapCenter.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
+          latitudeDelta: mapDelta,
+          longitudeDelta: mapDelta,
         }}
+        showsUserLocation={!!pickupCoords && !isSearchingDriver && !driverDetails}
+        showsMyLocationButton={false}
+        loadingEnabled
       >
         {pickupCoords && (
-        <Marker coordinate={pickupCoords} zIndex={10}>
+        <Marker coordinate={pickupCoords} zIndex={10} tracksViewChanges={false}>
            <View style={{ alignItems: 'center' }}>
              <MapLabel style={{ marginBottom: 6 }} activeOpacity={0.9} onPress={() => setIsChoosingDestination(true)}>
                 <View style={{ marginRight: 8 }}>
@@ -1338,6 +1888,7 @@ const HomeScreen = () => {
 
         {destCoords && (
           <>
+            {routePoints.length > 1 && (
             <Polyline 
               coordinates={routePoints}
               strokeColor={colors.primary}
@@ -1346,14 +1897,16 @@ const HomeScreen = () => {
               lineJoin="round"
               geodesic={true}
             />
-            {/* Renderizar motoristas ao redor se não estiver em corrida */}
-            {!driverDetails && !isSearchingDriver && nearbyDrivers.map((driver) => (
-              <Marker
-                key={driver.id}
-                coordinate={{
-                  latitude: parseFloat(driver.latitude),
-                  longitude: parseFloat(driver.longitude)
-                }}
+            )}
+            {!driverDetails && !isSearchingDriver && (nearbyDrivers || [])
+              .filter(driver => driver && !isNaN(parseFloat(driver.latitude)) && !isNaN(parseFloat(driver.longitude)))
+              .map((driver) => (
+                <Marker
+                  key={driver.id}
+                  coordinate={{
+                    latitude: parseFloat(driver.latitude),
+                    longitude: parseFloat(driver.longitude)
+                  }}
                 title={`Motorista #${driver.id}`}
               >
                 <View style={{ 
@@ -1373,7 +1926,7 @@ const HomeScreen = () => {
               </Marker>
             ))}
             
-            <Marker coordinate={destCoords} zIndex={11}>
+            <Marker coordinate={destCoords} zIndex={11} tracksViewChanges={false}>
                <View style={{ alignItems: 'center' }}>
                  <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                    <View style={{ width: 24, height: 24, backgroundColor: '#333', borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
@@ -1395,30 +1948,27 @@ const HomeScreen = () => {
           </>
         )}
 
-        {driverDetails && (
-          <AnimatedMarker 
+        {driverDetails?.coords && (
+          <Marker 
             coordinate={{
-              latitude: driverMarkerAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [animCoords.startLat, animCoords.endLat]
-              }),
-              longitude: driverMarkerAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [animCoords.startLng, animCoords.endLng]
-              })
+              latitude: parseFloat(driverDetails.coords.latitude) || -23.55,
+              longitude: parseFloat(driverDetails.coords.longitude) || -46.63
             }} 
             zIndex={20}
+            tracksViewChanges={false}
           >
              <View style={{ width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOffset: {width:0, height:3}, shadowOpacity: 0.3, shadowRadius: 4, borderWidth: 2, borderColor: colors.primary }}>
                 <Icon name={(categories.find(c => c.id === selectedCat)?.nome || '').toLowerCase().includes('moto') ? 'motorcycle' : 'directions-car'} size={24} color={colors.primary} />
              </View>
-          </AnimatedMarker>
+          </Marker>
         )}
 
-        {!isSearchingDriver && !driverDetails && Array.isArray(nearbyDrivers) && nearbyDrivers.map(dr => (
-          <Marker
-            key={`nearby-${dr.id}`}
-            coordinate={{ latitude: parseFloat(dr.latitude), longitude: parseFloat(dr.longitude) }}
+        {!isSearchingDriver && !driverDetails && Array.isArray(nearbyDrivers) && nearbyDrivers
+          .filter(dr => dr && !isNaN(parseFloat(dr.latitude)) && !isNaN(parseFloat(dr.longitude)))
+          .map(dr => (
+            <Marker
+              key={`nearby-${dr.id}`}
+              coordinate={{ latitude: parseFloat(dr.latitude), longitude: parseFloat(dr.longitude) }}
             tracksViewChanges={false}
           >
             <Animated.View style={{ 
@@ -1436,29 +1986,69 @@ const HomeScreen = () => {
     );
   };
 
+  const rideStatus = String(driverDetails?.status || '1');
+
   return (
     <Container>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       
       {isChoosingDestination && (
         <DestinationOverlay>
-          <SearchHeaderScroll>
-            <TouchableOpacity
-              onPress={() => {
-                setIsChoosingDestination(false);
-                setDestSearchText('');
-                setDestSearchResults([]);
-              }}
-            >
-              <Icon name="arrow-back" size={30} color={colors.text} />
-            </TouchableOpacity>
-            <SearchInput
-              autoFocus
-              placeholder="Rua, número, bairro, cidade..."
-              value={destSearchText}
-              onChangeText={setDestSearchText}
-              returnKeyType="search"
-            />
+          <SearchHeaderScroll style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsChoosingDestination(false);
+                  setDestSearchText('');
+                  setDestSearchResults([]);
+                }}
+              >
+                <Icon name="arrow-back" size={30} color={colors.text} />
+              </TouchableOpacity>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginLeft: 15 }}>{activeSearchInput === 'stop' ? 'Adicionar Parada' : 'Para onde vamos?'}</Text>
+              {!isAddingStop && activeSearchInput === 'destination' && (
+                <TouchableOpacity 
+                  onPress={() => {
+                    setIsAddingStop(true);
+                    setActiveSearchInput('stop');
+                  }}
+                  style={{ marginLeft: 'auto', backgroundColor: colors.surface, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}
+                >
+                  <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 12 }}>+ PARADA</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={{ marginTop: 20 }}>
+               {isAddingStop && (
+                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f39c12', marginRight: 10 }} />
+                   <SearchInput
+                     autoFocus={activeSearchInput === 'stop'}
+                     onFocus={() => setActiveSearchInput('stop')}
+                     placeholder="Endereço da parada..."
+                     value={activeSearchInput === 'stop' ? destSearchText : (stop || '')}
+                     onChangeText={setDestSearchText}
+                     style={{ marginLeft: 0, height: 45, backgroundColor: activeSearchInput === 'stop' ? '#fff' : '#f5f5f5', borderBottomWidth: 2, borderBottomColor: activeSearchInput === 'stop' ? colors.primary : 'transparent' }}
+                   />
+                   <TouchableOpacity onPress={() => { setIsAddingStop(false); setStop(''); setStopCoords(null); setActiveSearchInput('destination'); }}>
+                     <Icon name="close" size={20} color="#999" style={{ marginLeft: 10 }} />
+                   </TouchableOpacity>
+                 </View>
+               )}
+
+               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f44', marginRight: 10 }} />
+                 <SearchInput
+                   autoFocus={activeSearchInput === 'destination' && !isAddingStop}
+                   onFocus={() => setActiveSearchInput('destination')}
+                   placeholder="Endereço do destino..."
+                   value={activeSearchInput === 'destination' ? destSearchText : (destination || '')}
+                   onChangeText={setDestSearchText}
+                   style={{ marginLeft: 0, height: 45, backgroundColor: activeSearchInput === 'destination' ? '#fff' : '#f5f5f5', borderBottomWidth: 2, borderBottomColor: activeSearchInput === 'destination' ? colors.primary : 'transparent' }}
+                 />
+               </View>
+            </View>
           </SearchHeaderScroll>
           <SearchResultList keyboardShouldPersistTaps="handled">
             <ContentPadding>
@@ -1586,12 +2176,12 @@ const HomeScreen = () => {
               
               <View style={{ width: 1, height: 14, backgroundColor: '#eee', alignSelf: 'center' }} />
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 6, paddingRight: 4 }}>
-                {cityData && cityData.cidade && (
-                   <Text style={{ fontSize: 8.5, fontWeight: '900', color: colors.primary, marginRight: 0, letterSpacing: 1.2 }}>
-                     {cityData.cidade.toString().toUpperCase()}
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 6, paddingRight: 4, maxWidth: width * 0.42 }}>
+                {currentLocationLabel ? (
+                   <Text style={{ fontSize: 8.5, fontWeight: '900', color: colors.primary, marginRight: 4, letterSpacing: 0.8, flexShrink: 1 }} numberOfLines={1}>
+                     {currentLocationLabel.toUpperCase()}
                    </Text>
-                )}
+                ) : null}
 
                 <IconButton onPress={() => navigation.navigate('WalletScreen')} style={{ width: 36, height: 36, elevation: 0, shadowOpacity: 0, backgroundColor: 'transparent' }}>
                   <Icon name="account-balance-wallet" size={18} color={colors.secondary} />
@@ -1670,16 +2260,20 @@ const HomeScreen = () => {
                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
                     <Text style={{ color: '#888' }}>Total Pago</Text>
                     <Text style={{ fontWeight: 'bold', color: colors.primary, fontSize: 18 }}>
-                      R$ {selectedCat ? (categories.find(c => c.id === selectedCat)?.taxa || categories.find(c => c.id === selectedCat)?.valor || '0,00').toString().replace('.', ',') : '0,00'}
+                      R$ {finalPrice}
                     </Text>
                  </View>
                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
                     <Text style={{ color: '#888' }}>Distância</Text>
                     <Text style={{ fontWeight: '600' }}>{rideDetails.distance} km</Text>
                  </View>
-                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
+                    <Text style={{ color: '#888' }}>Embarque</Text>
+                    <Text style={{ fontWeight: '600', flex: 0.8, textAlign: 'right' }}>{(pickup || '').split('(')[0].trim()}</Text>
+                 </View>
+                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
                     <Text style={{ color: '#888' }}>Destino</Text>
-                    <Text style={{ fontWeight: '600', flex: 0.8, textAlign: 'right' }}>{destination}</Text>
+                    <Text style={{ fontWeight: '600', flex: 0.8, textAlign: 'right' }}>{stop ? `${stop} ➔ ${destination}` : destination}</Text>
                  </View>
               </View>
 
@@ -1689,7 +2283,7 @@ const HomeScreen = () => {
                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>AVALIAR MOTORISTA</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity onPress={() => { setShowSummary(false); toggleSelection(); }} style={{ marginTop: 20 }}>
+              <TouchableOpacity onPress={dismissRatingPrompt} style={{ marginTop: 20 }}>
                  <Text style={{ color: '#aaa', fontSize: 14 }}>Fechar sem avaliar</Text>
               </TouchableOpacity>
            </View>
@@ -1729,7 +2323,7 @@ const HomeScreen = () => {
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>ENVIAR AVALIAÇÃO</Text>}
               </TouchableOpacity>
               
-              <TouchableOpacity onPress={() => { setShowRating(false); toggleSelection(); }} style={{ marginTop: 15 }}>
+              <TouchableOpacity onPress={dismissRatingPrompt} style={{ marginTop: 15 }}>
                  <Text style={{ color: '#999', fontSize: 14 }}>Pular agora</Text>
               </TouchableOpacity>
            </View>
@@ -1744,7 +2338,7 @@ const HomeScreen = () => {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                  <Text style={{ fontSize: 20, fontWeight: '900', color: colors.secondary }}>{rideStatus === '3' ? 'Viagem em curso' : 'Motorista a caminho'}</Text>
                  <View style={{ backgroundColor: '#e8f5e9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 }}>
-                    <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 14 }}>{driverDetails.tempo || 'N/A'}</Text>
+                    <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 14 }}>{driverDetails?.tempo || 'N/A'}</Text>
                  </View>
               </View>
 
@@ -1775,24 +2369,24 @@ const HomeScreen = () => {
                   onPress={() => navigation.navigate('DriverProfileScreen', { driver: driverDetails })}
                   style={{ backgroundColor: '#f9f9f9', padding: 15, borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: '#eee', overflow: 'hidden' }}>
                   
-                  <Image source={{ uri: api.getImageUrl(driverDetails.img_frente || 'https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_956,h_637/v1555355171/assets/39/c46522-598d-442b-9441-2f22b784a0d9/original/UberX.png') }} 
+                  <Image source={{ uri: api.getImageUrl(driverDetails?.img_frente || 'https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_956,h_637/v1555355171/assets/39/c46522-598d-442b-9441-2f22b784a0d9/original/UberX.png') }} 
                          style={{ width: '100%', height: 120, borderRadius: 15, marginBottom: 15 }} 
                          resizeMode="cover" />
 
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Image source={{ uri: api.getImageUrl(driverDetails.foto) }} style={{ width: 50, height: 50, borderRadius: 25, marginRight: 15 }} />
+                    <Image source={{ uri: api.getImageUrl(driverDetails?.foto) }} style={{ width: 50, height: 50, borderRadius: 25, marginRight: 15 }} />
                     <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>{driverDetails.nome}</Text>
+                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>{driverDetails?.nome}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                             <Icon name="star" size={16} color="#f5b041" />
-                            <Text style={{ fontSize: 14, color: '#666', marginLeft: 4 }}>{driverDetails.rating}</Text>
+                            <Text style={{ fontSize: 14, color: '#666', marginLeft: 4 }}>{driverDetails?.rating}</Text>
                         </View>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                         <View style={{ backgroundColor: '#1a1c1e', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8, marginBottom: 4 }}>
-                            <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.primary, letterSpacing: 1 }}>{driverDetails.placa}</Text>
+                            <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.primary, letterSpacing: 1 }}>{driverDetails?.placa}</Text>
                         </View>
-                        <Text style={{ fontSize: 12, color: '#666' }}>{driverDetails.veiculo}</Text>
+                        <Text style={{ fontSize: 12, color: '#666' }}>{driverDetails?.veiculo}</Text>
                     </View>
                   </View>
                </TouchableOpacity>
@@ -1839,7 +2433,7 @@ const HomeScreen = () => {
               </View>
 
               <TouchableOpacity 
-                onPress={() => setIsSearchingDriver(false)}
+                onPress={handleCancelRide}
                 activeOpacity={0.8}
                 style={{ width: '100%', height: 50, borderRadius: 25, backgroundColor: '#ffebee', justifyContent: 'center', alignItems: 'center' }}>
                 <Text style={{ color: '#d32f2f', fontSize: 16, fontWeight: 'bold' }}>CANCELAR BUSCA</Text>
@@ -2005,7 +2599,7 @@ const HomeScreen = () => {
                 disabled={loading}
                 onPress={handleConfirmRide} 
                 activeOpacity={0.9}
-                style={{ opacity: loading ? 0.7 : 1, marginTop: 15 }}
+                style={{ opacity: loading ? 0.7 : 1, marginTop: 10 }}
               >
                 {loading ? (
                   <ActivityIndicator color="#fff" />
@@ -2015,6 +2609,9 @@ const HomeScreen = () => {
                   </Text>
                 )}
               </ConfirmButton>
+              <Text style={{ fontSize: 10, color: '#999', textAlign: 'center', marginTop: 8 }}>
+                * Taxa de cancelamento de R$ 5,00 caso cancele após 5 min do aceite.
+              </Text>
             </>
           ) : (
             <>

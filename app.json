@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "UbeZap",
+    "name": "UbeZap Passageiro",
     "slug": "ubezap-mobile",
     "version": "1.0.0",
     "newArchEnabled": false,
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/icon-passenger-store.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/images/splash-passenger.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -17,11 +17,18 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ubezap.app"
+      "bundleIdentifier": "com.ubezap.app",
+      "infoPlist": {
+        "CFBundleDisplayName": "UbeZap Passageiro",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon-passenger.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.ubezap.app",
@@ -29,7 +36,17 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
-        "INTERNET"
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS",
+        "WAKE_LOCK",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "INTERNET",
+        "SYSTEM_ALERT_WINDOW",
+        "USE_FULL_SCREEN_INTENT",
+        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "DISABLE_KEYGUARD"
       ],
       "config": {
         "googleMaps": {
@@ -44,15 +61,28 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "O UbeZap usa sua localização para definir o embarque e calcular o valor da corrida."
+          "locationWhenInUsePermission": "O UbeZap usa sua localização para definir o embarque e calcular o valor da corrida.",
+          "locationAlwaysAndWhenInUsePermission": "O UbeZap usa sua localização em segundo plano para rastrear o trajeto da corrida.",
+          "isAndroidBackgroundEnabled": true,
+          "isIosBackgroundEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon-passenger-store.png",
+          "color": "#3AB56B",
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": true
         }
       ]
     ],
     "extra": {
       "appVariant": "passenger",
       "eas": {
-        "projectId": "d35aaa76-d451-403c-a38c-6e96ccced364"
+        "projectId": "07aa7abd-e9b9-4b80-80b4-ef3ffb823dff"
       }
-    }
+    },
+    "owner": "patrickpgsninja"
   }
 }

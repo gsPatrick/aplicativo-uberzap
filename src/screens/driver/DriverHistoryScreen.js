@@ -18,32 +18,62 @@ try {
   Polyline = Maps.Polyline;
 } catch (e) {}
 
+const decodePolyline = (t) => {
+    if (!t) return [];
+    let n, o, r = 0, l = 0, a = 0, h = [];
+    const d = t.length;
+    while (r < d) {
+        let i = 0, f = 0;
+        do {
+            n = t.charCodeAt(r++) - 63;
+            f |= (31 & n) << i;
+            i += 5;
+        } while (n >= 32);
+        let p = (1 & f) ? ~(f >> 1) : f >> 1;
+        l += p;
+        i = 0;
+        f = 0;
+        do {
+            o = t.charCodeAt(r++) - 63;
+            f |= (31 & o) << i;
+            i += 5;
+        } while (o >= 32);
+        let g = (1 & f) ? ~(f >> 1) : f >> 1;
+        a += g;
+        h.push({
+            latitude: l / 1e5,
+            longitude: a / 1e5
+        });
+    }
+    return h;
+};
+
 const { width, height } = Dimensions.get('window');
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: #f8f9fa;
 `;
 
 const Header = styled.View`
-  background-color: #121212;
+  background-color: #fff;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   border-bottom-width: 1px;
-  border-bottom-color: rgba(255, 255, 255, 0.05);
+  border-bottom-color: #e2e8f0;
 `;
 
 const HeaderTitle = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 18px;
   font-weight: bold;
 `;
 
 const DateSelector = styled.TouchableOpacity`
-  background-color: #1f2120;
+  background-color: #fff;
   margin: ${spacing.md}px;
   padding: 15px;
   border-radius: ${borderRadius.md}px;
@@ -51,23 +81,33 @@ const DateSelector = styled.TouchableOpacity`
   align-items: center;
   justify-content: space-between;
   border-width: 1px;
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: #e2e8f0;
+  elevation: 2;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.05;
+  shadow-radius: 4px;
 `;
 
 const DateText = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 16px;
   font-weight: 500;
 `;
 
 const RideCard = styled.TouchableOpacity`
-  background-color: #1f2120;
+  background-color: #fff;
   margin-horizontal: ${spacing.md}px;
   margin-bottom: ${spacing.md}px;
   border-radius: ${borderRadius.lg}px;
   padding: 18px;
   border-width: 1px;
-  border-color: ${props => props.active ? colors.primary : 'rgba(255, 255, 255, 0.05)'};
+  border-color: ${props => props.active ? colors.primary : '#e2e8f0'};
+  elevation: 3;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.05;
+  shadow-radius: 6px;
 `;
 
 const RideHeader = styled.View`
@@ -84,7 +124,7 @@ const RideTime = styled.Text`
 `;
 
 const RidePrice = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-weight: 900;
   font-size: 18px;
 `;
@@ -100,7 +140,7 @@ const RouteItem = styled.View`
 `;
 
 const RouteText = styled.Text`
-  color: #94a3b8;
+  color: ${colors.textSecondary};
   font-size: 13px;
   margin-left: 12px;
   flex: 1;
@@ -116,19 +156,19 @@ const Dot = styled.View`
 const PathLine = styled.View`
   width: 1px;
   height: 12px;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: #e2e8f0;
   margin-left: 3.5px;
 `;
 
 // Modal Styles
 const ModalOverlay = styled.View`
   flex: 1;
-  background-color: rgba(0,0,0,0.8);
+  background-color: rgba(0,0,0,0.5);
   justify-content: flex-end;
 `;
 
 const ModalContent = styled.View`
-  background-color: #121212;
+  background-color: #fff;
   border-top-left-radius: 30px;
   border-top-right-radius: 30px;
   height: ${height * 0.85}px;
@@ -141,13 +181,13 @@ const ModalHeader = styled.View`
   justify-content: space-between;
   align-items: center;
   border-bottom-width: 1px;
-  border-bottom-color: rgba(255,255,255,0.05);
+  border-bottom-color: #e2e8f0;
 `;
 
 const MapWrapper = styled.View`
   height: 250px;
   width: 100%;
-  background-color: #1a1a1a;
+  background-color: #f1f5f9;
   overflow: hidden;
 `;
 
@@ -167,20 +207,20 @@ const MetricItem = styled.View`
 `;
 
 const MetricValue = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 20px;
   font-weight: bold;
 `;
 
 const MetricLabel = styled.Text`
-  color: #64748b;
+  color: ${colors.textSecondary};
   font-size: 12px;
   text-transform: uppercase;
   margin-top: 4px;
 `;
 
 const SectionTitle = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 16px;
   font-weight: bold;
   margin-bottom: 15px;
@@ -192,11 +232,12 @@ const DriverHistoryScreen = () => {
   const [loading, setLoading] = useState(false);
   const [rides, setRides] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState('recent'); // 'recent' | 'date'
   const [selectedRide, setSelectedRide] = useState(null);
 
   useEffect(() => {
     fetchHistory();
-  }, [selectedDate]);
+  }, [selectedDate, viewMode]);
 
   const formatDateLabel = (date) => {
     const day = String(date.getDate()).padStart(2, '0');
@@ -214,6 +255,7 @@ const DriverHistoryScreen = () => {
 
   const shiftDate = (days) => {
     setSelectedRide(null);
+    setViewMode('date');
     setSelectedDate((prev) => {
       const d = new Date(prev);
       d.setDate(d.getDate() + days);
@@ -255,15 +297,34 @@ const DriverHistoryScreen = () => {
       const session = await getSession();
       if (!session) return;
 
+      const useRecent = viewMode === 'recent';
       const dateParam = formatDateForApi(selectedDate);
-      console.log(`Buscando histórico para Motorista ${session.id} na data ${dateParam}`);
-      const response = await api.driver.getDriverHistory(session.id, dateParam);
-      
-      if (response.data && Array.isArray(response.data)) {
-        setRides(response.data.map(normalizeRide));
-      } else {
-        setRides([]);
+      console.log(
+        useRecent
+          ? `Buscando histórico recente — Motorista ${session.id}`
+          : `Buscando histórico — Motorista ${session.id} na data ${dateParam}`
+      );
+
+      let response = await api.driver.getDriverHistory(
+        session.id,
+        useRecent ? null : dateParam,
+        useRecent ? { modo: 'recent' } : {}
+      );
+
+      let items = Array.isArray(response.data) ? response.data.map(normalizeRide) : [];
+
+      // Fallback: se filtro por data veio vazio, tenta viagens recentes
+      if (!useRecent && items.length === 0) {
+        const fallback = await api.driver.getDriverHistory(session.id, null, { modo: 'recent' });
+        const allRecent = Array.isArray(fallback.data) ? fallback.data.map(normalizeRide) : [];
+        const target = dateParam;
+        items = allRecent.filter((ride) => {
+          const raw = String(ride?.date || '');
+          return raw.startsWith(target);
+        });
       }
+
+      setRides(items);
     } catch (error) {
       console.error(error);
       Alert.alert('Erro', 'Não foi possível carregar o histórico.');
@@ -277,7 +338,11 @@ const DriverHistoryScreen = () => {
       <RideHeader>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Icon name="access-time" size={16} color={colors.primary} />
-          <RideTime style={{ marginLeft: 6 }}>{item.hora}</RideTime>
+          <RideTime style={{ marginLeft: 6 }}>
+            {viewMode === 'recent' && item.date
+              ? `${String(item.date).slice(0, 10).split('-').reverse().join('/')} ${item.hora}`
+              : item.hora}
+          </RideTime>
         </View>
         <RidePrice>R$ {item.valor}</RidePrice>
       </RideHeader>
@@ -314,10 +379,10 @@ const DriverHistoryScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       <Header>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={28} color="#fff" />
+          <Icon name="arrow-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <HeaderTitle>Minhas Viagens</HeaderTitle>
         <TouchableOpacity onPress={fetchHistory}>
@@ -328,17 +393,39 @@ const DriverHistoryScreen = () => {
       <DateSelector activeOpacity={0.8}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <TouchableOpacity onPress={() => shiftDate(-1)} style={{ padding: 4 }}>
-            <Icon name="chevron-left" size={24} color="#fff" />
+            <Icon name="chevron-left" size={24} color={colors.text} />
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Icon name="event" size={20} color={colors.primary} />
             <DateText style={{ marginLeft: 12 }}>{formatDateLabel(selectedDate)}</DateText>
           </View>
           <TouchableOpacity onPress={() => shiftDate(1)} style={{ padding: 4 }}>
-            <Icon name="chevron-right" size={24} color="#fff" />
+            <Icon name="chevron-right" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={() => setSelectedDate(new Date())} style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(58,181,107,0.12)', borderRadius: 12 }}>
+        <TouchableOpacity
+          onPress={() => {
+            setViewMode('recent');
+            setSelectedRide(null);
+          }}
+          style={{
+            paddingHorizontal: 10,
+            paddingVertical: 6,
+            backgroundColor: viewMode === 'recent' ? 'rgba(58,181,107,0.2)' : 'rgba(58,181,107,0.12)',
+            borderRadius: 12,
+            marginRight: 8,
+          }}
+        >
+          <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>RECENTES</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            setViewMode('date');
+            setSelectedDate(new Date());
+            setSelectedRide(null);
+          }}
+          style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(58,181,107,0.12)', borderRadius: 12 }}
+        >
           <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>HOJE</Text>
         </TouchableOpacity>
       </DateSelector>
@@ -354,8 +441,12 @@ const DriverHistoryScreen = () => {
           renderItem={renderRideItem}
           ListEmptyComponent={
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 }}>
-              <Icon name="history" size={70} color="rgba(255,255,255,0.05)" />
-              <Text style={{ color: '#475569', marginTop: 20 }}>Nenhuma corrida encontrada.</Text>
+              <Icon name="history" size={70} color="#cbd5e1" />
+              <Text style={{ color: '#64748b', marginTop: 20, textAlign: 'center', paddingHorizontal: 30 }}>
+                {viewMode === 'recent'
+                  ? 'Nenhuma viagem finalizada ainda.'
+                  : 'Nenhuma corrida nesta data.'}
+              </Text>
             </View>
           }
           contentContainerStyle={{ paddingBottom: 40 }}
@@ -372,10 +463,10 @@ const DriverHistoryScreen = () => {
         <ModalOverlay>
           <ModalContent>
             <ModalHeader>
-              <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>Detalhes da Viagem</Text>
+              <Text style={{ color: colors.text, fontSize: 20, fontWeight: 'bold' }}>Detalhes da Viagem</Text>
               <TouchableOpacity onPress={() => setSelectedRide(null)}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' }}>
-                    <Icon name="close" size={24} color="#fff" />
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center' }}>
+                    <Icon name="close" size={24} color={colors.text} />
                 </View>
               </TouchableOpacity>
             </ModalHeader>
@@ -415,10 +506,12 @@ const DriverHistoryScreen = () => {
                     </Marker>
 
                     <Polyline
-                      coordinates={[
-                        { latitude: selectedRide.lat_ini, longitude: selectedRide.lng_ini },
-                        { latitude: selectedRide.lat_fim, longitude: selectedRide.lng_fim }
-                      ]}
+                      coordinates={
+                        selectedRide.polyline ? decodePolyline(selectedRide.polyline) : [
+                          { latitude: selectedRide.lat_ini, longitude: selectedRide.lng_ini },
+                          { latitude: selectedRide.lat_fim, longitude: selectedRide.lng_fim }
+                        ]
+                      }
                       strokeWidth={3}
                       strokeColor={colors.primary}
                     />
@@ -453,26 +546,26 @@ const DriverHistoryScreen = () => {
               </MetricRow>
 
               <SectionTitle>Trajeto</SectionTitle>
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: 20, borderRadius: 20, borderLeftWidth: 3, borderLeftColor: colors.primary }}>
+              <View style={{ backgroundColor: 'rgba(0,0,0,0.03)', padding: 20, borderRadius: 20, borderLeftWidth: 3, borderLeftColor: colors.primary }}>
                   <View style={{ flexDirection: 'row', marginBottom: 20 }}>
                     <Icon name="location-searching" size={20} color={colors.primary} />
                     <View style={{ marginLeft: 15, flex: 1 }}>
                         <Text style={{ color: '#64748b', fontSize: 11, fontWeight: 'bold' }}>PARTIDA</Text>
-                        <Text style={{ color: '#fff', fontSize: 14, marginTop: 2 }}>{selectedRide?.endereco_ini}</Text>
+                        <Text style={{ color: colors.text, fontSize: 14, marginTop: 2 }}>{selectedRide?.endereco_ini}</Text>
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row' }}>
                     <Icon name="location-on" size={20} color="#ef4444" />
                     <View style={{ marginLeft: 15, flex: 1 }}>
                         <Text style={{ color: '#64748b', fontSize: 11, fontWeight: 'bold' }}>DESTINO</Text>
-                        <Text style={{ color: '#fff', fontSize: 14, marginTop: 2 }}>{selectedRide?.endereco_fim}</Text>
+                        <Text style={{ color: colors.text, fontSize: 14, marginTop: 2 }}>{selectedRide?.endereco_fim}</Text>
                     </View>
                   </View>
               </View>
 
               <SectionTitle style={{ marginTop: 30 }}>Passageiro</SectionTitle>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 20 }}>
-                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.03)', padding: 15, borderRadius: 20 }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                       {selectedRide?.foto_cliente ? (
                           <Image source={{ uri: api.getImageUrl(selectedRide.foto_cliente) }} style={{ width: 44, height: 44 }} />
                       ) : (
@@ -480,7 +573,7 @@ const DriverHistoryScreen = () => {
                       )}
                   </View>
                   <View style={{ marginLeft: 15 }}>
-                      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{selectedRide?.nome_cliente || 'Passageiro'}</Text>
+                      <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 16 }}>{selectedRide?.nome_cliente || 'Passageiro'}</Text>
                       <Text style={{ color: '#64748b', fontSize: 12 }}>{selectedRide?.metodo_pagamento || 'Viagem Particular'}</Text>
                   </View>
               </View>
@@ -492,10 +585,10 @@ const DriverHistoryScreen = () => {
                   <View style={{ backgroundColor: 'rgba(58, 181, 107, 0.05)', padding: 15, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(58, 181, 107, 0.1)' }}>
                       <View style={{ flexDirection: 'row', marginBottom: 8 }}>
                           {[1,2,3,4,5].map(star => (
-                              <Icon key={star} name="star" size={18} color={star <= selectedRide.avaliacao.nota ? '#fbbf24' : '#334155'} />
+                              <Icon key={star} name="star" size={18} color={star <= selectedRide.avaliacao.nota ? '#fbbf24' : '#cbd5e1'} />
                           ))}
                       </View>
-                      <Text style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic' }}>
+                      <Text style={{ color: '#64748b', fontSize: 13, fontStyle: 'italic' }}>
                           "{selectedRide.avaliacao.comentario || 'Sem comentários'}"
                       </Text>
                   </View>
@@ -509,13 +602,6 @@ const DriverHistoryScreen = () => {
   );
 };
 
-const darkMapStyle = [
-  { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
-  { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
-  { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
-  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#212121" }] },
-  { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#2c2c2c" }] },
-  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] }
-];
+const darkMapStyle = [];
 
 export default DriverHistoryScreen;

@@ -1,7 +1,7 @@
 {
   "name": "ubezap-mobile",
   "version": "1.0.0",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "index.js",
   "scripts": {
     "clean": "node -e \"const fs=require('fs');const p='node_modules';if(fs.existsSync(p)){fs.rmSync(p,{recursive:true,force:true});console.log('Removido:',p);}else{console.log('Sem node_modules');}\"",
     "reinstall": "npm run clean && npm install",
@@ -16,13 +16,18 @@
     "ios:passenger": "APP_VARIANT=passenger expo run:ios",
     "ios:driver": "APP_VARIANT=driver expo run:ios",
     "web": "expo start --web",
-    "eas:android:passenger": "eas build --platform android --profile passenger",
-    "eas:android:driver": "eas build --platform android --profile driver",
-    "eas:ios:passenger": "eas build --platform ios --profile passenger",
-    "eas:ios:driver": "eas build --platform ios --profile driver"
+    "eas:android:passenger": "npx eas build --platform android --profile passenger",
+    "eas:android:driver": "npx eas build --platform android --profile driver",
+    "eas:android:passenger:local": "bash -c '. ./scripts/android-env.sh && npx eas build --platform android --profile passenger --local'",
+    "eas:android:driver:local": "bash -c '. ./scripts/android-env.sh && npx eas build --platform android --profile driver --local'",
+    "android:setup-check": "bash -c '. ./scripts/android-env.sh && echo OK: Android SDK configurado'",
+    "eas:ios:passenger": "npx eas build --platform ios --profile passenger",
+    "eas:ios:driver": "npx eas build --platform ios --profile driver",
+    "generate:branding": "python3 scripts/generate-app-branding.py"
   },
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",
+    "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^1.23.1",
     "@react-navigation/native": "^6.1.1",
     "@react-navigation/stack": "^6.3.11",
@@ -34,14 +39,17 @@
     "expo-image-picker": "~16.0.6",
     "expo-linear-gradient": "~14.0.2",
     "expo-location": "~18.0.10",
+    "expo-notifications": "~0.29.14",
     "expo-status-bar": "~2.0.0",
     "expo-task-manager": "~12.0.6",
     "lucide-react-native": "^1.8.0",
+    "mysql2": "^3.22.3",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.76.9",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-maps": "1.18.0",
+    "react-native-push-notification-popup": "^1.7.0",
     "react-native-reanimated": "~3.16.1",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
@@ -50,6 +58,7 @@
     "styled-components": "^5.3.6"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "eas-cli": "^19.0.8"
   }
 }

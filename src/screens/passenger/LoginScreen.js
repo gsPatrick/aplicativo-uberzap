@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Text, TouchableOpacity, ActivityIndicator, Alert, Platform, Image } from 'react-native';
 import styled from 'styled-components/native';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
+import { getStoredPushToken, registerForPushNotificationsAsync } from '../../utils/notifications';
 import api from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import { saveSession } from '../../utils/session';
+import { formatPhoneBr, normalizePhoneForApi, isValidPhoneDigits } from '../../utils/inputMasks';
 
 const Container = styled.KeyboardAvoidingView`
   flex: 1;
@@ -100,15 +102,23 @@ const LoginScreen = () => {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!telefone || !senha) {
+    const telefoneNorm = normalizePhoneForApi(telefone);
+    if (!telefoneNorm || !senha) {
       Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+      return;
+    }
+    if (!isValidPhoneDigits(telefoneNorm)) {
+      Alert.alert('Telefone inválido', 'Informe o DDD + número (10 ou 11 dígitos).');
       return;
     }
 
     setLoading(true);
     try {
-      const id_signal = '';
-      const response = await api.passenger.login(telefone, senha, id_signal);
+      let id_signal = (await getStoredPushToken()) || '';
+      if (!id_signal) {
+        id_signal = (await registerForPushNotificationsAsync()) || '';
+      }
+      const response = await api.passenger.login(telefoneNorm, senha, id_signal);
       const raw = response.data || {};
       const nested = raw.usuario || {};
       const payload = {
@@ -133,7 +143,7 @@ const LoginScreen = () => {
         }
         await saveSession({
           userType: 'passenger',
-          telefone,
+          telefone: telefoneNorm,
           senha,
           id: payload.id,
           nome: payload.nome,
@@ -177,7 +187,7 @@ const LoginScreen = () => {
             resizeMode="contain"
             accessibilityLabel="UbeZap"
           />
-          <Title>UbeZap</Title>
+          <Title>UbeZap Passageiro</Title>
           <Subtitle>Mobilidade Urbana</Subtitle>
         </Header>
 
@@ -188,7 +198,8 @@ const LoginScreen = () => {
             placeholderTextColor={colors.textSecondary}
             keyboardType="phone-pad"
             value={telefone}
-            onChangeText={setTelefone}
+            onChangeText={(text) => setTelefone(formatPhoneBr(text))}
+            maxLength={16}
           />
 
           <Label>Senha</Label>

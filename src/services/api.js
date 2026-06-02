@@ -2,33 +2,23 @@ import axios from 'axios';
 import { CONFIG } from '../config';
 import { MOCK_DATA } from './mocks';
 
-// Instância real do Axios
 const axiosInstance = axios.create({
   baseURL: CONFIG.API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
   },
 });
 
-// Interceptador para tratar respostas vazias ou malformadas do PHP antigo
 axiosInstance.interceptors.response.use(
   (response) => {
-    // Se a resposta for uma string vazia (comum no PHP do projeto quando dá erro), 
-    // retornamos um objeto de erro tratado para evitar que o JSON.parse quebre o app.
-    if (response.data === "") {
-      const url = response?.config?.url || '';
-      // Alguns endpoints legados retornam vazio em sucesso (ex.: atualiza_local.php).
-      if (url.includes('motoristas/atualiza_local.php')) {
-        return { ...response, data: { status: 'ok' } };
-      }
-      console.warn(`API retornou string vazia para: ${response.config.url}`);
-      return { 
-        ...response, 
-        data: { 
-          status: 'erro', 
-          mensagem: 'O servidor retornou uma resposta vazia. Verifique se os dados (telefone/senha) existem no banco.' 
-        } 
+    if (response.data === '' || response.data === null || response.data === undefined) {
+      return {
+        ...response,
+        data: {
+          status: 'erro',
+          mensagem: 'O servidor retornou uma resposta vazia. Verifique se os dados (telefone/senha) existem no banco.',
+        },
       };
     }
     return response;
@@ -70,6 +60,42 @@ const toMultipartFormData = (formData) => {
   return formData;
 };
 
+/** Respostas PHP em texto puro (ok / erro) — tolera warnings HTML e corpo vazio do interceptor. */
+const stripPhpHtml = (raw) =>
+  String(raw ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const isPhpOkResponse = (data) => {
+  if (data === null || data === undefined || data === '') return false;
+  if (typeof data === 'object') {
+    if (data.status === 'erro') return false;
+    if (data.status === 'ok') return true;
+    return false;
+  }
+  const compact = stripPhpHtml(data).replace(/\s/g, '').toLowerCase();
+  if (compact === 'ok') return true;
+  if (
+    compact.endsWith('ok') &&
+    compact.length <= 160 &&
+    !compact.includes('erro') &&
+    !compact.includes('no_auth') &&
+    !compact.includes('no')
+  ) {
+    return true;
+  }
+  return false;
+};
+
+const assertPhpOk = (response, context) => {
+  if (!isPhpOkResponse(response.data)) {
+    const hint =
+      typeof response.data === 'object'
+        ? response.data?.mensagem || JSON.stringify(response.data)
+        : stripPhpHtml(response.data);
+    throw new Error(hint || `${context} não confirmou (resposta inválida)`);
+  }
+  return response;
+};
+
 /**
  * Unified API Service
  */
@@ -78,17 +104,21 @@ const api = {
   passenger: {
     login: async (telefone, senha, id_signal = '') => {
       if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.login };
-      return axiosInstance.post('app/login_user.php', toFormData({ telefone, senha, id_signal }));
+      const telefoneNorm = String(telefone || '').replace(/\D/g, '');
+      return axiosInstance.post('app/login_user.php', toFormData({ telefone: telefoneNorm, senha, id_signal }));
     },
     register: async (dados) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'sucesso' } };
       return axiosInstance.post('app/cadastro.php', toFormData(dados));
     },
-    calculateRide: async (cidade_id, lat_ini, lng_ini, lat_fim, lng_fim) => {
+    calculateRide: async (cidade_id, lat_ini, lng_ini, lat_fim, lng_fim, parada_lat = null, parada_lng = null) => {
       if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.categorias_calculadas };
-      return axiosInstance.post('app/calcular_custos.php', toFormData({ 
-        cidade_id, lat_ini, lng_ini, lat_fim, lng_fim 
-      }));
+      const payload = { cidade_id, lat_ini, lng_ini, lat_fim, lng_fim };
+      if (parada_lat && parada_lng) {
+        payload.parada_lat = parada_lat;
+        payload.parada_lng = parada_lng;
+      }
+      return axiosInstance.post('app/calcular_custos.php', toFormData(payload));
     },
     requestRide: async (dados) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'ok', id_corrida: 999 } };
@@ -122,11 +152,32 @@ const api = {
     },
     cancelRide: async (telefone, senha) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'ok' } };
-      return axiosInstance.post('app/cancelar.php', toFormData({ telefone, senha }));
+      const response = await axiosInstance.post('app/cancelar.php', toFormData({ telefone, senha }));
+      const raw = response.data;
+      const text = raw == null ? '' : String(raw).trim();
+      if (text === 'ok') {
+        return response;
+      }
+      if (text.includes('Fatal error') || text.includes('<br />')) {
+        throw new Error('Erro no servidor ao cancelar a corrida');
+      }
+      throw new Error(text || 'Falha ao cancelar corrida');
     },
     rateRide: async (payload) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'ok', mensagem: 'Avaliado com sucesso' } };
-      return axiosInstance.post('app/insere_avaliacao.php', toFormData(payload));
+      const response = await axiosInstance.post('app/insere_avaliacao.php', toFormData(payload));
+      const raw = response.data;
+      if (typeof raw === 'string') {
+        const t = raw.trim();
+        if (t.startsWith('{')) {
+          try {
+            return { data: JSON.parse(t) };
+          } catch {
+            return response;
+          }
+        }
+      }
+      return response;
     },
     getWallet: async (telefone, senha) => {
       if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.wallet };
@@ -135,8 +186,27 @@ const api = {
     getHistory: async (telefone, senha) => {
       if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.historico };
       const response = await axiosInstance.post('app/get_historico.php', toFormData({ telefone, senha }));
-      if (response.data === "no" || !response.data) return { ...response, data: [] };
-      return response;
+      let raw = response.data;
+      if (raw == null || raw === '' || raw === 'no') {
+        return { ...response, data: [] };
+      }
+      if (typeof raw === 'string') {
+        const t = raw.trim();
+        if (!t || t === 'no') return { ...response, data: [] };
+        if (t.startsWith('[') || t.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(t);
+            if (Array.isArray(parsed)) return { ...response, data: parsed };
+            if (parsed?.status === 'erro') return { ...response, data: [] };
+            return { ...response, data: parsed };
+          } catch {
+            return { ...response, data: [] };
+          }
+        }
+        return { ...response, data: [] };
+      }
+      if (Array.isArray(raw)) return response;
+      return { ...response, data: [] };
     },
     addTransaction: async (payload) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'ok' } };
@@ -160,15 +230,18 @@ const api = {
     },
     sendOTP: async (numero_telefone) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'ok' } };
-      return axiosInstance.post('app/envia_otp_recuperar.php', toFormData({ numero_telefone }));
+      const numero = String(numero_telefone || '').replace(/\D/g, '');
+      return axiosInstance.post('app/envia_otp_recuperar.php', toFormData({ numero_telefone: numero }));
     },
     verifyOTP: async (numero_telefone, otp) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'ok' } };
-      return axiosInstance.post('app/verificar_otp.php', toFormData({ numero_telefone, otp }));
+      const numero = String(numero_telefone || '').replace(/\D/g, '');
+      return axiosInstance.post('app/verificar_otp.php', toFormData({ numero_telefone: numero, otp }));
     },
     resetPassword: async (telefone, senha) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'sucesso' } };
-      return axiosInstance.post('app/reset_senha.php', toFormData({ telefone, senha }));
+      const telefoneNorm = String(telefone || '').replace(/\D/g, '');
+      return axiosInstance.post('app/reset_senha.php', toFormData({ telefone: telefoneNorm, senha }));
     },
     updateProfile: async (payload) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'sucesso' } };
@@ -214,31 +287,36 @@ const api = {
       if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.cities };
       return axiosInstance.get('app/get_cidades.php');
     },
-    /** Autocomplete de endereço (Mapbox via app/busca_endereco.php no servidor). */
-    searchAddresses: async (q, lat, lng) => {
-      if (CONFIG.USE_MOCKS) {
-        return {
-          data: [
-            {
-              place_id: 'mock-1',
-              name: 'Avenida Paulista',
-              display_name: 'Avenida Paulista, Bela Vista, São Paulo, SP, Brasil',
-              lat: '-23.55686',
-              lon: '-46.66141',
-            },
-          ],
-        };
-      }
-      const params = { q };
-      if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
-        params.lat = Number(lat);
-        params.lng = Number(lng);
-      }
-      return axiosInstance.get('app/busca_endereco.php', { params });
-    },
+  /** Autocomplete de endereço (Google Places / Mapbox via app/busca_endereco.php). */
+  searchAddresses: async (q, lat, lng, radius = 50000) => {
+    if (CONFIG.USE_MOCKS) {
+      return {
+        data: [
+          {
+            place_id: 'mock-1',
+            name: 'Avenida Paulista',
+            display_name: 'Avenida Paulista, Bela Vista, São Paulo, SP, Brasil',
+            lat: '-23.55686',
+            lon: '-46.66141',
+          },
+        ],
+      };
+    }
+    const params = { q };
+    if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
+      params.lat = Number(lat);
+      params.lng = Number(lng);
+      params.radius = Number(radius) || 50000;
+    }
+    return axiosInstance.get('app/busca_endereco.php', { params });
+  },
     checkTransactionStatus: async (cidade_id, user_id) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'no' } };
       return axiosInstance.post('app/verifica_status_transacoes.php', toFormData({ cidade_id, user_id }));
+    },
+    savePushToken: async (telefone, senha, id_signal) => {
+      if (CONFIG.USE_MOCKS) return { data: { status: 'ok' } };
+      return axiosInstance.post('app/salva_push_token.php', toFormData({ telefone, senha, id_signal }));
     },
     checkBalance: async (telefone, senha, valor) => {
       if (CONFIG.USE_MOCKS) return { data: { status: 'sucesso' } };
@@ -258,7 +336,12 @@ const api = {
   driver: {
     login: async (cpf, senha, id_signal = '') => {
       if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.login };
-      return axiosInstance.post('motoristas/login.php', toFormData({ cpf, senha, id_signal }));
+      const cpfNorm = String(cpf || '').replace(/\D/g, '');
+      return axiosInstance.post('motoristas/login.php', toFormData({ cpf: cpfNorm, senha, id_signal }));
+    },
+    savePushToken: async (id_motorista, id_signal) => {
+      if (CONFIG.USE_MOCKS) return { data: { status: 'ok' } };
+      return axiosInstance.post('motoristas/salva_push_token.php', toFormData({ id_motorista, id_signal }));
     },
     updateLocation: async (id_motorista, status, latitude, longitude) => {
         if (CONFIG.USE_MOCKS) return { data: 'ok' };
@@ -268,7 +351,9 @@ const api = {
         if (CONFIG.USE_MOCKS) return { data: 'ok' };
         const payload = { id_corrida, status, id_cidade };
         if (taxa) payload.taxa = taxa;
-        return axiosInstance.post('motoristas/atualiza.php', toFormData(payload));
+        const response = await axiosInstance.post('motoristas/atualiza.php', toFormData(payload));
+        assertPhpOk(response, 'Atualização de status');
+        return response;
     },
     uploadDriverDocs: async (formData) => {
         if (CONFIG.USE_MOCKS) return { data: { status: 'ok' } };
@@ -328,11 +413,50 @@ const api = {
     },
     finishRideTaxi: async (payload) => {
         if (CONFIG.USE_MOCKS) return { data: 'ok' };
-        return axiosInstance.post('motoristas/atualiza_taxi.php', toFormData(payload));
+        const response = await axiosInstance.post('motoristas/atualiza_taxi.php', toFormData(payload));
+        assertPhpOk(response, 'Finalização via taxímetro');
+        return response;
+    },
+    /** Finaliza corrida: tenta atualiza_taxi.php e, se falhar, usa atualiza.php status=4 (como simulate-driver-flow.sh). */
+    finishRide: async (payload) => {
+        if (CONFIG.USE_MOCKS) return { data: 'ok' };
+        try {
+            return await axiosInstance.post('motoristas/atualiza_taxi.php', toFormData(payload)).then((res) => {
+                assertPhpOk(res, 'Finalização via taxímetro');
+                return res;
+            });
+        } catch (taxiErr) {
+            console.warn('[finishRide] atualiza_taxi falhou, tentando atualiza.php status=4:', taxiErr?.message);
+            const fallback = await axiosInstance.post(
+                'motoristas/atualiza.php',
+                toFormData({
+                    id_corrida: payload.id_corrida,
+                    status: 4,
+                    id_cidade: payload.id_cidade,
+                    taxa: payload.taxa,
+                })
+            );
+            assertPhpOk(fallback, 'Finalização da corrida');
+            return fallback;
+        }
     },
     cancelRideByDriver: async (id_corrida) => {
         if (CONFIG.USE_MOCKS) return { data: 'ok' };
         return axiosInstance.post('motoristas/cancelar.php', toFormData({ id_corrida }));
+    },
+    getOpenRides: async (motorista_id) => {
+        if (CONFIG.USE_MOCKS) return { data: [] };
+        const response = await axiosInstance.post('motoristas/busca_abertas.php', toFormData({ motorista_id }));
+        if (response.data === 'no' || !response.data) return { ...response, data: [] };
+        if (typeof response.data === 'string') {
+            try {
+                const parsed = JSON.parse(response.data);
+                return { ...response, data: Array.isArray(parsed) ? parsed : [] };
+            } catch {
+                return { ...response, data: [] };
+            }
+        }
+        return { ...response, data: Array.isArray(response.data) ? response.data : [] };
     },
     /** Suporte/chat por corrida: o PHP exige id_corrida (mesmo contrato de insere_msg / busca_msg). */
     sendDriverMessage: async ({ id_corrida, msg, sender = '1' }) => {
@@ -345,9 +469,17 @@ const api = {
         if (response.data === 'no' || !response.data) return { ...response, data: [] };
         return response;
     },
-    getDriverHistory: async (id_motorista, data) => {
+    getDriverHistory: async (id_motorista, data, options = {}) => {
         if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.driver_history };
-        const response = await axiosInstance.post('motoristas/busca_historico.php', toFormData({ id_motorista, data }));
+        const payload = { id_motorista };
+        if (options.modo) {
+            payload.modo = options.modo;
+        } else if (data) {
+            payload.data = data;
+        } else {
+            payload.modo = 'recent';
+        }
+        const response = await axiosInstance.post('motoristas/busca_historico.php', toFormData(payload));
         if (!response.data || response.data === "no") return { ...response, data: [] };
         if (typeof response.data === 'string') {
           const raw = response.data.trim();
@@ -389,7 +521,9 @@ const api = {
   isMockEnabled: () => CONFIG.USE_MOCKS,
   getMockStatus: () => MOCK_DATA.status_corrida,
   getImageUrl: (filename) => {
-    if (!filename) return `${CONFIG.IMAGE_BASE_URL}default_driver.png`;
+    if (!filename || filename === 'default.jpg' || filename === 'default.png') {
+      return `${CONFIG.IMAGE_BASE_URL}default_driver.png`;
+    }
     if (filename.startsWith('http')) return filename;
     return `${CONFIG.IMAGE_BASE_URL}${filename}`;
   }

@@ -1,0 +1,254 @@
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
+const IS_EXPO_GO = Constants?.appOwnership === 'expo';
+
+let notifeeModule = null;
+
+async function getNotifee() {
+  if (Platform.OS !== 'android' || IS_EXPO_GO) return null;
+  if (notifeeModule) return notifeeModule;
+  try {
+    notifeeModule = require('@notifee/react-native').default;
+    return notifeeModule;
+  } catch (e) {
+    console.warn('[rideNotification] Notifee indisponível:', e?.message);
+    return null;
+  }
+}
+
+export const RIDE_REQUEST_CHANNEL_ID = 'ride-requests';
+export const RIDE_REQUEST_TIMEOUT_MS = 30000;
+
+/** @typedef {import('./rideRequestController').RideRequest} RideRequest */
+
+export function mapApiRideToRideRequest(raw) {
+  if (!raw?.id) return null;
+
+  const paymentRaw = String(raw.f_pagamento || raw.forma_pagamento || '').toLowerCase();
+  let paymentMethod = 'dinheiro';
+  if (paymentRaw.includes('pix')) paymentMethod = 'pix';
+  else if (paymentRaw.includes('cart') || paymentRaw.includes('crédito') || paymentRaw.includes('credito')) {
+    paymentMethod = 'cartao';
+  }
+
+  const price = parseFloat(String(raw.taxa || '0').replace(',', '.')) || 0;
+  const km = parseFloat(String(raw.km || raw.distancia || '0').replace(',', '.')) || 0;
+  const tempo = parseInt(String(raw.tempo || raw.tempo_estimado || '0'), 10) || 0;
+
+  return {
+    rideId: String(raw.id),
+    rawRide: raw,
+    passengerName: raw.nome_cliente || raw.cliente || 'Passageiro',
+    passengerRating: parseFloat(raw.nota_cliente || raw.rating || '5') || 5,
+    pickupAddress: raw.endereco_ini_txt || raw.endereco_ini || 'Embarque',
+    dropoffAddress: raw.endereco_fim_txt || raw.endereco_fim || 'Destino',
+    distanceKm: km,
+    estimatedMinutes: tempo > 0 ? tempo : Math.max(1, Math.round(km * 3)),
+    price,
+    paymentMethod,
+    cidadeId: raw.cidade_id || null,
+  };
+}
+
+export async function setupRideNotificationChannel() {
+  const notifee = await getNotifee();
+  if (!notifee) return;
+
+  const { AndroidImportance, AndroidVisibility } = require('@notifee/react-native');
+
+  await notifee.createChannel({
+    id: RIDE_REQUEST_CHANNEL_ID,
+    name: 'Solicitações de Corrida',
+    importance: AndroidImportance.HIGH,
+    visibility: AndroidVisibility.PUBLIC,
+    sound: 'default',
+    vibration: true,
+    vibrationPattern: [300, 500, 300, 500, 300, 500],
+    lights: true,
+    lightColor: '#3AB56B',
+    bypassDnd: true,
+  });
+}
+
+export async function requestRideNotificationPermission() {
+  let granted = false;
+
+  try {
+    const { ensureNotificationPermissions } = require('../utils/notifications');
+    granted = await ensureNotificationPermissions();
+  } catch {
+    // expo-notifications indisponível
+  }
+
+  const notifee = await getNotifee();
+  if (!notifee) return granted;
+
+  try {
+    const settings = await notifee.requestPermission();
+    return granted || settings?.authorizationStatus >= 1;
+  } catch {
+    return granted;
+  }
+}
+
+export async function showRideRequestNotification(ride) {
+  const notifee = await getNotifee();
+  if (!notifee || !ride?.rideId) return false;
+
+  const {
+    AndroidImportance,
+    AndroidVisibility,
+    AndroidCategory,
+  } = require('@notifee/react-native');
+
+  await setupRideNotificationChannel();
+
+  const pickup = String(ride.pickupAddress || '').split('(')[0].trim();
+  const dest = String(ride.dropoffAddress || '').split('(')[0].trim();
+
+  const compactPayload = JSON.stringify({
+    rideId: ride.rideId,
+    passengerName: ride.passengerName,
+    passengerRating: ride.passengerRating,
+    pickupAddress: ride.pickupAddress,
+    dropoffAddress: ride.dropoffAddress,
+    distanceKm: ride.distanceKm,
+    estimatedMinutes: ride.estimatedMinutes,
+    price: ride.price,
+    paymentMethod: ride.paymentMethod,
+    cidadeId: ride.cidadeId,
+  });
+
+  let canFullScreen = true;
+  try {
+    if (typeof notifee.canUseFullScreenIntent === 'function') {
+      canFullScreen = await notifee.canUseFullScreenIntent();
+    }
+  } catch (_) {
+    canFullScreen = false;
+  }
+
+  const androidConfig = {
+    channelId: RIDE_REQUEST_CHANNEL_ID,
+    importance: AndroidImportance.HIGH,
+    visibility: AndroidVisibility.PUBLIC,
+    category: AndroidCategory.CALL,
+    sound: 'default',
+    vibrationPattern: [300, 500, 300, 500, 300, 500],
+    lightUpScreen: true,
+    pressAction: { id: 'default', launchActivity: 'default' },
+    actions: [
+      {
+        title: 'Aceitar',
+        pressAction: { id: 'accept', launchActivity: 'default' },
+      },
+      {
+        title: 'Recusar',
+        pressAction: { id: 'decline' },
+      },
+    ],
+    timeoutAfter: RIDE_REQUEST_TIMEOUT_MS,
+    autoCancel: false,
+    ongoing: true,
+  };
+
+  if (canFullScreen) {
+    androidConfig.fullScreenAction = {
+      id: 'ride_screen',
+      launchActivity: 'default',
+    };
+  }
+
+  await notifee.displayNotification({
+    id: `ride-${ride.rideId}`,
+    title: `Nova corrida — R$ ${ride.price.toFixed(2).replace('.', ',')}`,
+    body: `${ride.passengerName} • ${pickup} → ${dest}`,
+    data: {
+      type: 'ride_request',
+      ride: compactPayload,
+      rideId: ride.rideId,
+    },
+    android: androidConfig,
+  });
+
+  return true;
+}
+
+export async function cancelRideRequestNotification(rideId) {
+  const notifee = await getNotifee();
+  if (!notifee || !rideId) return;
+  try {
+    await notifee.cancelNotification(`ride-${rideId}`);
+  } catch (e) {
+    console.warn('[rideNotification] cancel:', e?.message);
+  }
+}
+
+export async function cancelAllRideRequestNotifications() {
+  const notifee = await getNotifee();
+  if (!notifee) return;
+  try {
+    await notifee.cancelAllNotifications();
+  } catch (e) {
+    console.warn('[rideNotification] cancelAll:', e?.message);
+  }
+}
+
+export function listenToRideNotificationActions(callbacks) {
+  let unsubscribe = () => {};
+
+  (async () => {
+    const notifee = await getNotifee();
+    if (!notifee) return;
+
+    const { EventType } = require('@notifee/react-native');
+
+    unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+      handleNotifeeEvent(type, detail, EventType, callbacks);
+    });
+  })();
+
+  return () => unsubscribe();
+}
+
+export function parseRideFromNotificationDetail(detail) {
+  try {
+    const raw = detail?.notification?.data?.ride;
+    if (!raw) return null;
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch {
+    return null;
+  }
+}
+
+export function handleNotifeeEvent(type, detail, EventType, callbacks) {
+  const ride = parseRideFromNotificationDetail(detail);
+  if (!ride?.rideId) return;
+
+  if (type === EventType.ACTION_PRESS) {
+    const action = detail.pressAction?.id;
+    if (action === 'accept') callbacks.onAccept?.(ride);
+    if (action === 'decline') callbacks.onDecline?.(ride);
+  }
+
+  if (type === EventType.PRESS || type === EventType.DELIVERED) {
+    callbacks.onOpen?.(ride);
+  }
+
+  if (type === EventType.DISMISSED) {
+    callbacks.onDismiss?.(ride);
+  }
+}
+
+export async function getInitialRideNotification() {
+  const notifee = await getNotifee();
+  if (!notifee) return null;
+  try {
+    const initial = await notifee.getInitialNotification();
+    if (!initial) return null;
+    return parseRideFromNotificationDetail(initial);
+  } catch {
+    return null;
+  }
+}

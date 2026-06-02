@@ -5,10 +5,11 @@ import Icon from '@expo/vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
+import { formatPhoneBr, normalizePhoneForApi, isValidPhoneDigits } from '../../utils/inputMasks';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: ${colors.background};
 `;
 
 const Header = styled.View`
@@ -25,33 +26,33 @@ const Content = styled.View`
 `;
 
 const Title = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 28px;
   font-weight: 900;
   margin-bottom: 10px;
 `;
 
 const Subtitle = styled.Text`
-  color: #94a3b8;
+  color: #64748b;
   font-size: 16px;
   margin-bottom: 40px;
 `;
 
 const InputContainer = styled.View`
-  background-color: #1a1c1e;
+  background-color: #fff;
   border-radius: 18px;
   margin-bottom: 20px;
   padding: 5px 15px;
   flex-direction: row;
   align-items: center;
   border-width: 1px;
-  border-color: rgba(255, 255, 255, 0.05);
+  border-color: #cbd5e1;
 `;
 
 const Input = styled.TextInput`
   flex: 1;
   height: 55px;
-  color: #fff;
+  color: ${colors.text};
   font-size: 16px;
   margin-left: 10px;
 `;
@@ -70,7 +71,7 @@ const Button = styled.TouchableOpacity`
 `;
 
 const ButtonText = styled.Text`
-  color: #000;
+  color: ${colors.white};
   font-size: 18px;
   font-weight: bold;
 `;
@@ -85,7 +86,7 @@ const StepDot = styled.View`
   width: 10px;
   height: 10px;
   border-radius: 5px;
-  background-color: ${props => props.active ? colors.primary : '#334155'};
+  background-color: ${props => props.active ? colors.primary : '#cbd5e1'};
   margin-horizontal: 5px;
 `;
 
@@ -99,13 +100,14 @@ export default function ForgotPasswordScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleSendOTP = async () => {
-    if (phone.length < 10) {
-      Alert.alert('Erro', 'Informe um telefone válido.');
+    const phoneNorm = normalizePhoneForApi(phone);
+    if (!isValidPhoneDigits(phoneNorm)) {
+      Alert.alert('Erro', 'Informe um telefone válido com DDD.');
       return;
     }
     setLoading(true);
     try {
-      const resp = await api.passenger.sendOTP(phone);
+      const resp = await api.passenger.sendOTP(phoneNorm);
       if (resp.data?.status === 'ok' || resp.data?.status === 'sucesso') {
         setStep(2);
       } else {
@@ -166,11 +168,11 @@ export default function ForgotPasswordScreen() {
 
   return (
     <Container>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       <SafeAreaView style={{ flex: 1 }}>
         <Header>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="close" size={28} color="#fff" />
+            <Icon name="close" size={28} color={colors.text} />
           </TouchableOpacity>
         </Header>
 
@@ -194,11 +196,12 @@ export default function ForgotPasswordScreen() {
                   <InputContainer>
                     <Icon name="phone" size={24} color={colors.primary} />
                     <Input 
-                      placeholder="Seu telefone (DDD + Número)" 
+                      placeholder="(00) 00000-0000" 
                       placeholderTextColor="#64748b"
                       keyboardType="phone-pad"
                       value={phone}
-                      onChangeText={setPhone}
+                      onChangeText={(text) => setPhone(formatPhoneBr(text))}
+                      maxLength={16}
                     />
                   </InputContainer>
 

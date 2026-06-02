@@ -12,7 +12,7 @@ const { width } = Dimensions.get('window');
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: ${colors.background};
 `;
 
 const Header = styled(LinearGradient)`
@@ -27,14 +27,14 @@ const Content = styled.ScrollView`
 `;
 
 const Title = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 24px;
   font-weight: 900;
   margin-bottom: 5px;
 `;
 
 const Subtitle = styled.Text`
-  color: #94a3b8;
+  color: #64748b;
   font-size: 14px;
 `;
 
@@ -47,21 +47,21 @@ const SummaryRow = styled.ScrollView.attrs({
 
 const SummaryCard = styled.View`
   width: ${width * 0.4}px;
-  background-color: ${props => props.active ? colors.primary : 'rgba(255,255,255,0.05)'};
+  background-color: ${props => props.active ? colors.primary : '#fff'};
   padding: 20px;
   border-radius: 25px;
   margin-right: 15px;
   border-width: 1px;
-  border-color: ${props => props.active ? 'transparent' : 'rgba(255,255,255,0.05)'};
+  border-color: ${props => props.active ? 'transparent' : '#e2e8f0'};
 `;
 
 const ChartContainer = styled.View`
-  background-color: #1a1c1e;
+  background-color: #fff;
   border-radius: 30px;
   padding: 25px;
   margin-top: 30px;
   border-width: 1px;
-  border-color: rgba(255,255,255,0.05);
+  border-color: #e2e8f0;
 `;
 
 const BarRow = styled.View`
@@ -79,7 +79,7 @@ const BarCol = styled.View`
 const Bar = styled.View`
   width: 15px;
   height: ${props => props.height}%;
-  background-color: ${props => props.active ? colors.primary : '#334155'};
+  background-color: ${props => props.active ? colors.primary : '#cbd5e1'};
   border-radius: 10px;
   margin-bottom: 10px;
 `;
@@ -99,12 +99,14 @@ const SectionHeader = styled.View`
 `;
 
 const TripCard = styled.TouchableOpacity`
-  background-color: #1a1c1e;
+  background-color: #fff;
   padding: 20px;
   border-radius: 20px;
   flex-direction: row;
   align-items: center;
   margin-bottom: 12px;
+  border-width: 1px;
+  border-color: #e2e8f0;
   border-left-width: 4px;
   border-left-color: ${colors.primary};
 `;
@@ -154,10 +156,10 @@ const DriverEarningsScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="light-content" />
-      <Header colors={['#1a1c1e', '#0c0d0d']}>
+      <StatusBar barStyle="dark-content" />
+      <Header colors={['#fff', '#f8f9fa']}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: 15 }}>
-          <Icon name="arrow-back" size={28} color="#fff" />
+          <Icon name="arrow-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Title>Seus Ganhos</Title>
         <Subtitle>Acompanhe seu desempenho financeiro</Subtitle>
@@ -170,8 +172,8 @@ const DriverEarningsScreen = () => {
           ].map(tab => (
             <TouchableOpacity key={tab.id} onPress={() => setActiveTab(tab.id)}>
               <SummaryCard active={activeTab === tab.id}>
-                <Text style={{ color: activeTab === tab.id ? '#000' : '#64748b', fontSize: 12, fontWeight: 'bold' }}>{tab.label.toUpperCase()}</Text>
-                <Text style={{ color: activeTab === tab.id ? '#000' : '#fff', fontSize: 22, fontWeight: '900', marginTop: 5 }}>R$ {tab.val}</Text>
+                <Text style={{ color: activeTab === tab.id ? '#fff' : '#64748b', fontSize: 12, fontWeight: 'bold' }}>{tab.label.toUpperCase()}</Text>
+                <Text style={{ color: activeTab === tab.id ? '#fff' : colors.text, fontSize: 22, fontWeight: '900', marginTop: 5 }}>R$ {tab.val}</Text>
               </SummaryCard>
             </TouchableOpacity>
           ))}
@@ -181,7 +183,7 @@ const DriverEarningsScreen = () => {
       <Content showsVerticalScrollIndicator={false}>
         <ChartContainer>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>Tendência Semanal</Text>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>Tendência Semanal</Text>
             <View style={{ backgroundColor: 'rgba(58, 181, 107, 0.1)', padding: 5, borderRadius: 8 }}>
                <Text style={{ color: colors.primary, fontSize: 12 }}>Atualizado hoje</Text>
             </View>
@@ -198,7 +200,7 @@ const DriverEarningsScreen = () => {
         </ChartContainer>
 
         <SectionHeader>
-          <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>Atividade Recente</Text>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold' }}>Atividade Recente</Text>
           <TouchableOpacity onPress={() => navigation.navigate('DriverHistory')}>
             <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Ver Tudo</Text>
           </TouchableOpacity>
@@ -207,19 +209,19 @@ const DriverEarningsScreen = () => {
         {recentTrips.length > 0 ? (
           recentTrips.map((item, idx) => (
             <TripCard key={idx} activeOpacity={0.8} onPress={() => navigation.navigate('DriverHistory')}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
                 <Icon name="directions-car" size={24} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>Viagem #{item.id}</Text>
+                <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 15 }}>Viagem #{item.id}</Text>
                 <Text style={{ color: '#64748b', fontSize: 11 }}>{item.hora} • {item.nome_cliente || 'Passageiro'}</Text>
               </View>
-              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '900' }}>R$ {item.valor}</Text>
+              <Text style={{ color: colors.text, fontSize: 17, fontWeight: '900' }}>R$ {item.valor}</Text>
             </TripCard>
           ))
         ) : (
-          <View style={{ padding: 30, alignItems: 'center', backgroundColor: '#1a1c1e', borderRadius: 20 }}>
-              <Icon name="history" size={40} color="#334155" />
+          <View style={{ padding: 30, alignItems: 'center', backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#e2e8f0' }}>
+              <Icon name="history" size={40} color="#94a3b8" />
               <Text style={{ color: '#64748b', marginTop: 10 }}>Nenhuma atividade hoje.</Text>
           </View>
         )}

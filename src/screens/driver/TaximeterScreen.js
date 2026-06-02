@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StatusBar, TouchableOpacity, Animated, Dimensions, StyleSheet, SafeAreaView, Alert, Linking, Platform, Modal, Pressable, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StatusBar, TouchableOpacity, Animated, Dimensions, StyleSheet, SafeAreaView, Alert, Linking, Platform, Modal, Pressable, ActivityIndicator, BackHandler } from 'react-native';
 import styled from 'styled-components/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import Constants from 'expo-constants';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../services/api';
+import driverRideMonitor from '../../services/driverRideMonitor';
 import { getSession, saveSession } from '../../utils/session';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeRemoveLocationSubscription } from '../../utils/locationSubscription';
 
 // Função Haversine para calcular distância entre coordenadas
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -31,7 +32,7 @@ const IS_EXPO_GO = Constants?.appOwnership === 'expo';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0b0c10;
+  background-color: ${colors.background};
 `;
 
 const StatusHeader = styled.View`
@@ -56,13 +57,18 @@ const DashArea = styled.ScrollView`
 `;
 
 const InfoCard = styled.View`
-  background-color: #1a1c22;
+  background-color: ${colors.white};
   margin: 20px;
   padding: 25px;
   border-radius: 24px;
   align-items: center;
   border-width: 1px;
-  borderColor: rgba(255,255,255,0.05);
+  borderColor: ${colors.border};
+  elevation: 6;
+  shadow-color: #000;
+  shadow-offset: 0px 4px;
+  shadow-opacity: 0.1;
+  shadow-radius: 8px;
 `;
 
 const Label = styled.Text`
@@ -75,7 +81,7 @@ const Label = styled.Text`
 `;
 
 const Value = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 46px;
   font-weight: 900;
 `;
@@ -95,14 +101,16 @@ const Stat = styled.View`
 `;
 
 const StatText = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 20px;
   font-weight: 800;
 `;
 
 const ActionFooter = styled.View`
   padding: 20px 25px 45px 25px;
-  background-color: #0b0c10;
+  background-color: ${colors.background};
+  border-top-width: 1px;
+  border-top-color: ${colors.border};
 `;
 
 const SecondaryButton = styled.TouchableOpacity`
@@ -140,59 +148,183 @@ const TaximeterScreen = () => {
     const route = useRoute();
     const ride = route.params?.ride || null;
     const isNoDestinationRide = Boolean(ride?.isNoDestination) || String(ride?.destino || '').toLowerCase().includes('sem destino');
+    const resumeInitialStatus = route.params?.initialStatus || 'WAY_TO_ORIGIN';
 
-    const [status, setStatus] = useState('WAY_TO_ORIGIN');
+    const [status, setStatus] = useState(resumeInitialStatus);
     const [seconds, setSeconds] = useState(0);
     const [waitingSeconds, setWaitingSeconds] = useState(0);
     const [isWaiting, setIsWaiting] = useState(false);
-    const [distance, setDistance] = useState(0.0);
-    const [currentPrice, setCurrentPrice] = useState(parseFloat(String(ride?.taxa || '0.00').replace(',', '.')));
-    const [loading, setLoading] = useState(false);
+    const [distance, setDistance] = useState(() => {
+        const km = route.params?.initialKm;
+        return Number.isFinite(km) ? km : 0.0;
+    });
+    const [currentPrice, setCurrentPrice] = useState(() => {
+        if (route.params?.initialPrice != null) {
+            return Number(route.params.initialPrice) || 0;
+        }
+        return parseFloat(String(ride?.taxa || '0.00').replace(',', '.'));
+    });
+    const [actionLoading, setActionLoading] = useState(false);
+    const [cancelLoading, setCancelLoading] = useState(false);
     const [showNavModal, setShowNavModal] = useState(false);
     
     const [lastCoords, setLastCoords] = useState(null);
-    const [ratePerKm, setRatePerKm] = useState(2.00); // Valor padrão (seria ideal vir da categoria)
-    const [ratePerMin, setRatePerMin] = useState(0.20); // Valor padrão
-    const [gpsAccuracy, setGpsAccuracy] = useState(0); // Precisão em metros
+    const [ratePerKm] = useState(parseFloat(String(ride?.taxa_km || '1.20').replace(',', '.')));
+    const [ratePerMin] = useState(parseFloat(String(ride?.taxa_minuto || '0.25').replace(',', '.')));
+    const [gpsAccuracy, setGpsAccuracy] = useState(0);
     const gpsOpacity = useRef(new Animated.Value(0.4)).current;
+    const statusRef = useRef(status);
+    const lastCoordsRef = useRef(null);
+    const currentPriceRef = useRef(currentPrice);
+    const isFinalizingRef = useRef(false);
+    const isMountedRef = useRef(true);
+    const isWaitingRef = useRef(isWaiting);
+    const positionWatcherRef = useRef(null);
+
+    useEffect(() => {
+        isWaitingRef.current = isWaiting;
+    }, [isWaiting]);
+
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
+
+    useEffect(() => {
+        currentPriceRef.current = currentPrice;
+    }, [currentPrice]);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (positionWatcherRef.current) {
+                safeRemoveLocationSubscription(positionWatcherRef.current);
+                positionWatcherRef.current = null;
+            }
+            if (!IS_EXPO_GO) {
+                stopBackgroundTracking();
+            }
+        };
+    }, []);
+
+    const setDriverOnlineAfterRide = async (session) => {
+        if (!session?.id) return;
+        try {
+            const loc = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+            });
+            await api.driver.updateLocation(
+                session.id,
+                1,
+                loc.coords.latitude,
+                loc.coords.longitude
+            );
+        } catch (e) {
+            console.warn('Erro ao marcar motorista online após corrida:', e);
+        }
+    };
+
+    const goToDriverHome = useCallback(async () => {
+        await saveSession({ activeRideId: null, taximeterStatus: null }).catch(() => {});
+        const session = await getSession();
+        if (session?.id) {
+            await driverRideMonitor.updateConfig({
+                sessionId: session.id,
+                cidadeId: session.cidade_id || 1,
+                isAvailable: true,
+                isOnRide: false,
+                rejectedRides: [],
+            });
+            await setDriverOnlineAfterRide(session);
+        }
+        navigation.dispatch(
+            CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'DriverHome' }],
+            })
+        );
+    }, [navigation]);
+
+    const confirmLeaveTaximeter = useCallback(() => {
+        Alert.alert(
+            'Sair do taxímetro',
+            ride?.id === 'manual'
+                ? 'Deseja voltar ao painel inicial?'
+                : 'A corrida ainda está em andamento. Deseja voltar ao painel?',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Voltar', onPress: goToDriverHome },
+            ]
+        );
+    }, [ride?.id, goToDriverHome]);
+
+    useEffect(() => {
+        if (Platform.OS !== 'android' || !ride?.id) return undefined;
+        const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+            confirmLeaveTaximeter();
+            return true;
+        });
+        return () => sub.remove();
+    }, [ride?.id, confirmLeaveTaximeter]);
+
+    useEffect(() => {
+        if (!ride?.id || ride.id === 'manual') return;
+        if (status === 'FINISHED') {
+            saveSession({ activeRideId: null, taximeterStatus: null }).catch(() => {});
+            return;
+        }
+        saveSession({ activeRideId: ride.id, taximeterStatus: status }).catch(() => {});
+    }, [status, ride?.id]);
 
     useEffect(() => {
         if (!ride?.id) return;
+
         Animated.loop(
             Animated.sequence([
                 Animated.timing(gpsOpacity, { toValue: 1, duration: 1200, useNativeDriver: true }),
                 Animated.timing(gpsOpacity, { toValue: 0.4, duration: 1200, useNativeDriver: true })
             ])
         ).start();
-        
-        let positionWatcher;
+
+        let mounted = true;
 
         const startTracking = async () => {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') return;
+            const { status: perm } = await Location.requestForegroundPermissionsAsync();
+            if (perm !== 'granted' || !mounted) return;
 
-            positionWatcher = await Location.watchPositionAsync(
+            const watcher = await Location.watchPositionAsync(
                 { accuracy: Location.Accuracy.High, distanceInterval: 10 },
                 (location) => {
-                    // Atualiza precisão para o indicador visual
+                    if (!isMountedRef.current || isFinalizingRef.current) return;
+
                     setGpsAccuracy(location.coords.accuracy || 0);
 
-                    if (status === 'IN_PROGRESS') {
-                        if (lastCoords) {
+                    if (statusRef.current === 'IN_PROGRESS') {
+                        const prev = lastCoordsRef.current;
+                        if (prev) {
                             const d = getDistance(
-                                lastCoords.latitude, lastCoords.longitude,
+                                prev.latitude, prev.longitude,
                                 location.coords.latitude, location.coords.longitude
                             );
-                            if (d > 0.01) { // Só conta se moveu mais de 10 metros
-                                setDistance(prev => prev + d);
-                                // Incrementa preço: Distância * KM + (Tempo é processado no interval)
-                                setCurrentPrice(prev => prev + (d * ratePerKm));
+                            const accuracy = location.coords.accuracy || 0;
+                            if (d > 0.02 && accuracy < 25) {
+                                setDistance(prevDist => prevDist + d);
+                                if (isNoDestinationRide) {
+                                    setCurrentPrice(prevPrice => prevPrice + (d * ratePerKm));
+                                }
                             }
                         }
+                        lastCoordsRef.current = location.coords;
                         setLastCoords(location.coords);
                     }
                 }
             );
+
+            if (mounted) {
+                positionWatcherRef.current = watcher;
+            } else {
+                safeRemoveLocationSubscription(watcher);
+            }
         };
 
         startTracking();
@@ -201,50 +333,56 @@ const TaximeterScreen = () => {
         }
 
         return () => {
-            if (positionWatcher) positionWatcher.remove();
-            if (!IS_EXPO_GO) {
-                stopBackgroundTracking();
+            mounted = false;
+            if (positionWatcherRef.current) {
+                safeRemoveLocationSubscription(positionWatcherRef.current);
+                positionWatcherRef.current = null;
             }
         };
-    }, [status, lastCoords, ride?.id]);
+    }, [ride?.id, isNoDestinationRide, ratePerKm]);
 
-    // Timer secundário para incrementar valor por minuto
+    // Timer secundário para incrementar valor por minuto (apenas se for corrida sem destino definido)
     useEffect(() => {
         let priceTimer;
-        if (status === 'IN_PROGRESS' || isWaiting) {
+        if ((status === 'IN_PROGRESS' || isWaiting) && isNoDestinationRide) {
             priceTimer = setInterval(() => {
                 setCurrentPrice(prev => prev + (ratePerMin / 60)); // Adiciona fração de minuto a cada segundo
             }, 1000);
         }
         return () => clearInterval(priceTimer);
-    }, [status, isWaiting]);
+    }, [status, isWaiting, isNoDestinationRide]);
 
     // SINCRO EM TEMPO REAL: Heartbeat que atualiza a Taxa no Servidor
     useEffect(() => {
+        if (!ride?.id || ride.id === 'manual') return undefined;
+
         const syncInterval = setInterval(async () => {
-            if (status === 'IN_PROGRESS' || isWaiting) {
-                try {
-                    const session = await getSession();
-                    if (session) {
-                        // Atualiza a taxa no banco para o passageiro ver em tempo real
-                        // Passamos o status atual e o valor calculado no taxímetro
-                        await api.driver.updateRideStatus(
-                            ride.id, 
-                            (status === 'IN_PROGRESS' ? 3 : 2), 
-                            session.cidade_id || 1,
-                            currentPrice.toFixed(2)
-                        );
-                    }
-                } catch (e) {}
-            }
-        }, 10000); // 10 segundos
+            if (isFinalizingRef.current) return;
+            if (statusRef.current !== 'IN_PROGRESS' && !isWaitingRef.current) return;
+
+            try {
+                const session = await getSession();
+                if (!session) return;
+
+                await api.driver.updateRideStatus(
+                    ride.id,
+                    statusRef.current === 'IN_PROGRESS' ? 3 : 2,
+                    session.cidade_id || 1,
+                    currentPriceRef.current.toFixed(2)
+                );
+            } catch (e) {}
+        }, 10000);
+
         return () => clearInterval(syncInterval);
-    }, [status, isWaiting, currentPrice]);
+    }, [ride?.id]);
 
     const startBackgroundTracking = async () => {
         if (IS_EXPO_GO) return;
         const { status: fg } = await Location.requestForegroundPermissionsAsync();
         if (fg !== 'granted') return;
+        try {
+            await Location.requestBackgroundPermissionsAsync();
+        } catch (e) {}
         try {
             await Location.startLocationUpdatesAsync(LOCATION_TRACKING_TASK, {
                 accuracy: Location.Accuracy.BestForNavigation,
@@ -287,7 +425,7 @@ const TaximeterScreen = () => {
     const isValidCoordinate = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng);
 
     const toggleWaiting = async () => {
-        setLoading(true);
+        setActionLoading(true);
         try {
             if (!isWaiting) {
                 await api.driver.startWaiting(ride.id);
@@ -299,7 +437,7 @@ const TaximeterScreen = () => {
         } catch (e) {
             Alert.alert('Erro', 'Falha ao atualizar status de espera.');
         } finally {
-            setLoading(false);
+            setActionLoading(false);
         }
     };
 
@@ -326,14 +464,69 @@ const TaximeterScreen = () => {
         }
 
         try {
-            setLoading(true);
+            setActionLoading(true);
             const session = await getSession();
             await api.driver.updateRideStatus(ride.id, apiCode, session?.cidade_id || 1);
             setStatus(nextStatus);
         } catch (e) {
             Alert.alert('Falha', 'Erro ao atualizar status.');
         } finally {
-            setLoading(false);
+            setActionLoading(false);
+        }
+    };
+
+    const resetRideSession = async () => {
+        await stopBackgroundTracking();
+        await saveSession({ activeRideId: null, taximeterStatus: null });
+        const session = await getSession();
+        if (session?.id) {
+            await driverRideMonitor.updateConfig({
+                sessionId: session.id,
+                cidadeId: session.cidade_id || 1,
+                isAvailable: true,
+                isOnRide: false,
+                rejectedRides: [],
+            });
+            await driverRideMonitor.clearPendingRide();
+        }
+    };
+
+    const handleCancelRide = () => {
+        Alert.alert(
+            'Cancelar corrida',
+            'Tem certeza? O passageiro será avisado e a corrida voltará para a fila.',
+            [
+                { text: 'Não', style: 'cancel' },
+                {
+                    text: 'Sim, cancelar',
+                    style: 'destructive',
+                    onPress: confirmCancelRide,
+                },
+            ]
+        );
+    };
+
+    const confirmCancelRide = async () => {
+        if (cancelLoading || actionLoading || isFinalizingRef.current) return;
+        setCancelLoading(true);
+        try {
+            if (ride.id !== 'manual') {
+                await api.driver.cancelRideByDriver(ride.id);
+            }
+            if (positionWatcherRef.current) {
+                safeRemoveLocationSubscription(positionWatcherRef.current);
+                positionWatcherRef.current = null;
+            }
+            await resetRideSession();
+            const session = await getSession();
+            await setDriverOnlineAfterRide(session);
+            goToDriverHome();
+        } catch (e) {
+            Alert.alert('Erro', 'Não foi possível cancelar a corrida. Tente novamente.');
+        } finally {
+            if (isMountedRef.current) {
+                setCancelLoading(false);
+            }
         }
     };
 
@@ -342,32 +535,76 @@ const TaximeterScreen = () => {
             Alert.alert('Corrida inválida', 'Nenhuma corrida ativa encontrada para finalizar.');
             return;
         }
-        setLoading(true);
+        if (isFinalizingRef.current) return;
+
+        isFinalizingRef.current = true;
+        setActionLoading(true);
+
+        let session = null;
+        let finishedOk = false;
+
         try {
-            const session = await getSession();
+            session = await getSession();
             const totalSeconds = Number(seconds || 0) + Number(waitingSeconds || 0);
             const tempoMinutos = Math.max(1, Math.round(totalSeconds / 60));
             const kmRodados = Math.max(0.01, Number(distance || 0));
             const enderecoFimRaw = ride?.endereco_fim_txt || ride?.endereco_fim || ride?.destino || '';
             const enderecoFim = String(enderecoFimRaw).trim();
+            const priceFromRef = Number(currentPriceRef.current);
+            const priceFromRide = parseFloat(String(ride?.taxa || '0').replace(',', '.'));
+            const finalPrice = Number.isFinite(priceFromRef) && priceFromRef >= 0
+                ? priceFromRef
+                : (Number.isFinite(priceFromRide) ? priceFromRide : 0);
 
-            // Finalização completa do taxímetro: persiste taxa + tempo + km no histórico.
-            await api.driver.finishRideTaxi({
-                id_motorista: session?.id,
-                id_cidade: session?.cidade_id || 1,
-                id_corrida: ride.id,
-                taxa: currentPrice.toFixed(2),
-                tempo: String(tempoMinutos),
-                km: kmRodados.toFixed(2),
-                endereco_fim: enderecoFim || 'Destino não informado',
-            });
-            await saveSession({ activeRideId: null });
-            stopBackgroundTracking();
-            setStatus('FINISHED');
+            if (ride.id !== 'manual') {
+                await api.driver.finishRide({
+                    id_motorista: session?.id,
+                    id_cidade: session?.cidade_id || 1,
+                    id_corrida: ride.id,
+                    taxa: finalPrice.toFixed(2),
+                    tempo: String(tempoMinutos),
+                    km: kmRodados.toFixed(2),
+                    endereco_fim: enderecoFim || 'Destino não informado',
+                });
+            }
+
+            finishedOk = true;
+
+            if (positionWatcherRef.current) {
+                safeRemoveLocationSubscription(positionWatcherRef.current);
+                positionWatcherRef.current = null;
+            }
+            await stopBackgroundTracking();
+            await saveSession({ activeRideId: null, taximeterStatus: null });
+
+            if (session?.id) {
+                await driverRideMonitor.updateConfig({
+                    sessionId: session.id,
+                    cidadeId: session.cidade_id || 1,
+                    isAvailable: true,
+                    isOnRide: false,
+                    rejectedRides: [],
+                });
+                await driverRideMonitor.clearPendingRide();
+                await setDriverOnlineAfterRide(session);
+            }
+
+            if (isMountedRef.current) {
+                setStatus('FINISHED');
+            }
         } catch (e) {
-            Alert.alert('Erro', 'Falha ao finalizar.');
+            isFinalizingRef.current = false;
+            const msg = e?.message?.includes('confirmou')
+                ? e.message
+                : 'Falha ao finalizar. Verifique a conexão e tente novamente.';
+            Alert.alert('Erro', msg);
         } finally {
-            setLoading(false);
+            if (finishedOk && session?.id) {
+                await setDriverOnlineAfterRide(session).catch(() => {});
+            }
+            if (isMountedRef.current) {
+                setActionLoading(false);
+            }
         }
     };
 
@@ -412,13 +649,13 @@ const TaximeterScreen = () => {
         return (
             <Container style={{ justifyContent: 'center', alignItems: 'center', padding: 40 }}>
                 <Icon name="error-outline" size={56} color="#f39c12" />
-                <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', marginTop: 18, textAlign: 'center' }}>
-                    Nenhuma corrida ativa no taximetro
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 18, textAlign: 'center' }}>
+                    Nenhuma corrida ativa no taxímetro
                 </Text>
-                <Text style={{ color: '#94a3b8', marginTop: 10, textAlign: 'center' }}>
+                <Text style={{ color: colors.textSecondary, marginTop: 10, textAlign: 'center' }}>
                     Aceite uma corrida primeiro para iniciar o fluxo.
                 </Text>
-                <PrimaryButton color="#2c3e50" style={{ width: '100%', marginTop: 30 }} onPress={() => navigation.navigate('DriverHome')}>
+                <PrimaryButton color="#2c3e50" style={{ width: '100%', marginTop: 30 }} onPress={goToDriverHome}>
                     <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900' }}>VOLTAR</Text>
                 </PrimaryButton>
             </Container>
@@ -428,10 +665,10 @@ const TaximeterScreen = () => {
     if (status === 'FINISHED') {
         return (
             <Container style={{ justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-                <Icon name="check" size={60} color="#2ecc71" />
-                <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', marginVertical: 20 }}>CONCLUÍDO</Text>
+                <Icon name="check-circle" size={60} color={colors.primary} />
+                <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', marginVertical: 20 }}>CONCLUÍDO</Text>
                 <Value>R$ {currentPrice.toFixed(2).replace('.', ',')}</Value>
-                <PrimaryButton color="#2ecc71" style={{ width: '100%', marginTop: 40 }} onPress={() => navigation.navigate('DriverHome')}>
+                <PrimaryButton color="#2ecc71" style={{ width: '100%', marginTop: 40 }} onPress={goToDriverHome}>
                     <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>PRÓXIMA CORRIDA</Text>
                 </PrimaryButton>
             </Container>
@@ -442,15 +679,25 @@ const TaximeterScreen = () => {
         <Container>
             <StatusBar barStyle="light-content" />
             <StatusHeader color={isWaiting ? '#e67e22' : (status === 'WAY_TO_ORIGIN' ? '#34495e' : (status === 'ARRIVED' ? '#f39c12' : '#27ae60'))}>
-                <TouchableOpacity onPress={() => navigation.navigate('DriverHome')}>
+                <TouchableOpacity onPress={confirmLeaveTaximeter}>
                     <Icon name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
-                <StatusText>
+                <StatusText style={{ color: '#fff' }}>
                     {isWaiting ? 'EM ESPERA ATIVA' : status === 'WAY_TO_ORIGIN' ? 'A CAMINHO' : status === 'ARRIVED' ? 'NO LOCAL' : 'EM VIAGEM'}
                 </StatusText>
-                <TouchableOpacity onPress={() => setShowNavModal(true)}>
-                    <Icon name="navigation" size={24} color="#fff" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {ride?.id !== 'manual' && (
+                        <TouchableOpacity 
+                            style={{ marginRight: 15 }} 
+                            onPress={() => navigation.navigate('ChatScreen', { rideId: ride?.id, isDriver: true, otherUser: { nome: ride?.nome_cliente || 'Passageiro', foto: ride?.img_user || '' } })}
+                        >
+                            <Icon name="chat" size={24} color="#fff" />
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={() => setShowNavModal(true)}>
+                        <Icon name="navigation" size={24} color="#fff" />
+                    </TouchableOpacity>
+                </View>
             </StatusHeader>
 
             <DashArea>
@@ -470,7 +717,7 @@ const TaximeterScreen = () => {
                         </Stat>
                         <Stat>
                             <Label>ESPERA</Label>
-                            <StatText style={{ color: isWaiting ? '#e67e22' : '#fff' }}>{formatTime(waitingSeconds)}</StatText>
+                            <StatText style={{ color: isWaiting ? '#e67e22' : colors.text }}>{formatTime(waitingSeconds)}</StatText>
                         </Stat>
                         <Stat>
                             <Label>DISTÂNCIA</Label>
@@ -485,7 +732,7 @@ const TaximeterScreen = () => {
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, marginRight: 15 }} />
                         <View style={{ flex: 1 }}>
                             <Text style={{ color: '#64748b', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 }}>PARTIDA</Text>
-                            <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>{ride.origem || 'Localização atual'}</Text>
+                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>{ride.origem || 'Localização atual'}</Text>
                         </View>
                     </View>
                     <View style={{ width: 1, height: 15, backgroundColor: 'rgba(255,255,255,0.1)', marginLeft: 3, marginBottom: 15 }} />
@@ -493,7 +740,7 @@ const TaximeterScreen = () => {
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f44', marginRight: 15 }} />
                         <View style={{ flex: 1 }}>
                             <Text style={{ color: '#64748b', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 }}>DESTINO FINAL</Text>
-                            <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>
+                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>
                                 {isNoDestinationRide ? 'Sem destino definido (A combinar)' : (ride.destino || 'A definir durante trajeto')}
                             </Text>
                         </View>
@@ -503,8 +750,8 @@ const TaximeterScreen = () => {
 
             <ActionFooter>
                 {(status === 'ARRIVED' || isWaiting) && (
-                    <WaitingButton active={isWaiting} onPress={toggleWaiting} disabled={loading}>
-                        {loading ? <ActivityIndicator color="#fff" /> : (
+                    <WaitingButton active={isWaiting} onPress={toggleWaiting} disabled={actionLoading || cancelLoading}>
+                        {actionLoading ? <ActivityIndicator color="#fff" /> : (
                             <>
                                 <Icon name="timer" size={24} color="#fff" style={{ marginRight: 10 }} />
                                 <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>
@@ -516,11 +763,11 @@ const TaximeterScreen = () => {
                 )}
 
                 <PrimaryButton 
-                    disabled={loading}
+                    disabled={actionLoading || cancelLoading}
                     color={status === 'IN_PROGRESS' ? '#e74c3c' : '#2ecc71'} 
                     onPress={handleAction}
                 >
-                    {loading ? <ActivityIndicator color="#fff" /> : (
+                    {actionLoading ? <ActivityIndicator color="#fff" /> : (
                         <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>
                             {status === 'WAY_TO_ORIGIN' && 'CHEGUEI NO LOCAL'}
                             {status === 'ARRIVED' && 'INICIAR VIAGEM'}
@@ -528,6 +775,22 @@ const TaximeterScreen = () => {
                         </Text>
                     )}
                 </PrimaryButton>
+
+                {ride?.id !== 'manual' && (
+                    <TouchableOpacity
+                        onPress={handleCancelRide}
+                        disabled={cancelLoading || actionLoading}
+                        style={{ marginTop: 14, alignItems: 'center', paddingVertical: 8 }}
+                    >
+                        {cancelLoading ? (
+                            <ActivityIndicator color="#e74c3c" />
+                        ) : (
+                            <Text style={{ color: '#e74c3c', fontSize: 15, fontWeight: '800' }}>
+                                Cancelar corrida
+                            </Text>
+                        )}
+                    </TouchableOpacity>
+                )}
             </ActionFooter>
             
             <Modal visible={showNavModal} transparent animationType="slide">
@@ -543,7 +806,7 @@ const TaximeterScreen = () => {
                             <Text style={{ fontSize: 18, fontWeight: '800', marginLeft: 20 }}>Google Maps</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setShowNavModal(false)} style={{ marginTop: 25, alignItems: 'center' }}>
-                            <Text style={{ color: '#64748b', fontSize: 16, fontWeight: 'bold' }}>CANCELAR</Text>
+                            <Text style={{ color: '#64748b', fontSize: 16, fontWeight: 'bold' }}>FECHAR</Text>
                         </TouchableOpacity>
                     </View>
                 </Pressable>

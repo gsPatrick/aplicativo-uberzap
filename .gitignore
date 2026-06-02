@@ -25,3 +25,11 @@ npm-debug.log*
 # IDE
 .idea/
 .vscode/
+
+# Scripts de manutencao com credenciais de banco — NUNCA versionar
+insert_driver.js
+insert_driver_paratinga.js
+check_rides.js
+fix_driver.js
+cancel_stuck_rides.php
+limpar_corridas.js

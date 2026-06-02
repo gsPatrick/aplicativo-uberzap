@@ -10,7 +10,7 @@ import { getSession } from '../../utils/session';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: ${colors.background};
 `;
 
 const Header = styled.View`
@@ -33,7 +33,7 @@ const BalanceCard = styled(LinearGradient)`
 `;
 
 const BalanceLabel = styled.Text`
-  color: rgba(255,255,255,0.7);
+  color: rgba(255,255,255,0.95);
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -56,11 +56,13 @@ const WithdrawButton = styled.TouchableOpacity`
 
 const HistoryContainer = styled.View`
   flex: 1;
-  background-color: #1a1c1e;
+  background-color: #fff;
   border-top-left-radius: 40px;
   border-top-right-radius: 40px;
   padding: 30px 20px;
   margin-top: 20px;
+  border-top-width: 1px;
+  border-top-color: #e2e8f0;
 `;
 
 const TransactionItem = styled.View`
@@ -68,7 +70,7 @@ const TransactionItem = styled.View`
   align-items: center;
   padding-vertical: 18px;
   border-bottom-width: 1px;
-  border-bottom-color: rgba(255,255,255,0.05);
+  border-bottom-color: #e2e8f0;
 `;
 
 const IconBox = styled.View`
@@ -110,18 +112,18 @@ const DriverWalletScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       <Header>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={28} color="#fff" />
+          <Icon name="arrow-back" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>Minha Carteira</Text>
+        <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold' }}>Minha Carteira</Text>
         <TouchableOpacity>
           <Icon name="help-outline" size={24} color="#64748b" />
         </TouchableOpacity>
       </Header>
 
-      <BalanceCard colors={[colors.primary, '#1a1c1e']} start={{x:0, y:0}} end={{x:1, y:1}}>
+      <BalanceCard colors={[colors.primary, '#48c9b0']} start={{x:0, y:0}} end={{x:1, y:1}}>
         <BalanceLabel>Saldo Disponível</BalanceLabel>
         <BalanceValue>R$ {balance}</BalanceValue>
         <WithdrawButton 
@@ -135,7 +137,7 @@ const DriverWalletScreen = () => {
       </BalanceCard>
 
       <HistoryContainer>
-        <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 20 }}>Extrato de Lançamentos</Text>
+        <Text style={{ color: colors.text, fontSize: 20, fontWeight: 'bold', marginBottom: 20 }}>Extrato de Lançamentos</Text>
         
         {loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 50 }} />
@@ -151,14 +153,14 @@ const DriverWalletScreen = () => {
                   />
                 </IconBox>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{item.descricao}</Text>
+                  <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 16 }}>{item.descricao}</Text>
                   <Text style={{ color: '#64748b', fontSize: 13 }}>{item.date}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={{ color: item.tipo === 'Saque' ? '#f44336' : colors.primary, fontSize: 18, fontWeight: '900' }}>
                     {item.tipo === 'Saque' ? '-' : '+'} R$ {item.valor}
                   </Text>
-                  <Text style={{ color: '#475569', fontSize: 10, fontWeight: 'bold' }}>{item.status.toUpperCase()}</Text>
+                  <Text style={{ color: '#94a3b8', fontSize: 10, fontWeight: 'bold' }}>{item.status.toUpperCase()}</Text>
                 </View>
               </TransactionItem>
             ))}

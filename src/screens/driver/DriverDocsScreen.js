@@ -11,7 +11,7 @@ import { CONFIG } from '../../config';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: ${colors.background};
 `;
 
 const Header = styled.View`
@@ -20,13 +20,15 @@ const Header = styled.View`
   justify-content: space-between;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
-  background-color: #1a1c1e;
+  background-color: #fff;
+  border-bottom-width: 1px;
+  border-bottom-color: #e2e8f0;
 `;
 
 const HeaderTitle = styled.Text`
   font-size: 20px;
   font-weight: bold;
-  color: #fff;
+  color: ${colors.text};
 `;
 
 const Content = styled.ScrollView`
@@ -35,14 +37,14 @@ const Content = styled.ScrollView`
 `;
 
 const DocItem = styled.TouchableOpacity`
-  background-color: #1a1c1e;
+  background-color: #fff;
   padding: 15px;
   border-radius: 15px;
   flex-direction: row;
   align-items: center;
   margin-bottom: 12px;
   border-width: 1px;
-  border-color: ${props => props.hasImage ? colors.primary : 'rgba(255, 255, 255, 0.05)'};
+  border-color: ${props => props.hasImage ? colors.primary : '#e2e8f0'};
 `;
 
 const SubmitButton = styled.TouchableOpacity`
@@ -150,10 +152,10 @@ const DriverDocsScreen = () => {
 
     return (
         <Container>
-            <StatusBar barStyle="light-content" />
+            <StatusBar barStyle="dark-content" />
             <Header>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Icon name="arrow-back" size={28} color="#fff" />
+                    <Icon name="arrow-back" size={28} color={colors.text} />
                 </TouchableOpacity>
                 <HeaderTitle>Enviar Documentos</HeaderTitle>
                 <View style={{ width: 28 }} />
@@ -170,21 +172,21 @@ const DriverDocsScreen = () => {
                         onPress={() => pickImage(doc.key)}
                         hasImage={!!images[doc.key]}
                     >
-                        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
+                        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
                             <Icon name={doc.icon} size={24} color={images[doc.key] ? colors.primary : '#94a3b8'} />
                         </View>
-                        <Text style={{ color: '#fff', flex: 1 }}>{doc.name}</Text>
+                        <Text style={{ color: colors.text, flex: 1 }}>{doc.name}</Text>
                         {images[doc.key] ? (
                              <Icon name="check-circle" size={24} color={colors.primary} />
                         ) : (
-                             <Icon name="add-a-photo" size={24} color="#475569" />
+                             <Icon name="add-a-photo" size={24} color="#94a3b8" />
                         )}
                     </DocItem>
                 ))}
             </Content>
 
             <SubmitButton onPress={handleUpload} disabled={loading}>
-                {loading ? <ActivityIndicator color="#000" /> : <Text style={{ fontWeight: 'bold', fontSize: 16 }}>ENVIAR PARA ANÁLISE</Text>}
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#fff' }}>ENVIAR PARA ANÁLISE</Text>}
             </SubmitButton>
         </Container>
     );

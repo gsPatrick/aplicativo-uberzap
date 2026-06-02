@@ -22,12 +22,13 @@ import api from '../../services/api';
 import { CONFIG } from '../../config';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import DriverLogo from '../../components/DriverLogo';
 
 const { width } = Dimensions.get('window');
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: ${colors.background};
 `;
 
 const Header = styled(LinearGradient)`
@@ -52,18 +53,18 @@ const StepCircle = styled.View`
   width: 35px;
   height: 35px;
   border-radius: 20px;
-  background-color: ${props => props.active ? colors.primary : props.completed ? colors.primary : '#334155'};
+  background-color: ${props => props.active ? colors.primary : props.completed ? colors.primary : '#cbd5e1'};
   justify-content: center;
   align-items: center;
   margin-horizontal: 10px;
   border-width: 2px;
-  border-color: ${props => props.active ? '#fff' : 'transparent'};
+  border-color: ${props => props.active ? colors.primary : 'transparent'};
 `;
 
 const StepLine = styled.View`
   width: 40px;
   height: 2px;
-  background-color: ${props => props.completed ? colors.primary : '#334155'};
+  background-color: ${props => props.completed ? colors.primary : '#cbd5e1'};
 `;
 
 const InputGroup = styled.View`
@@ -71,43 +72,43 @@ const InputGroup = styled.View`
 `;
 
 const Label = styled.Text`
-  color: #94a3b8;
+  color: #64748b;
   font-size: 14px;
   margin-bottom: 8px;
   font-weight: 600;
 `;
 
 const Input = styled.TextInput`
-  background-color: #1a1c1e;
+  background-color: #fff;
   height: 55px;
   border-radius: 12px;
   padding-horizontal: 15px;
-  color: #fff;
+  color: ${colors.text};
   font-size: 16px;
   border-width: 1px;
-  border-color: #334155;
+  border-color: #cbd5e1;
 `;
 
 const CitySelector = styled.TouchableOpacity`
   height: 55px;
-  background-color: #1a1c1e;
+  background-color: #fff;
   border-radius: 12px;
   padding-horizontal: 15px;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   border-width: 1px;
-  border-color: #334155;
+  border-color: #cbd5e1;
 `;
 
 const DocCard = styled.TouchableOpacity`
-  background-color: #1a1c1e;
+  background-color: #fff;
   padding: 20px;
   border-radius: 15px;
   margin-bottom: 15px;
   border-width: 1px;
   border-style: dashed;
-  border-color: ${props => props.filled ? colors.primary : '#475569'};
+  border-color: ${props => props.filled ? colors.primary : '#cbd5e1'};
   flex-direction: row;
   align-items: center;
 `;
@@ -131,7 +132,7 @@ const ModalOverlay = styled.View`
 `;
 
 const ModalContent = styled.View`
-  background-color: #1a1c1e;
+  background-color: #fff;
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
   padding: 24px;
@@ -141,7 +142,7 @@ const ModalContent = styled.View`
 const CityItem = styled.TouchableOpacity`
   padding-vertical: 18px;
   border-bottom-width: 1px;
-  border-bottom-color: #334155;
+  border-bottom-color: #e2e8f0;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
@@ -488,7 +489,7 @@ const DriverRegisterScreen = () => {
           ) : (
             <Text
               style={{
-                color: selectedCity ? '#fff' : '#64748b',
+                color: selectedCity ? colors.text : '#64748b',
                 fontSize: 16,
                 flex: 1,
               }}
@@ -501,7 +502,7 @@ const DriverRegisterScreen = () => {
                   : 'Toque para selecionar a cidade'}
             </Text>
           )}
-          <MaterialIcons name="keyboard-arrow-down" size={24} color="#94a3b8" />
+          <MaterialIcons name="keyboard-arrow-down" size={24} color="#64748b" />
         </CitySelector>
       </InputGroup>
       <NextButton onPress={goToStep2}>
@@ -534,7 +535,7 @@ const DriverRegisterScreen = () => {
       </InputGroup>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <TouchableOpacity onPress={() => setStep(1)} style={{ padding: 20 }}>
-          <Text style={{ color: '#94a3b8' }}>Voltar</Text>
+          <Text style={{ color: '#64748b' }}>Voltar</Text>
         </TouchableOpacity>
         <NextButton onPress={goToStep3} style={{ flex: 1, maxWidth: width * 0.62, marginBottom: 20 }}>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>CONTINUAR</Text>
@@ -555,7 +556,7 @@ const DriverRegisterScreen = () => {
 
     return (
       <View>
-        <Text style={{ color: '#fff', fontSize: 13, marginBottom: 20, textAlign: 'center', opacity: 0.7 }}>
+        <Text style={{ color: colors.text, fontSize: 13, marginBottom: 20, textAlign: 'center', opacity: 0.7 }}>
           Todas as fotos são obrigatórias. Use imagens nítidas e legíveis.
         </Text>
 
@@ -566,7 +567,7 @@ const DriverRegisterScreen = () => {
                 width: 44,
                 height: 44,
                 borderRadius: 22,
-                backgroundColor: docs[doc.key] ? colors.primary : '#334155',
+                backgroundColor: docs[doc.key] ? colors.primary : '#cbd5e1',
                 justifyContent: 'center',
                 alignItems: 'center',
                 marginRight: 15,
@@ -575,7 +576,7 @@ const DriverRegisterScreen = () => {
               <MaterialIcons name={docs[doc.key] ? 'check' : doc.icon} size={24} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '500' }}>{doc.label} *</Text>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '500' }}>{doc.label} *</Text>
               <Text style={{ color: docs[doc.key] ? colors.primary : '#64748b', fontSize: 12 }}>
                 {docs[doc.key] ? 'Foto selecionada' : 'Toque para escolher'}
               </Text>
@@ -587,7 +588,7 @@ const DriverRegisterScreen = () => {
         ))}
 
         <TouchableOpacity onPress={() => setStep(2)} style={{ alignSelf: 'flex-start', paddingVertical: 8 }}>
-          <Text style={{ color: '#94a3b8' }}>← Voltar</Text>
+          <Text style={{ color: '#64748b' }}>← Voltar</Text>
         </TouchableOpacity>
 
         <NextButton onPress={handleRegister} disabled={loading}>
@@ -610,17 +611,13 @@ const DriverRegisterScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Container>
-        <Header colors={['#1a1c1e', '#0c0d0d']}>
+        <Header colors={['#fff', '#f8f9fa']}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <MaterialIcons name="arrow-back" size={28} color="#fff" />
+            <MaterialIcons name="arrow-back" size={28} color={colors.text} />
           </TouchableOpacity>
-          <Image
-            source={require('../../../assets/images/logomotorista.jpeg')}
-            style={{ width: 220, height: 80, resizeMode: 'contain', alignSelf: 'center', marginTop: 16 }}
-            accessibilityLabel="UbeZap Motorista"
-          />
-          <Text style={{ color: '#fff', fontSize: 24, fontWeight: '900', marginTop: 15 }}>Bora trabalhar!</Text>
-          <Text style={{ color: '#94a3b8', fontSize: 14 }}>Complete seu cadastro de motorista</Text>
+          <DriverLogo width={240} style={{ marginTop: 16 }} />
+          <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', marginTop: 15 }}>Bora trabalhar!</Text>
+          <Text style={{ color: '#64748b', fontSize: 14 }}>Complete seu cadastro de motorista</Text>
 
           <StepIndicator>
             <StepCircle active={step === 1} completed={step > 1}>
@@ -654,9 +651,9 @@ const DriverRegisterScreen = () => {
                   marginBottom: 16,
                 }}
               >
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#fff' }}>Sua cidade</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>Sua cidade</Text>
                 <TouchableOpacity onPress={() => setShowCityModal(false)}>
-                  <MaterialIcons name="close" size={24} color="#fff" />
+                  <MaterialIcons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
               </View>
               <FlatList
@@ -669,7 +666,7 @@ const DriverRegisterScreen = () => {
                       setShowCityModal(false);
                     }}
                   >
-                    <Text style={{ fontSize: 16, color: '#e2e8f0' }}>{item.nome}</Text>
+                    <Text style={{ fontSize: 16, color: colors.text }}>{item.nome}</Text>
                     {selectedCity?.id === item.id && (
                       <MaterialIcons name="check" size={20} color={colors.primary} />
                     )}

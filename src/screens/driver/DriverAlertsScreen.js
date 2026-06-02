@@ -5,31 +5,32 @@ import Icon from '@expo/vector-icons/MaterialIcons';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import { useNavigation } from '@react-navigation/native';
 import alertsService from '../../services/alertsService';
+import { getSession } from '../../utils/session';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #0c0d0d;
+  background-color: ${colors.background};
 `;
 
 const Header = styled.View`
-  background-color: #121212;
+  background-color: #fff;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   border-bottom-width: 1px;
-  border-bottom-color: rgba(255, 255, 255, 0.05);
+  border-bottom-color: #e2e8f0;
 `;
 
 const HeaderTitle = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 18px;
   font-weight: bold;
 `;
 
 const AlertCard = styled.View`
-  background-color: #1f2120;
+  background-color: #fff;
   margin-horizontal: ${spacing.md}px;
   margin-top: ${spacing.md}px;
   padding: 20px;
@@ -37,7 +38,7 @@ const AlertCard = styled.View`
   border-left-width: 4px;
   border-left-color: ${colors.primary};
   border-width: 1px;
-  border-color: rgba(255,255,255,0.05);
+  border-color: #e2e8f0;
 `;
 
 const AlertDate = styled.Text`
@@ -49,7 +50,7 @@ const AlertDate = styled.Text`
 `;
 
 const AlertMsg = styled.Text`
-  color: #fff;
+  color: ${colors.text};
   font-size: 15px;
   line-height: 22px;
 `;
@@ -62,7 +63,7 @@ const EmptyContainer = styled.View`
 `;
 
 const EmptyText = styled.Text`
-  color: #475569;
+  color: #64748b;
   font-size: 16px;
   margin-top: 20px;
   text-align: center;
@@ -99,10 +100,10 @@ const DriverAlertsScreen = () => {
 
     return (
         <Container>
-            <StatusBar barStyle="light-content" />
+            <StatusBar barStyle="dark-content" />
             <Header>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Icon name="arrow-back" size={28} color="#fff" />
+                    <Icon name="arrow-back" size={28} color={colors.text} />
                 </TouchableOpacity>
                 <HeaderTitle>Central de Alertas</HeaderTitle>
                 <TouchableOpacity onPress={() => alertsService.clearAlerts()}>
@@ -116,8 +117,8 @@ const DriverAlertsScreen = () => {
                 renderItem={renderItem}
                 ListEmptyComponent={
                     <EmptyContainer>
-                        <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center' }}>
-                            <Icon name="notifications-none" size={50} color="#334155" />
+                        <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(0,0,0,0.03)', justifyContent: 'center', alignItems: 'center' }}>
+                            <Icon name="notifications-none" size={50} color="#94a3b8" />
                         </View>
                         <EmptyText>Sua central de alertas está vazia. Você receberá avisos importantes aqui.</EmptyText>
                     </EmptyContainer>
