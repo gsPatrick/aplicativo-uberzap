@@ -257,6 +257,13 @@ const api = {
       if (response.data === "no" || !response.data) return { ...response, data: [] };
       return response;
     },
+    // Radar de carrinhos por cidade (endpoint leve, mesmo do app do motorista; já traz online/offline)
+    getNearbyByCity: async (cidade_id, excluir_id = '') => {
+      if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.nearby_drivers };
+      const response = await axiosInstance.post('motoristas/motoristas_proximos.php', toFormData({ cidade_id, excluir_id }));
+      if (!Array.isArray(response.data)) return { ...response, data: [] };
+      return response;
+    },
     getCityData: async (cidade_id) => {
       if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.city_data };
       return axiosInstance.post('app/get_dados_cidade.php', toFormData({ cidade_id }));
@@ -382,6 +389,16 @@ const api = {
     getDriverProfile: async (id_motorista) => {
         if (CONFIG.USE_MOCKS) return { data: { nome: 'Motorista Zap', nivel: 'Diamante', foto: null } };
         return axiosInstance.post('motoristas/get_perfil.php', toFormData({ id_motorista }));
+    },
+    // Motoristas online por perto (radar de carrinhos no mapa do motorista).
+    getNearbyDrivers: async (cidade_id, excluir_id = '') => {
+        if (CONFIG.USE_MOCKS) return { data: [] };
+        return axiosInstance.post('motoristas/motoristas_proximos.php', toFormData({ cidade_id, excluir_id }));
+    },
+    // Avaliações de um motorista (média + lista) — perfil do motorista no app do passageiro.
+    getDriverRatings: async (id_motorista) => {
+        if (CONFIG.USE_MOCKS) return { data: { media: 0, total: 0, avaliacoes: [] } };
+        return axiosInstance.post('motoristas/get_avaliacoes.php', toFormData({ id_motorista }));
     },
     getDriverReport: async (id_motorista) => {
         if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.driver_report };
@@ -521,11 +538,24 @@ const api = {
   isMockEnabled: () => CONFIG.USE_MOCKS,
   getMockStatus: () => MOCK_DATA.status_corrida,
   getImageUrl: (filename) => {
-    if (!filename || filename === 'default.jpg' || filename === 'default.png') {
+    const s = String(filename ?? '').trim();
+    if (!s || s === 'default.jpg' || s === 'default.png' || s === 'sem_imagem.png') {
       return `${CONFIG.IMAGE_BASE_URL}default_driver.png`;
     }
-    if (filename.startsWith('http')) return filename;
-    return `${CONFIG.IMAGE_BASE_URL}${filename}`;
+    if (/^(https?:|file:|content:|data:)/i.test(s)) return s;
+    // Prioridade: domínio ANTIGO (hospeda as imagens das contas antigas).
+    return `${CONFIG.IMAGE_BASE_URL_OLD}${s}`;
+  },
+  // URLs candidatas para uma imagem, em ordem de tentativa: ANTIGO -> NOVO.
+  // Usado pelo componente SmartImage (cai pro novo se o antigo der 404).
+  getImageCandidates: (filename) => {
+    const s = String(filename ?? '').trim();
+    if (!s || s === 'default.jpg' || s === 'default.png' || s === 'sem_imagem.png') return [];
+    if (/^(https?:|file:|content:|data:)/i.test(s)) return [s];
+    return [
+      `${CONFIG.IMAGE_BASE_URL_OLD}${s}`,
+      `${CONFIG.IMAGE_BASE_URL}${s}`,
+    ];
   }
 };
 

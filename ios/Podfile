@@ -65,5 +65,16 @@ target 'UbeZap' do
         end
       end
     end
+
+    # Fix: fmt 11.0.2 (RN 0.76) não compila no Xcode 16.3+/26 — erro
+    # "consteval ... is not a constant expression". O header redefine
+    # FMT_USE_CONSTEVAL sem guarda #ifndef, então -DFMT_USE_CONSTEVAL=0 é ignorado.
+    # Patcheamos o header forçando consteval desligado.
+    fmt_base = File.join(__dir__, 'Pods', 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      txt = File.read(fmt_base)
+      patched = txt.gsub('#  define FMT_USE_CONSTEVAL 1', '#  define FMT_USE_CONSTEVAL 0')
+      File.write(fmt_base, patched) if patched != txt
+    end
   end
 end

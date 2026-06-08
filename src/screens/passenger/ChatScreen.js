@@ -6,6 +6,7 @@ import Icon from '@expo/vector-icons/MaterialIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors, spacing } from '../../theme/tokens';
 import api from '../../services/api';
+import SmartImage from '../../components/SmartImage';
 import { getSession } from '../../utils/session';
 
 const Header = styled.View`
@@ -233,20 +234,18 @@ export default function ChatScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 5 }} activeOpacity={0.7}>
           <Icon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <ProfileImage source={{ uri: otherUser?.foto || 'https://randomuser.me/api/portraits/men/1.jpg' }} />
+        <SmartImage
+          value={otherUser?.img || otherUser?.foto}
+          fallbackIcon="person" fallbackSize={24} fallbackBg="rgba(255,255,255,0.2)" alignTop
+          style={{ width: 44, height: 44, borderRadius: 22, marginLeft: 15, marginRight: 15, borderWidth: 2, borderColor: colors.primary }}
+        />
         <UserInfo>
           <UserName numberOfLines={1}>{otherUser?.nome || 'Chat'}</UserName>
           <UserSub numberOfLines={1}>
               {isDriver ? 'Passageiro Ubezap' : `${otherUser?.veiculo || 'Veículo'} • ${otherUser?.placa || 'Placa'}`}
           </UserSub>
         </UserInfo>
-        <TouchableOpacity 
-            onPress={() => Alert.alert('Chamada', 'Iniciando chamada para o usuário...')}
-            style={{ padding: 5, marginRight: 10 }} 
-            activeOpacity={0.7}
-        >
-          <Icon name="call" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View style={{ width: 10 }} />
       </Header>
 
       <KeyboardAvoidingView 

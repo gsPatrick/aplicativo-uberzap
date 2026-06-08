@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet, Platform, Alert, Image } from 'react-native';
+import { View, Text, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet, Platform, Alert, Image, Modal } from 'react-native';
 import styled from 'styled-components/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
+import SmartImage from '../../components/SmartImage';
 import { getSession } from '../../utils/session';
 import { CONFIG } from '../../config';
 
@@ -38,7 +39,7 @@ const Content = styled.ScrollView`
 
 const DocItem = styled.TouchableOpacity`
   background-color: #fff;
-  padding: 15px;
+  padding: 12px;
   border-radius: 15px;
   flex-direction: row;
   align-items: center;
@@ -56,10 +57,25 @@ const SubmitButton = styled.TouchableOpacity`
   opacity: ${props => props.disabled ? 0.5 : 1};
 `;
 
+// Mapeia a chave do app -> nome do campo retornado pelo get_perfil (antecedente é singular no banco)
+const docList = [
+    { key: 'img_cnh', server: 'img_cnh', name: 'CNH (Carteira de Habilitação)', icon: 'assignment-ind' },
+    { key: 'img_documento', server: 'img_documento', name: 'CRLV (Documento do Veículo)', icon: 'directions-car' },
+    { key: 'img_lateral', server: 'img_lateral', name: 'Foto Lateral do Veículo', icon: 'camera-alt' },
+    { key: 'img_frente', server: 'img_frente', name: 'Foto Frontal do Veículo', icon: 'camera-front' },
+    { key: 'img_selfie', server: 'img_selfie', name: 'Sua Selfie (Rosto Visível)', icon: 'face' },
+    { key: 'img_antecedentes', server: 'img_antecedente', name: 'Antecedentes Criminais', icon: 'verified-user' },
+];
+
+const isValidFile = (f) => !!f && f !== 'sem_imagem.png' && f !== 'sem_imagem' && String(f).trim() !== '';
+
 const DriverDocsScreen = () => {
     const navigation = useNavigation();
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
     const [driverData, setDriverData] = useState(null);
+    const [existingDocs, setExistingDocs] = useState({});
+    const [preview, setPreview] = useState(null); // { value, name } da imagem em tela cheia
     const [images, setImages] = useState({
         img_cnh: null,
         img_documento: null,
@@ -70,12 +86,43 @@ const DriverDocsScreen = () => {
     });
 
     useEffect(() => {
-        loadSession();
+        loadData();
     }, []);
 
-    const loadSession = async () => {
-        const session = await getSession();
-        if (session) setDriverData(session);
+    const loadData = async () => {
+        try {
+            const session = await getSession();
+            if (!session) { setFetching(false); return; }
+            setDriverData(session);
+
+            const res = await api.driver.getDriverProfile(session.id);
+            const data = res?.data;
+            if (data && typeof data === 'object') {
+                setExistingDocs({
+                    img_cnh: data.img_cnh || '',
+                    img_documento: data.img_documento || '',
+                    img_lateral: data.img_lateral || '',
+                    img_frente: data.img_frente || '',
+                    img_selfie: data.img_selfie || '',
+                    img_antecedente: data.img_antecedente || '',
+                });
+                // Completa dados de identidade/veículo (usados num eventual envio)
+                setDriverData(prev => ({
+                    ...prev,
+                    nome: data.nome || prev?.nome,
+                    email: data.email || prev?.email,
+                    cpf: data.cpf || prev?.cpf,
+                    telefone: data.telefone || prev?.telefone,
+                    cidade_id: data.cidade_id || prev?.cidade_id,
+                    veiculo: data.veiculo || prev?.veiculo,
+                    placa: data.placa || prev?.placa,
+                }));
+            }
+        } catch (e) {
+            console.warn('Erro ao carregar documentos:', e);
+        } finally {
+            setFetching(false);
+        }
     };
 
     const pickImage = async (key) => {
@@ -100,7 +147,7 @@ const DriverDocsScreen = () => {
     const handleUpload = async () => {
         const missing = Object.values(images).some(img => img === null);
         if (missing) {
-            Alert.alert('Atenção', 'Por favor, capture todas as 6 fotos solicitadas.');
+            Alert.alert('Atenção', 'Para enviar/atualizar, capture as 6 fotos solicitadas.');
             return;
         }
 
@@ -125,13 +172,13 @@ const DriverDocsScreen = () => {
             });
 
             const response = await api.driver.uploadDriverDocs(formData);
-            
+
             if (response.data.status === 'ok') {
                 Alert.alert('Sucesso', 'Documentos enviados! Aguarde a aprovação da nossa equipe.', [
                     { text: 'OK', onPress: () => navigation.navigate('DriverHome') }
                 ]);
             } else {
-                Alert.alert('Erro', response.data.message || 'Erro ao enviar documentos');
+                Alert.alert('Aviso', response.data.message || 'Não foi possível enviar os documentos.');
             }
         } catch (error) {
             console.error(error);
@@ -141,14 +188,29 @@ const DriverDocsScreen = () => {
         }
     };
 
-    const docList = [
-        { key: 'img_cnh', name: 'CNH (Carteira de Habilitação)', icon: 'assignment_ind' },
-        { key: 'img_documento', name: 'CRLV (Documento do Veículo)', icon: 'directions_car' },
-        { key: 'img_lateral', name: 'Foto Lateral do Veículo', icon: 'camera_alt' },
-        { key: 'img_frente', name: 'Foto Frontal do Veículo', icon: 'camera_front' },
-        { key: 'img_selfie', name: 'Sua Selfie (Rosto Visível)', icon: 'face' },
-        { key: 'img_antecedentes', name: 'Antecedentes Criminais', icon: 'verified_user' },
-    ];
+    // Um doc é "existente" se já veio do servidor; "novo" se foi recapturado agora
+    const serverFileFor = (doc) => existingDocs[doc.server];
+    const hasServer = (doc) => isValidFile(serverFileFor(doc));
+    const allServerPresent = docList.every(hasServer);
+
+    if (fetching) {
+        return (
+            <Container>
+                <StatusBar barStyle="dark-content" />
+                <Header>
+                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                        <Icon name="arrow-back" size={28} color={colors.text} />
+                    </TouchableOpacity>
+                    <HeaderTitle>Meus Documentos</HeaderTitle>
+                    <View style={{ width: 28 }} />
+                </Header>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={{ color: '#94a3b8', marginTop: 12 }}>Carregando seus documentos...</Text>
+                </View>
+            </Container>
+        );
+    }
 
     return (
         <Container>
@@ -157,37 +219,97 @@ const DriverDocsScreen = () => {
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Icon name="arrow-back" size={28} color={colors.text} />
                 </TouchableOpacity>
-                <HeaderTitle>Enviar Documentos</HeaderTitle>
+                <HeaderTitle>{allServerPresent ? 'Meus Documentos' : 'Enviar Documentos'}</HeaderTitle>
                 <View style={{ width: 28 }} />
             </Header>
 
             <Content showsVerticalScrollIndicator={false}>
-                <Text style={{ color: '#64748b', marginBottom: 20 }}>
-                    Para sua segurança e dos passageiros, precisamos validar sua documentação.
-                </Text>
+                {allServerPresent ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ecfdf5', borderRadius: 12, padding: 14, marginBottom: 18, borderWidth: 1, borderColor: 'rgba(58,181,107,0.3)' }}>
+                        <Icon name="verified-user" size={22} color={colors.primary} />
+                        <Text style={{ color: '#166534', marginLeft: 10, flex: 1, fontSize: 13 }}>
+                            Seus documentos foram enviados. Toque em qualquer um para visualizar.
+                        </Text>
+                    </View>
+                ) : (
+                    <Text style={{ color: '#64748b', marginBottom: 20 }}>
+                        Para sua segurança e dos passageiros, precisamos validar sua documentação.
+                    </Text>
+                )}
 
-                {docList.map((doc) => (
-                    <DocItem 
-                        key={doc.key} 
-                        onPress={() => pickImage(doc.key)}
-                        hasImage={!!images[doc.key]}
-                    >
-                        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
-                            <Icon name={doc.icon} size={24} color={images[doc.key] ? colors.primary : '#94a3b8'} />
-                        </View>
-                        <Text style={{ color: colors.text, flex: 1 }}>{doc.name}</Text>
-                        {images[doc.key] ? (
-                             <Icon name="check-circle" size={24} color={colors.primary} />
-                        ) : (
-                             <Icon name="add-a-photo" size={24} color="#94a3b8" />
-                        )}
-                    </DocItem>
-                ))}
+                {docList.map((doc) => {
+                    const localUri = images[doc.key];
+                    const serverFile = serverFileFor(doc);
+                    const onServer = isValidFile(serverFile);
+                    const hasAny = !!localUri || onServer;
+                    const onPress = () => {
+                        if (localUri) { setPreview({ local: localUri, name: doc.name }); }
+                        else if (onServer) { setPreview({ value: serverFile, name: doc.name }); }
+                        else { pickImage(doc.key); }
+                    };
+                    return (
+                        <DocItem key={doc.key} onPress={onPress} hasImage={hasAny} activeOpacity={0.8}>
+                            <View style={{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 14 }}>
+                                {localUri ? (
+                                    <Image source={{ uri: localUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                ) : onServer ? (
+                                    <SmartImage value={serverFile} style={{ width: '100%', height: '100%' }} resizeMode="cover" fallbackIcon={doc.icon} fallbackSize={24} fallbackBg="transparent" />
+                                ) : (
+                                    <Icon name={doc.icon} size={24} color="#94a3b8" />
+                                )}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: colors.text, fontWeight: '600', fontSize: 14 }}>{doc.name}</Text>
+                                <Text style={{ color: localUri ? '#f59e0b' : onServer ? colors.primary : '#94a3b8', fontSize: 12, marginTop: 3, fontWeight: '600' }}>
+                                    {localUri ? 'Nova foto (não enviada)' : onServer ? 'Enviado' : 'Pendente'}
+                                </Text>
+                            </View>
+                            {hasAny ? (
+                                <Icon name={localUri ? 'edit' : 'visibility'} size={22} color={localUri ? '#f59e0b' : colors.primary} />
+                            ) : (
+                                <Icon name="add-a-photo" size={22} color="#94a3b8" />
+                            )}
+                        </DocItem>
+                    );
+                })}
+
+                <View style={{ height: 20 }} />
             </Content>
 
-            <SubmitButton onPress={handleUpload} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#fff' }}>ENVIAR PARA ANÁLISE</Text>}
-            </SubmitButton>
+            {/* O envio só faz sentido pra novo cadastro (o backend bloqueia CPF já cadastrado) */}
+            {!allServerPresent && (
+                <SubmitButton onPress={handleUpload} disabled={loading}>
+                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#fff' }}>ENVIAR PARA ANÁLISE</Text>}
+                </SubmitButton>
+            )}
+
+            {/* Preview em tela cheia */}
+            <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                    <TouchableOpacity style={{ position: 'absolute', top: Platform.OS === 'ios' ? 60 : 40, right: 20, zIndex: 5, padding: 8 }} onPress={() => setPreview(null)}>
+                        <Icon name="close" size={32} color="#fff" />
+                    </TouchableOpacity>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 16, textAlign: 'center' }}>{preview?.name}</Text>
+                    {preview?.local ? (
+                        <Image source={{ uri: preview.local }} style={{ width: '100%', height: '70%', borderRadius: 14 }} resizeMode="contain" />
+                    ) : preview?.value ? (
+                        <SmartImage value={preview.value} style={{ width: '100%', height: '70%', borderRadius: 14 }} resizeMode="contain" fallbackIcon="image" fallbackBg="#1f2937" />
+                    ) : null}
+                    {preview?.value && !preview?.local && (
+                        <TouchableOpacity
+                            onPress={() => {
+                                const doc = docList.find(d => d.name === preview.name);
+                                setPreview(null);
+                                if (doc) pickImage(doc.key);
+                            }}
+                            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 22, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 22, paddingVertical: 12, borderRadius: 24 }}
+                        >
+                            <Icon name="photo-camera" size={20} color="#fff" />
+                            <Text style={{ color: '#fff', marginLeft: 8, fontWeight: '700' }}>Refazer foto</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </Modal>
         </Container>
     );
 };

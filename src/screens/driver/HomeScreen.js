@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, StatusBar, SafeAreaView, Switch, TouchableOpacity, Animated, Dimensions, Platform, LayoutAnimation, UIManager, ActivityIndicator, Modal, Alert, AppState } from 'react-native';
+import { View, Text, StatusBar, SafeAreaView, Switch, TouchableOpacity, Animated, PanResponder, Dimensions, Platform, LayoutAnimation, UIManager, ActivityIndicator, Modal, Alert, AppState } from 'react-native';
 import * as Location from 'expo-location';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import styled from 'styled-components/native';
@@ -9,6 +9,7 @@ import { colors, spacing, borderRadius } from '../../theme/tokens';
 import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '../../services/api';
+import SmartImage from '../../components/SmartImage';
 import alertsService from '../../services/alertsService';
 import driverRideMonitor from '../../services/driverRideMonitor';
 import { getSession, saveSession, clearSession } from '../../utils/session';
@@ -35,10 +36,12 @@ import Constants from 'expo-constants';
 // Fallback for MapView
 let MapView = View;
 let PROVIDER_GOOGLE = null;
+let MapMarker = View;
 try {
   const Maps = require('react-native-maps');
   MapView = Maps.default || Maps;
   PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
+  MapMarker = Maps.Marker || View;
 } catch (e) {}
 
 const { width, height } = Dimensions.get('window');
@@ -184,15 +187,65 @@ const DriverHomeScreen = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuAnim = useRef(new Animated.Value(-width * 0.8)).current;
     const mapRef = useRef(null);
+    const didCenterMapRef = useRef(false); // centra o mapa só na 1ª localização (não briga com o zoom/pan)
+
+    // Saldo colapsável estilo nativo: arrasta a alça (header fica fixo, saldo encolhe)
+    const collapseAnim = useRef(new Animated.Value(0)).current; // 0 = expandido, 1 = recolhido
+    const collapsedRef = useRef(false);
+    const collapseBaseRef = useRef(0);
+    const saldoContentHRef = useRef(220);
+    const [saldoContentH, setSaldoContentH] = useState(220);
+    const panelPan = useRef(
+        PanResponder.create({
+            onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4 && Math.abs(g.dy) > Math.abs(g.dx),
+            onPanResponderGrant: () => { collapseBaseRef.current = collapsedRef.current ? 1 : 0; },
+            onPanResponderMove: (_, g) => {
+                const H = saldoContentHRef.current || 220;
+                let p = collapseBaseRef.current + (-g.dy / H); // pra cima (dy<0) recolhe
+                if (p < 0) p = 0;
+                if (p > 1) p = 1;
+                collapseAnim.setValue(p);
+            },
+            onPanResponderRelease: (_, g) => {
+                let collapse;
+                if (g.dy < -28 || g.vy < -0.4) collapse = true;
+                else if (g.dy > 28 || g.vy > 0.4) collapse = false;
+                else collapse = collapsedRef.current;
+                collapsedRef.current = collapse;
+                Animated.spring(collapseAnim, { toValue: collapse ? 1 : 0, useNativeDriver: false, bounciness: 0, speed: 18 }).start();
+            },
+        })
+    ).current;
     
     const [isAvailable, setIsAvailable] = useState(true);
     const [isOnRide, setIsOnRide] = useState(false);
     const [newRide, setNewRide] = useState(null);
     const newRideRef = useRef(null);
     const [alertsHistory, setAlertsHistory] = useState([]);
-    const [driver, setDriver] = useState({ nome: 'Motorista', rating: '5.0', nivel: 'Platina', cidade_id: 1 });
+    const [driver, setDriver] = useState({ nome: 'Motorista', rating: 0, ratingCount: 0, nivel: 'Platina', cidade_id: 1, img: '' });
+    const [nearbyDrivers, setNearbyDrivers] = useState([]); // carrinhos no mapa (outros motoristas online)
+
+    // Busca os motoristas online por perto pra mostrar como carrinhos no mapa
+    // (só enquanto a tela está focada — evita polling em background)
+    useEffect(() => {
+        if (!isFocused) return undefined;
+        let interval;
+        const fetchNearby = async () => {
+            try {
+                const session = await getSession();
+                const cid = driver.cidade_id || session?.cidade_id;
+                if (!cid) return;
+                const resp = await api.driver.getNearbyDrivers(cid, session?.id || '');
+                if (Array.isArray(resp.data)) setNearbyDrivers(resp.data);
+            } catch (e) {}
+        };
+        fetchNearby();
+        interval = setInterval(fetchNearby, 25000);
+        return () => { if (interval) clearInterval(interval); };
+    }, [driver.cidade_id, isFocused]);
     const [sessionId, setSessionId] = useState(null);
     const [earnings, setEarnings] = useState('0,00');
+    const [earningsPeriod, setEarningsPeriod] = useState('hoje'); // hoje | semana | mes | total
     const [alertMessage, setAlertMessage] = useState('');
     const [showAlertModal, setShowAlertModal] = useState(false);
     const [isAccepting, setIsAccepting] = useState(false);
@@ -376,6 +429,15 @@ const DriverHomeScreen = () => {
                 setIsOnRide(hasActiveRide(session.activeRideId));
                 try {
                     const profile = await api.driver.getDriverProfile(session.id);
+                    // Avaliação real (média das avaliações) — o get_perfil não traz a nota
+                    let ratingMedia = 0, ratingTotal = 0;
+                    try {
+                        const rt = await api.driver.getDriverRatings(session.id);
+                        if (rt?.data) {
+                            ratingMedia = parseFloat(String(rt.data.media ?? 0).replace(',', '.')) || 0;
+                            ratingTotal = Number(rt.data.total) || 0;
+                        }
+                    } catch (e) {}
                     if (profile.data) {
                         const cid = profile.data.cidade_id || 1;
                         const onlineVal = Number(profile.data.online);
@@ -384,9 +446,11 @@ const DriverHomeScreen = () => {
                         await syncDriverOnlineIfStuck(session, onlineVal);
                         setDriver({
                             nome: profile.data.nome || 'Motorista',
-                            rating: profile.data.nota || '5.0',
+                            rating: ratingMedia,
+                            ratingCount: ratingTotal,
                             nivel: profile.data.nivel || 'Ouro',
-                            cidade_id: cid
+                            cidade_id: cid,
+                            img: profile.data.img || ''
                         });
                         await driverRideMonitor.updateConfig({
                             sessionId: session.id,
@@ -493,7 +557,7 @@ const DriverHomeScreen = () => {
 
             const alertsInterval = setInterval(() => {
                 if (mounted) checkNewAlerts();
-            }, 10000);
+            }, 20000);
 
             return () => {
                 mounted = false;
@@ -533,7 +597,10 @@ const DriverHomeScreen = () => {
             console.warn('Erro ao atualizar localização:', e);
         }
         
-        if (mapRef.current && location && location.coords) {
+        // Centra o mapa só na PRIMEIRA localização. Depois respeita o zoom/pan do usuário
+        // (o botão "minha localização" recentra manualmente quando ele quiser).
+        if (mapRef.current && location && location.coords && !didCenterMapRef.current) {
+            didCenterMapRef.current = true;
             animateMapToCoords(mapRef, location.coords);
         }
     };
@@ -951,73 +1018,96 @@ const DriverHomeScreen = () => {
     return (
         <Container>
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-            
-            <StatusHeader colors={isAvailable ? [colors.white, '#f8fafc'] : ['#fee2e2', colors.white]} start={{x:0, y:0}} end={{x:1, y:1}}>
-                <TopRow>
-                    <TouchableOpacity onPress={toggleMenu}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
-                                <Icon name="person" size={26} color={colors.secondary} />
+
+            {/* Topo nativo: header fixo + SALDO colapsável + alça minimalista acoplada */}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, elevation: 6, backgroundColor: colors.white, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 6 }}>
+                <StatusHeader colors={isAvailable ? [colors.white, '#f8fafc'] : ['#fee2e2', colors.white]} start={{x:0, y:0}} end={{x:1, y:1}}>
+                    <TopRow>
+                        <TouchableOpacity onPress={toggleMenu}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={{ width: 44, height: 44, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
+                                    <SmartImage value={driver.img} style={{ width: '100%', height: '100%' }} fallbackIcon="person" fallbackSize={26} fallbackBg="transparent" alignTop />
+                                </View>
+                                <View style={{ marginLeft: 12 }}>
+                                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>{driver.nome}</Text>
+                                    <Text style={{ color: colors.primary, fontSize: 12 }}>Nível {driver.nivel}</Text>
+                                </View>
                             </View>
-                            <View style={{ marginLeft: 12 }}>
-                                <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>{driver.nome}</Text>
-                                <Text style={{ color: colors.primary, fontSize: 12 }}>Nível {driver.nivel}</Text>
+                        </TouchableOpacity>
+
+                        <OnlineToggle active={isAvailable} onPress={toggleStatus}>
+                            <GlowDot active={isAvailable} style={{ transform: [{ scale: pulseAnim }], opacity: isAvailable ? 1 : 0.6 }} />
+                            <Text style={{ color: isAvailable ? colors.primary : colors.textSecondary, fontWeight: 'bold' }}>{isAvailable ? 'ONLINE' : 'OFFLINE'}</Text>
+                        </OnlineToggle>
+                    </TopRow>
+                </StatusHeader>
+
+                {/* Saldo colapsável (colado ao header) */}
+                <Animated.View style={{ height: collapseAnim.interpolate({ inputRange: [0, 1], outputRange: [saldoContentH, 0] }), opacity: collapseAnim.interpolate({ inputRange: [0, 0.6, 1], outputRange: [1, 0.12, 0] }), overflow: 'hidden' }}>
+                    <View onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h) { saldoContentHRef.current = h; if (Math.abs(h - saldoContentH) > 1) setSaldoContentH(h); } }}>
+                        {isOnRide && resumeError ? (
+                            <TouchableOpacity
+                                onPress={() => resumeActiveRideIfNeeded(true)}
+                                style={{ marginHorizontal: spacing.md, marginBottom: 8, backgroundColor: '#fef3c7', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center' }}
+                            >
+                                <Icon name="warning" size={22} color="#b45309" style={{ marginRight: 10 }} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ color: '#92400e', fontWeight: '800' }}>Corrida em andamento</Text>
+                                    <Text style={{ color: '#92400e', fontSize: 12, marginTop: 2 }}>{resumeError}</Text>
+                                </View>
+                                <Text style={{ color: '#b45309', fontWeight: '900' }}>Retomar ›</Text>
+                            </TouchableOpacity>
+                        ) : null}
+
+                        <View style={{ paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 10 }}>
+                            {/* Filtro de período */}
+                            <View style={{ flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 12, padding: 3, marginBottom: 14 }}>
+                                {[
+                                    { key: 'hoje', label: 'Hoje' },
+                                    { key: 'semana', label: 'Semana' },
+                                    { key: 'mes', label: 'Mês' },
+                                    { key: 'total', label: 'Total' },
+                                ].map(p => (
+                                    <TouchableOpacity key={p.key} onPress={() => setEarningsPeriod(p.key)} activeOpacity={0.8}
+                                        style={{ flex: 1, paddingVertical: 7, borderRadius: 9, alignItems: 'center', backgroundColor: earningsPeriod === p.key ? colors.white : 'transparent', elevation: earningsPeriod === p.key ? 2 : 0 }}>
+                                        <Text style={{ fontSize: 12, fontWeight: '900', color: earningsPeriod === p.key ? colors.primary : colors.textSecondary }}>{p.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <View>
+                                    <Text style={{ color: colors.textSecondary, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 'bold' }}>
+                                        {{ hoje: 'Saldo de Hoje', semana: 'Saldo da Semana', mes: 'Saldo do Mês', total: 'Saldo Total' }[earningsPeriod]}
+                                    </Text>
+                                    <Text style={{ color: colors.text, fontSize: 32, fontWeight: '900', marginTop: 4 }}>
+                                        R$ {earnings?.[{ hoje: 'valor_hoje', semana: 'valor_semana', mes: 'valor_mes', total: 'valor_fim' }[earningsPeriod]] || '0,00'}
+                                    </Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <View style={{ backgroundColor: 'rgba(58, 181, 107, 0.15)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(58, 181, 107, 0.3)' }}>
+                                        <Text style={{ color: colors.primary, fontWeight: '900', fontSize: 16 }}>
+                                            {earnings?.[{ hoje: 'qnt_hoje', semana: 'qnt_semana', mes: 'qnt_mes', total: 'qnt_fim' }[earningsPeriod]] ?? 0} Viagens
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity style={{ marginTop: 12 }} onPress={() => navigation.navigate('DriverHistory')}>
+                                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: 'bold' }}>DETALHES ›</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         </View>
-                    </TouchableOpacity>
-
-                    <OnlineToggle active={isAvailable} onPress={toggleStatus}>
-                        <GlowDot active={isAvailable} style={{ transform: [{ scale: pulseAnim }], opacity: isAvailable ? 1 : 0.6 }} />
-                        <Text style={{ color: isAvailable ? colors.primary : colors.textSecondary, fontWeight: 'bold' }}>{isAvailable ? 'ONLINE' : 'OFFLINE'}</Text>
-                    </OnlineToggle>
-                </TopRow>
-            </StatusHeader>
-
-            <EarningsCard style={{ borderBottomWidth: 3, borderBottomColor: colors.primary }}>
-                <View>
-                    <Text style={{ color: colors.textSecondary, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 'bold' }}>Saldo de Hoje</Text>
-                    <Text style={{ color: colors.text, fontSize: 32, fontWeight: '900', marginTop: 4 }}>R$ {earnings?.valor_hoje || '0,00'}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                    <View style={{ backgroundColor: 'rgba(58, 181, 107, 0.15)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(58, 181, 107, 0.3)' }}>
-                        <Text style={{ color: colors.primary, fontWeight: '900', fontSize: 16 }}>{earnings?.qnt_hoje || 0} Viagens</Text>
                     </View>
-                    <TouchableOpacity
-                        style={{ marginTop: 12 }}
-                        onPress={() => navigation.navigate('DriverHistory')}
-                    >
-                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: 'bold' }}>DETALHES ›</Text>
-                    </TouchableOpacity>
-                </View>
-            </EarningsCard>
+                </Animated.View>
 
-            {isOnRide && resumeError ? (
-                <TouchableOpacity
-                    onPress={() => resumeActiveRideIfNeeded(true)}
-                    style={{
-                        marginHorizontal: spacing.md,
-                        marginBottom: 8,
-                        backgroundColor: '#fef3c7',
-                        borderColor: '#f59e0b',
-                        borderWidth: 1,
-                        borderRadius: 14,
-                        padding: 14,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                    }}
-                >
-                    <Icon name="warning" size={22} color="#b45309" style={{ marginRight: 10 }} />
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ color: '#92400e', fontWeight: '800' }}>Corrida em andamento</Text>
-                        <Text style={{ color: '#92400e', fontSize: 12, marginTop: 2 }}>{resumeError}</Text>
-                    </View>
-                    <Text style={{ color: '#b45309', fontWeight: '900' }}>Retomar ›</Text>
-                </TouchableOpacity>
-            ) : null}
+                {/* Alça minimalista acoplada (puxe pra recolher/expandir o saldo) */}
+                <View {...panelPan.panHandlers} hitSlop={{ top: 10, bottom: 12, left: 60, right: 60 }} style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 9 }}>
+                    <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.18)' }} />
+                </View>
+            </View>
 
             <MapContainer>
                 {Platform.OS !== 'web' ? (
-                    <MapView 
+                    <MapView
                         ref={mapRef}
                         style={StyleSheet.absoluteFillObject}
                         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
@@ -1029,7 +1119,28 @@ const DriverHomeScreen = () => {
                         }}
                         showsUserLocation={true}
                         showsMyLocationButton={false}
-                    />
+                    >
+                        {(nearbyDrivers || [])
+                          .filter(d => d && !isNaN(parseFloat(d.latitude)) && !isNaN(parseFloat(d.longitude)) && parseFloat(d.latitude) !== 0 && parseFloat(d.longitude) !== 0)
+                          .map(d => {
+                            const isOnline = Number(d.online) !== 0;
+                            const markerColor = isOnline ? colors.primary : '#9aa5b1';
+                            return (
+                            <MapMarker
+                              key={`nd-${d.id}`}
+                              coordinate={{ latitude: parseFloat(d.latitude), longitude: parseFloat(d.longitude) }}
+                              title={d.veiculo || `Motorista #${d.id}`}
+                              description={isOnline ? 'Online' : 'Offline'}
+                              tracksViewChanges={false}
+                              opacity={isOnline ? 1 : 0.7}
+                            >
+                              <View style={{ backgroundColor: '#fff', padding: 5, borderRadius: 20, borderWidth: 1, borderColor: markerColor, elevation: 5 }}>
+                                <Icon name="directions-car" size={22} color={markerColor} />
+                              </View>
+                            </MapMarker>
+                            );
+                        })}
+                    </MapView>
                 ) : (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                         <Icon name="map" size={100} color={colors.border} />
@@ -1092,15 +1203,20 @@ const DriverHomeScreen = () => {
                 borderRightColor: colors.border,
             }]}>
                 <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 20 }}>
-                    <View style={{ width: 66, height: 66, borderRadius: 33, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: colors.border }}>
-                    <Icon name="person" size={44} color={colors.primary} />
+                    <View style={{ width: 66, height: 66, borderRadius: 33, overflow: 'hidden', backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: colors.border }}>
+                    <SmartImage value={driver.img} style={{ width: '100%', height: '100%' }} fallbackIcon="person" fallbackSize={44} fallbackBg="transparent" alignTop />
                     </View>
                     <View>
                         <Text style={{ fontSize: 22, fontWeight: 'bold', color: colors.text }}>{driver.nome}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                            <Icon name="star" size={16} color="#fbbf24" />
-                            <Text style={{ color: colors.textSecondary, fontSize: 14, marginLeft: 5 }}>{driver.rating} • Nível {driver.nivel}</Text>
+                            {[1,2,3,4,5].map((s) => (
+                                <Icon key={s} name="star" size={15} color={driver.ratingCount > 0 && s <= Math.round(driver.rating) ? '#fbbf24' : '#e2e8f0'} />
+                            ))}
+                            <Text style={{ color: colors.textSecondary, fontSize: 14, marginLeft: 6 }}>
+                                {driver.ratingCount > 0 ? `${driver.rating.toFixed(1).replace('.', ',')} (${driver.ratingCount})` : 'Novo'}
+                            </Text>
                         </View>
+                        <Text style={{ color: colors.primary, fontSize: 12, marginTop: 3 }}>Nível {driver.nivel}</Text>
                     </View>
                 </View>
 
@@ -1111,12 +1227,12 @@ const DriverHomeScreen = () => {
                     { title: 'Minhas Viagens', icon: 'history', screen: 'DriverHistory' },
                     { title: 'Central de Alertas', icon: 'notifications', screen: 'DriverAlerts' },
                     { title: 'Documentos', icon: 'description', screen: 'DriverDocs' },
-                    { title: 'Perfil do Veículo', icon: 'directions-car', screen: 'VehicleProfile' },
+                    { title: 'Perfil do Veículo', icon: 'directions-car', screen: 'VehicleProfile', params: { initialTab: 'veiculo' } },
                     { title: 'Ajuda', icon: 'help-outline', screen: 'DriverSupport' },
                 ].map((item, idx) => (
                     <TouchableOpacity key={idx} onPress={() => {
                         toggleMenu();
-                        if (item.screen) navigation.navigate(item.screen);
+                        if (item.screen) navigation.navigate(item.screen, item.params);
                     }} style={{ flexDirection: 'row', alignItems: 'center', padding: 15, paddingHorizontal: 20 }}>
                     <Icon name={item.icon} size={24} color={colors.primary} />
                     <View style={{ marginLeft: 15 }}>

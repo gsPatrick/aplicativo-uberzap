@@ -466,7 +466,10 @@ const TaximeterScreen = () => {
         try {
             setActionLoading(true);
             const session = await getSession();
-            await api.driver.updateRideStatus(ride.id, apiCode, session?.cidade_id || 1);
+            // Corrida manual (taxímetro avulso) não tem registro no servidor — muda só local.
+            if (ride?.id && ride.id !== 'manual') {
+                await api.driver.updateRideStatus(ride.id, apiCode, session?.cidade_id || 1);
+            }
             setStatus(nextStatus);
         } catch (e) {
             Alert.alert('Falha', 'Erro ao atualizar status.');
@@ -548,8 +551,31 @@ const TaximeterScreen = () => {
             const totalSeconds = Number(seconds || 0) + Number(waitingSeconds || 0);
             const tempoMinutos = Math.max(1, Math.round(totalSeconds / 60));
             const kmRodados = Math.max(0.01, Number(distance || 0));
-            const enderecoFimRaw = ride?.endereco_fim_txt || ride?.endereco_fim || ride?.destino || '';
-            const enderecoFim = String(enderecoFimRaw).trim();
+            let enderecoFim = String(ride?.endereco_fim_txt || ride?.endereco_fim || ride?.destino || '').trim();
+            let latFim = null;
+            let lngFim = null;
+            // Corrida sem destino: captura o local REAL do fim (GPS + reverse geocode)
+            if (isNoDestinationRide) {
+                try {
+                    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+                    latFim = loc.coords.latitude;
+                    lngFim = loc.coords.longitude;
+                    let addr = '';
+                    try {
+                        const geo = await Location.reverseGeocodeAsync({ latitude: latFim, longitude: lngFim });
+                        if (geo && geo[0]) {
+                            const g = geo[0];
+                            addr = [g.street, g.name && g.name !== g.street ? g.name : null, g.district, g.city]
+                                .filter(Boolean).join(', ');
+                        }
+                    } catch (_) {}
+                    if (!addr) addr = `${latFim.toFixed(5)}, ${lngFim.toFixed(5)}`;
+                    enderecoFim = `Sem destino • ${addr}`;
+                } catch (_) {
+                    enderecoFim = 'Sem destino • (local não capturado)';
+                }
+            }
+            if (!enderecoFim) enderecoFim = 'Destino não informado';
             const priceFromRef = Number(currentPriceRef.current);
             const priceFromRide = parseFloat(String(ride?.taxa || '0').replace(',', '.'));
             const finalPrice = Number.isFinite(priceFromRef) && priceFromRef >= 0
@@ -565,6 +591,8 @@ const TaximeterScreen = () => {
                     tempo: String(tempoMinutos),
                     km: kmRodados.toFixed(2),
                     endereco_fim: enderecoFim || 'Destino não informado',
+                    lat_fim: latFim != null ? String(latFim) : '',
+                    lng_fim: lngFim != null ? String(lngFim) : '',
                 });
             }
 

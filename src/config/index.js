@@ -16,5 +16,7 @@ export const CONFIG = {
   
   API_BASE_URL: 'https://geral-uberzap-api.r954jc.easypanel.host/_/',
   IMAGE_BASE_URL: 'https://geral-uberzap-api.r954jc.easypanel.host/_/admin/uploads/',
+  // Domínio ANTIGO (ainda hospeda as imagens das contas antigas). Prioridade na busca.
+  IMAGE_BASE_URL_OLD: 'https://top.uberzap.app.br/_/admin/uploads/',
   SECRET_KEY: 'abc1234', // Definido no conexao.php
 };

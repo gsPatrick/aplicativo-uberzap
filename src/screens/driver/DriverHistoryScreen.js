@@ -6,6 +6,8 @@ import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import { getSession } from '../../utils/session';
+import { isSemDestino, labelDestinoSemDestino } from '../../utils/rideDestination';
+import SmartImage from '../../components/SmartImage';
 
 // Fallback for MapView
 let MapView = View;
@@ -278,6 +280,28 @@ const DriverHistoryScreen = () => {
     const lngIni = parseCoord(ride?.lng_ini);
     const latFim = parseCoord(ride?.lat_fim);
     const lngFim = parseCoord(ride?.lng_fim);
+    const cleanAddr = (a) => {
+      const s = (a ?? '').toString().trim();
+      if (!s || s === '-' || /^no address available$/i.test(s)) return null;
+      // descarta "endereço" que na verdade é só uma coordenada crua (lat,lng)
+      if (/^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+$/.test(s)) return null;
+      return s;
+    };
+    const fallbackAddr = (lat, lng) =>
+      (lat != null && lng != null && (lat !== 0 || lng !== 0))
+        ? `Local aprox. (${lat.toFixed(5)}, ${lng.toFixed(5)})`
+        : 'Endereço não disponível';
+    const fmtPagamento = (v) => {
+      const s = (v ?? '').toString().trim().toLowerCase();
+      if (!s || s === '0' || s === 'undefined' || s === 'null') return 'Não informado';
+      const map = {
+        dinheiro: 'Dinheiro', pix: 'Pix', cartao: 'Cartão', 'cartão': 'Cartão',
+        credito: 'Cartão de crédito', debito: 'Cartão de débito', particular: 'Viagem particular',
+      };
+      return map[s] || v;
+    };
+    const rawFim = ride?.endereco_fim ?? ride?.endereco_fim_txt;
+    const semDestino = isSemDestino(rawFim);
     return {
       ...ride,
       lat_ini: latIni,
@@ -285,9 +309,12 @@ const DriverHistoryScreen = () => {
       lat_fim: latFim,
       lng_fim: lngFim,
       valor: ride?.valor ?? ride?.taxa ?? '0,00',
-      endereco_ini: ride?.endereco_ini ?? ride?.endereco_ini_txt ?? '-',
-      endereco_fim: ride?.endereco_fim ?? ride?.endereco_fim_txt ?? '-',
-      metodo_pagamento: ride?.metodo_pagamento ?? ride?.f_pagamento ?? 'Viagem Particular',
+      semDestino,
+      endereco_ini: cleanAddr(ride?.endereco_ini) ?? cleanAddr(ride?.endereco_ini_txt) ?? fallbackAddr(latIni, lngIni),
+      endereco_fim: semDestino
+        ? labelDestinoSemDestino(rawFim)
+        : (cleanAddr(ride?.endereco_fim) ?? cleanAddr(ride?.endereco_fim_txt) ?? fallbackAddr(latFim, lngFim)),
+      metodo_pagamento: fmtPagamento(ride?.metodo_pagamento ?? ride?.f_pagamento),
     };
   };
 
@@ -358,6 +385,13 @@ const DriverHistoryScreen = () => {
           <RouteText numberOfLines={1}>{item.endereco_fim}</RouteText>
         </RouteItem>
       </RouteContainer>
+
+      {item.semDestino && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 12, backgroundColor: 'rgba(245, 158, 11, 0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)' }}>
+          <Icon name="explore" size={13} color="#d97706" />
+          <Text style={{ color: '#b45309', fontSize: 10, fontWeight: '900', marginLeft: 4 }}>SEM DESTINO • TAXÍMETRO</Text>
+        </View>
+      )}
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
         <Text style={{ color: '#475569', fontSize: 11, fontWeight: 'bold' }}>ID: #{item.id}</Text>
@@ -471,81 +505,31 @@ const DriverHistoryScreen = () => {
               </TouchableOpacity>
             </ModalHeader>
 
-            <MapWrapper>
-              {selectedRide && (
-                (Number.isFinite(selectedRide.lat_ini) &&
-                Number.isFinite(selectedRide.lng_ini) &&
-                Number.isFinite(selectedRide.lat_fim) &&
-                Number.isFinite(selectedRide.lng_fim)) ? (
-                  <MapView
-                    style={StyleSheet.absoluteFillObject}
-                    customMapStyle={darkMapStyle}
-                    initialRegion={{
-                      latitude: (selectedRide.lat_ini + selectedRide.lat_fim) / 2,
-                      longitude: (selectedRide.lng_ini + selectedRide.lng_fim) / 2,
-                      latitudeDelta: Math.max(Math.abs(selectedRide.lat_ini - selectedRide.lat_fim) * 2, 0.02),
-                      longitudeDelta: Math.max(Math.abs(selectedRide.lng_ini - selectedRide.lng_fim) * 2, 0.02),
-                    }}
-                  >
-                    <Marker coordinate={{ latitude: selectedRide.lat_ini, longitude: selectedRide.lng_ini }}>
-                      <View style={{ backgroundColor: colors.primary, padding: 5, borderRadius: 20, borderWidth: 2, borderColor: '#fff' }} />
-                    </Marker>
-                    <Marker coordinate={{ latitude: selectedRide.lat_ini, longitude: selectedRide.lng_ini }} anchor={{ x: 0.5, y: 1.2 }}>
-                      <View style={{ backgroundColor: '#1f2120', padding: 5, borderRadius: 5, borderWidth: 1, borderColor: colors.primary }}>
-                        <Text style={{ color: '#fff', fontSize: 10 }}>Início</Text>
-                      </View>
-                    </Marker>
-
-                    <Marker coordinate={{ latitude: selectedRide.lat_fim, longitude: selectedRide.lng_fim }}>
-                      <View style={{ backgroundColor: '#ef4444', padding: 5, borderRadius: 20, borderWidth: 2, borderColor: '#fff' }} />
-                    </Marker>
-                    <Marker coordinate={{ latitude: selectedRide.lat_fim, longitude: selectedRide.lng_fim }} anchor={{ x: 0.5, y: 1.2 }}>
-                      <View style={{ backgroundColor: '#1f2120', padding: 5, borderRadius: 5, borderWidth: 1, borderColor: '#ef4444' }}>
-                        <Text style={{ color: '#fff', fontSize: 10 }}>Fim</Text>
-                      </View>
-                    </Marker>
-
-                    <Polyline
-                      coordinates={
-                        selectedRide.polyline ? decodePolyline(selectedRide.polyline) : [
-                          { latitude: selectedRide.lat_ini, longitude: selectedRide.lng_ini },
-                          { latitude: selectedRide.lat_fim, longitude: selectedRide.lng_fim }
-                        ]
-                      }
-                      strokeWidth={3}
-                      strokeColor={colors.primary}
-                    />
-                  </MapView>
-                ) : (
-                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <Icon name="map" size={30} color="#64748b" />
-                    <Text style={{ color: '#94a3b8', marginTop: 8 }}>Coordenadas não disponíveis</Text>
-                  </View>
-                )
-              )}
-            </MapWrapper>
-
             <DetailScroll showsVerticalScrollIndicator={false}>
               <MetricRow>
                 <MetricItem>
                   <MetricValue>R$ {selectedRide?.valor}</MetricValue>
                   <MetricLabel>Ganhos</MetricLabel>
                 </MetricItem>
-                {selectedRide?.km && (
-                  <MetricItem>
-                    <MetricValue>{selectedRide?.km} KM</MetricValue>
-                    <MetricLabel>Distância</MetricLabel>
-                  </MetricItem>
-                )}
-                {selectedRide?.tempo && (
-                  <MetricItem>
-                    <MetricValue>{selectedRide?.tempo} min</MetricValue>
-                    <MetricLabel>Duração</MetricLabel>
-                  </MetricItem>
-                )}
+                <MetricItem>
+                  <MetricValue>{selectedRide?.km ? `${selectedRide.km} KM` : '—'}</MetricValue>
+                  <MetricLabel>Distância</MetricLabel>
+                </MetricItem>
+                <MetricItem>
+                  <MetricValue>{selectedRide?.tempo ? `${selectedRide.tempo} min` : '—'}</MetricValue>
+                  <MetricLabel>Duração</MetricLabel>
+                </MetricItem>
               </MetricRow>
 
               <SectionTitle>Trajeto</SectionTitle>
+              {selectedRide?.semDestino && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245, 158, 11, 0.12)', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)', marginBottom: 10 }}>
+                  <Icon name="explore" size={18} color="#d97706" />
+                  <Text style={{ color: '#b45309', fontSize: 12, fontWeight: 'bold', marginLeft: 8, flex: 1 }}>
+                    Corrida sem destino (taxímetro) — destino definido no fim da corrida.
+                  </Text>
+                </View>
+              )}
               <View style={{ backgroundColor: 'rgba(0,0,0,0.03)', padding: 20, borderRadius: 20, borderLeftWidth: 3, borderLeftColor: colors.primary }}>
                   <View style={{ flexDirection: 'row', marginBottom: 20 }}>
                     <Icon name="location-searching" size={20} color={colors.primary} />
@@ -566,22 +550,16 @@ const DriverHistoryScreen = () => {
               <SectionTitle style={{ marginTop: 30 }}>Passageiro</SectionTitle>
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.03)', padding: 15, borderRadius: 20 }}>
                   <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
-                      {selectedRide?.foto_cliente ? (
-                          <Image source={{ uri: api.getImageUrl(selectedRide.foto_cliente) }} style={{ width: 44, height: 44 }} />
-                      ) : (
-                          <Icon name="person" size={24} color={colors.primary} />
-                      )}
+                      <SmartImage value={selectedRide?.foto_cliente} style={{ width: 44, height: 44 }} fallbackIcon="person" fallbackSize={24} fallbackBg="transparent" alignTop />
                   </View>
-                  <View style={{ marginLeft: 15 }}>
-                      <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 16 }}>{selectedRide?.nome_cliente || 'Passageiro'}</Text>
-                      <Text style={{ color: '#64748b', fontSize: 12 }}>{selectedRide?.metodo_pagamento || 'Viagem Particular'}</Text>
+                  <View style={{ marginLeft: 15, flex: 1 }}>
+                      <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 16 }}>{(selectedRide?.nome_cliente || '').trim() || 'Passageiro não identificado'}</Text>
+                      <Text style={{ color: '#64748b', fontSize: 12 }}>Pagamento: {selectedRide?.metodo_pagamento || 'Não informado'}</Text>
                   </View>
               </View>
 
-              {/* Seção de Avaliação (caso a API suporte futuramente) */}
-              {selectedRide?.avaliacao && (
-                <>
-                  <SectionTitle style={{ marginTop: 30 }}>Avaliação</SectionTitle>
+              <SectionTitle style={{ marginTop: 30 }}>Avaliação</SectionTitle>
+              {selectedRide?.avaliacao ? (
                   <View style={{ backgroundColor: 'rgba(58, 181, 107, 0.05)', padding: 15, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(58, 181, 107, 0.1)' }}>
                       <View style={{ flexDirection: 'row', marginBottom: 8 }}>
                           {[1,2,3,4,5].map(star => (
@@ -592,8 +570,14 @@ const DriverHistoryScreen = () => {
                           "{selectedRide.avaliacao.comentario || 'Sem comentários'}"
                       </Text>
                   </View>
-                </>
+              ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.03)', padding: 15, borderRadius: 20 }}>
+                      <Icon name="star-border" size={20} color="#94a3b8" />
+                      <Text style={{ color: '#94a3b8', fontSize: 13, marginLeft: 8 }}>Esta corrida não foi avaliada.</Text>
+                  </View>
               )}
+
+              <View style={{ height: 20 }} />
             </DetailScroll>
           </ModalContent>
         </ModalOverlay>

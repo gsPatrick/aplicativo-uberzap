@@ -6,6 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import MapView from 'react-native-maps';
 import { colors, spacing } from '../../theme/tokens';
 import api from '../../services/api';
+import SmartImage from '../../components/SmartImage';
 
 const BackwardButton = styled.TouchableOpacity`
   position: absolute;
@@ -150,103 +151,139 @@ const CarInfoContainer = styled.View`
 export default function DriverProfileScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  
-  const driver = route.params?.driver || {
-    nome: 'Motorista',
-    veiculo: 'Veículo',
-    placa: 'AAA-0000',
-    foto: 'https://randomuser.me/api/portraits/men/32.jpg',
-    img: 'https://randomuser.me/api/portraits/men/32.jpg',
-    rating: '5.0',
-    coords: { latitude: -23.5617, longitude: -46.6623 }
-  };
 
-  const driverPhoto = api.getImageUrl(driver.img || driver.foto) || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
+  const driver = route.params?.driver || { nome: 'Motorista', veiculo: 'Veículo', placa: 'AAA-0000' };
+
+  // Busca o perfil completo (fotos do carro, veículo, nota) e as avaliações por id
+  const [profile, setProfile] = React.useState(null);
+  const [ratings, setRatings] = React.useState(null);
+  React.useEffect(() => {
+    if (!driver?.id) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await api.driver.getDriverProfile(driver.id);
+        if (active && res?.data && typeof res.data === 'object') setProfile(res.data);
+      } catch (e) {}
+    })();
+    (async () => {
+      try {
+        const res = await api.driver.getDriverRatings(driver.id);
+        if (active && res?.data && typeof res.data === 'object') setRatings(res.data);
+      } catch (e) {}
+    })();
+    return () => { active = false; };
+  }, [driver?.id]);
+
+  const d = { ...driver, ...(profile || {}) };
+  const carPhotos = [d.img_frente, d.img_lateral, d.img_documento].filter(p => p && p !== 'sem_imagem.png');
+  const carMain = carPhotos[0] || null;
+  const isMoto = (d.veiculo || '').toLowerCase().includes('moto');
+
+  const reviews = Array.isArray(ratings?.avaliacoes) ? ratings.avaliacoes : [];
+  const totalReviews = Number(ratings?.total ?? 0);
+  const media = parseFloat(String(ratings?.media ?? d.nota ?? d.rating ?? 0).replace(',', '.')) || 0;
+  const hasRating = totalReviews > 0 && media > 0;
+  const ratingTxt = media.toFixed(1).replace('.', ',');
+  const fmtDate = (s) => (s ? String(s).slice(0, 10).split('-').reverse().join('/') : '');
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-      
-      {/* Map Background Header */}
-      <View style={{ height: 260, width: '100%', backgroundColor: '#e0e0e0' }}>
-        <MapView
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={{
-            latitude: driver.coords?.latitude || -23.5617,
-            longitude: driver.coords?.longitude || -46.6623,
-            latitudeDelta: 0.005,
-            longitudeDelta: 0.005,
-          }}
-          scrollEnabled={false}
-          zoomEnabled={false}
-          pitchEnabled={false}
-          rotateEnabled={false}
-        />
-        {/* Magic Overlay Gradient equivalent */}
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(58, 181, 107, 0.2)' }]} />
-        
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      {/* Header: foto principal do carro (escurecida, estilo hero) ou cor da marca */}
+      <View style={{ height: 230, width: '100%', backgroundColor: colors.primary, overflow: 'hidden' }}>
+        {carMain ? (
+          <>
+            <SmartImage value={carMain} style={StyleSheet.absoluteFillObject} resizeMode="cover" fallbackBg={colors.primary} fallbackIcon="directions-car" />
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(15,20,18,0.55)' }]} />
+          </>
+        ) : null}
         <BackwardButton onPress={() => navigation.goBack()} activeOpacity={0.8}>
           <Icon name="close" size={24} color="#1f2120" />
         </BackwardButton>
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        style={{ flex: 1, zIndex: 5 }}
-        contentContainerStyle={{ paddingTop: 200 }} // Deixa o mapa visível por baixo
-      >
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, zIndex: 5 }} contentContainerStyle={{ paddingTop: 165 }}>
         <ContentCard style={{ marginTop: 0 }}>
           <ProfileHeader style={{ zIndex: 10, elevation: 10 }}>
-            <LargeProfileImage 
-              source={{ uri: driverPhoto }} 
-              style={{ zIndex: 15, elevation: 15, shadowColor: '#000', shadowOffset: {width:0, height:4}, shadowOpacity: 0.3, shadowRadius: 5 }}
+            <SmartImage
+              value={d.img || d.foto}
+              fallbackIcon="person" fallbackSize={60} fallbackBg="#f0f0f0" alignTop
+              style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 5, borderColor: '#fff', backgroundColor: '#f0f0f0', zIndex: 15, elevation: 15, shadowColor: '#000', shadowOffset: {width:0, height:4}, shadowOpacity: 0.3, shadowRadius: 5 }}
             />
-            <DriverNameTitle>{driver.nome}</DriverNameTitle>
-            <DriverSubtitle>Motorista Parceiro Ubezap</DriverSubtitle>
+            <DriverNameTitle>{(d.nome || 'Motorista').trim()}</DriverNameTitle>
+
+            {/* Nível */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff8e1', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginTop: 10, borderWidth: 1, borderColor: '#f0c419' }}>
+              <Icon name="workspace-premium" size={16} color="#d4a017" />
+              <Text style={{ color: '#b8860b', fontWeight: '800', marginLeft: 6, fontSize: 13 }}>Motorista {d.nivel || 'Ouro'}</Text>
+            </View>
+
+            {/* Avaliação média */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+              {[1,2,3,4,5].map(s => (
+                <Icon key={s} name="star" size={22} color={hasRating && s <= Math.round(media) ? '#f5b041' : '#e0e0e0'} />
+              ))}
+              <Text style={{ marginLeft: 8, fontSize: 18, fontWeight: '800', color: '#1f2120' }}>{hasRating ? ratingTxt : 'Novo'}</Text>
+              {totalReviews > 0 ? (
+                <Text style={{ marginLeft: 6, fontSize: 13, color: '#94a3b8' }}>({totalReviews})</Text>
+              ) : null}
+            </View>
           </ProfileHeader>
 
-          <StatsGrid>
-             <StatItem>
-               <StatHeader>
-                 <Icon name="star" size={22} color="#f5b041" style={{ marginRight: 4 }} />
-                 <StatValue>{driver.rating}</StatValue>
-               </StatHeader>
-               <StatLabel>Avaliação</StatLabel>
-             </StatItem>
-             <StatItem>
-               <StatHeader>
-                  <Icon name="insights" size={22} color={colors.primary} style={{ marginRight: 4 }} />
-                  <StatValue>1.4k</StatValue>
-               </StatHeader>
-               <StatLabel>Corridas</StatLabel>
-             </StatItem>
-             <StatItem>
-               <StatHeader>
-                 <Icon name="schedule" size={22} color="#777" style={{ marginRight: 4 }} />
-                 <StatValue>1.5</StatValue>
-               </StatHeader>
-               <StatLabel>Anos</StatLabel>
-             </StatItem>
-          </StatsGrid>
+          {/* Fotos do veículo (regra antigo -> novo) */}
+          <SectionTitle>Fotos do Veículo</SectionTitle>
+          {carPhotos.length > 0 ? (
+            <BadgesScroll horizontal showsHorizontalScrollIndicator={false}>
+              {carPhotos.map((p, i) => (
+                <SmartImage key={i} value={p} style={{ width: 240, height: 150, borderRadius: 16, marginRight: 12, backgroundColor: '#f0f0f0' }} fallbackIcon="directions-car" />
+              ))}
+            </BadgesScroll>
+          ) : (
+            <View style={{ height: 140, borderRadius: 16, backgroundColor: '#f8f9fa', borderWidth: 1, borderColor: '#e2e8f0', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' }}>
+              <Icon name="no-photography" size={30} color="#cbd5e1" />
+              <Text style={{ color: '#94a3b8', marginTop: 8 }}>Sem fotos do veículo</Text>
+            </View>
+          )}
 
-          <SectionTitle>Reconhecimentos</SectionTitle>
-          <BadgesScroll horizontal showsHorizontalScrollIndicator={false}>
-            <Badge><Icon name="thumb-up" size={18} color={colors.primary} /><BadgeText>Muito Educado</BadgeText></Badge>
-            <Badge><Icon name="mood" size={18} color={colors.primary} /><BadgeText>Ótimo Papo</BadgeText></Badge>
-            <Badge><Icon name="map" size={18} color={colors.primary} /><BadgeText>Mestre da Rota</BadgeText></Badge>
-            <Badge><Icon name="local-car-wash" size={18} color={colors.primary} /><BadgeText>Carro Impecável</BadgeText></Badge>
-          </BadgesScroll>
-
-          <SectionTitle>Veículo Destaque</SectionTitle>
-          <CarInfoContainer>
+          {/* Veículo */}
+          <SectionTitle>Veículo</SectionTitle>
+          <CarInfoContainer style={{ marginBottom: 25 }}>
              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 18 }}>
-               <Icon name={(driver.veiculo || '').toLowerCase().includes('moto') || (driver.veiculo || '').toLowerCase().includes('honda') ? 'motorcycle' : 'directions-car'} size={34} color={colors.primary} />
+               <Icon name={isMoto ? 'motorcycle' : 'directions-car'} size={34} color={colors.primary} />
              </View>
-             <View>
-               <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: 1 }}>{driver.placa}</Text>
-               <Text style={{ fontSize: 15, color: '#aaa', marginTop: 2, fontWeight: '500' }}>{driver.veiculo}</Text>
+             <View style={{ flex: 1 }}>
+               <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: 1 }}>{d.placa || '—'}</Text>
+               <Text style={{ fontSize: 15, color: '#aaa', marginTop: 2, fontWeight: '500' }}>{(d.veiculo || 'Veículo').trim()}</Text>
              </View>
           </CarInfoContainer>
+
+          {/* Avaliações reais */}
+          <SectionTitle>Avaliações {totalReviews > 0 ? `(${totalReviews})` : ''}</SectionTitle>
+          {reviews.length > 0 ? (
+            reviews.map((r, i) => (
+              <View key={i} style={{ backgroundColor: '#f8f9fa', borderRadius: 16, padding: 16, marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontWeight: '800', color: '#1f2120', fontSize: 15 }}>{r.nome_cliente || 'Passageiro'}</Text>
+                  <Text style={{ color: '#94a3b8', fontSize: 12 }}>{fmtDate(r.date)}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+                  {[1,2,3,4,5].map(s => (
+                    <Icon key={s} name="star" size={15} color={s <= (r.nota || 0) ? '#f5b041' : '#e0e0e0'} />
+                  ))}
+                </View>
+                {!!(r.comentario || '').trim() && (
+                  <Text style={{ color: '#475569', fontSize: 14, fontStyle: 'italic' }}>"{r.comentario}"</Text>
+                )}
+              </View>
+            ))
+          ) : (
+            <View style={{ backgroundColor: '#f8f9fa', borderRadius: 16, padding: 22, alignItems: 'center', marginBottom: 10 }}>
+              <Icon name="rate-review" size={30} color="#cbd5e1" />
+              <Text style={{ color: '#94a3b8', marginTop: 8, textAlign: 'center' }}>Este motorista ainda não tem avaliações.</Text>
+            </View>
+          )}
         </ContentCard>
       </ScrollView>
     </View>

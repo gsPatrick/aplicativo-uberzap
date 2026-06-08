@@ -143,27 +143,31 @@ const DriverWalletScreen = () => {
           <ActivityIndicator color={colors.primary} style={{ marginTop: 50 }} />
         ) : (
           <ScrollView showsVerticalScrollIndicator={false}>
-            {transactions.map((item) => (
-              <TransactionItem key={item.id}>
-                <IconBox type={item.tipo}>
-                  <Icon 
-                    name={item.tipo === 'Saque' ? 'call-made' : 'call-received'} 
-                    size={24} 
-                    color={item.tipo === 'Saque' ? '#f44336' : colors.primary} 
+            {transactions.map((item, idx) => {
+              const isDebit = /(d[ée]bito|saque|debit)/i.test(String(item.metodo || item.tipo || ''));
+              const desc = item.descricao || item.metodo || 'Transação';
+              return (
+              <TransactionItem key={item.id ?? idx}>
+                <IconBox type={isDebit ? 'Saque' : 'Credito'}>
+                  <Icon
+                    name={isDebit ? 'call-made' : 'call-received'}
+                    size={24}
+                    color={isDebit ? '#f44336' : colors.primary}
                   />
                 </IconBox>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 16 }}>{item.descricao}</Text>
+                  <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 16 }} numberOfLines={1}>{desc}</Text>
                   <Text style={{ color: '#64748b', fontSize: 13 }}>{item.date}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ color: item.tipo === 'Saque' ? '#f44336' : colors.primary, fontSize: 18, fontWeight: '900' }}>
-                    {item.tipo === 'Saque' ? '-' : '+'} R$ {item.valor}
+                  <Text style={{ color: isDebit ? '#f44336' : colors.primary, fontSize: 18, fontWeight: '900' }}>
+                    {isDebit ? '-' : '+'} R$ {item.valor}
                   </Text>
-                  <Text style={{ color: '#94a3b8', fontSize: 10, fontWeight: 'bold' }}>{item.status.toUpperCase()}</Text>
+                  <Text style={{ color: '#94a3b8', fontSize: 10, fontWeight: 'bold' }}>{String(item.status || '').toUpperCase()}</Text>
                 </View>
               </TransactionItem>
-            ))}
+              );
+            })}
             <View style={{ height: 30 }} />
           </ScrollView>
         )}

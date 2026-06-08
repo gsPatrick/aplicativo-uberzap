@@ -30,8 +30,8 @@ module.exports = ({ config }) => {
    * versionCode DEVE ser maior que o publicado (motorista 30000, passageiro 10000).
    * versionName é só rótulo de exibição (não afeta a aceitação da atualização).
    */
-  const versionName = isDriver ? '3.0.1' : '1.0.1';
-  const versionCode = isDriver ? 30001 : 10001;
+  const versionName = isDriver ? '3.0.2' : '1.0.1';
+  const versionCode = isDriver ? 30002 : 10001;
 
   /**
    * google-services.json por variante (FCM / push remoto).

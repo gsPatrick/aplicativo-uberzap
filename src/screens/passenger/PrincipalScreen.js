@@ -4,6 +4,7 @@ import styled from 'styled-components/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
+import SmartImage from '../../components/SmartImage';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getSession, clearSession } from '../../utils/session';
@@ -357,50 +358,54 @@ const PrincipalScreen = () => {
         console.warn('busca_inicio:', e);
       }
 
-      const profileRes = await api.passenger.getProfile(session.telefone, session.senha);
       let cityId = 1;
+      try {
+        const profileRes = await api.passenger.getProfile(session.telefone, session.senha);
+        if (profileRes.data && profileRes.data.nome) {
+          setUser({ nome: profileRes.data.nome || 'Passageiro' });
+          cityId = profileRes.data.cidade_id || 1;
+        }
+      } catch (e) { console.warn('perfil:', e); }
 
-      if (profileRes.data && profileRes.data.nome) {
-        setUser({
-          nome: profileRes.data.nome || 'Passageiro'
-        });
-        cityId = profileRes.data.cidade_id || 1;
-      }
+      // Libera a tela já com o essencial; banners/carteira/histórico carregam sem travar.
+      setLoading(false);
 
-      const bannerRes = await api.passenger.getBanners(cityId);
-      if (bannerRes.data && Array.isArray(bannerRes.data)) {
-        setBanners(bannerRes.data);
-      } else {
-        setBanners([]);
-      }
-      
-      const walletRes = await api.passenger.getWallet(session.telefone, session.senha);
-      if (walletRes.data && walletRes.data.saldo !== undefined) {
-        setBalance(walletRes.data.saldo);
-      }
+      try {
+        const bannerRes = await api.passenger.getBanners(cityId);
+        setBanners(bannerRes.data && Array.isArray(bannerRes.data) ? bannerRes.data : []);
+      } catch (e) { console.warn('banners:', e); setBanners([]); }
 
-      const historyRes = await api.passenger.getHistory(session.telefone, session.senha);
-      if (historyRes.data && Array.isArray(historyRes.data)) {
-        const parsed = historyRes.data.slice(0, 1).map(ride => {
-          const latIni = parseFloat(String(ride.lat_ini).replace(',', '.'));
-          const lngIni = parseFloat(String(ride.lng_ini).replace(',', '.'));
-          const latFim = parseFloat(String(ride.lat_fim).replace(',', '.'));
-          const lngFim = parseFloat(String(ride.lng_fim).replace(',', '.'));
-          return {
-            ...ride,
-            lat_ini: !isNaN(latIni) ? latIni : null,
-            lng_ini: !isNaN(lngIni) ? lngIni : null,
-            lat_fim: !isNaN(latFim) ? latFim : null,
-            lng_fim: !isNaN(lngFim) ? lngFim : null,
-          };
-        });
-        setRecentRides(parsed);
-      } else {
-        setRecentRides([]);
-      }
+      try {
+        const walletRes = await api.passenger.getWallet(session.telefone, session.senha);
+        if (walletRes.data && walletRes.data.saldo !== undefined) {
+          setBalance(walletRes.data.saldo);
+        }
+      } catch (e) { console.warn('carteira:', e); }
+
+      try {
+        const historyRes = await api.passenger.getHistory(session.telefone, session.senha);
+        if (historyRes.data && Array.isArray(historyRes.data)) {
+          const parsed = historyRes.data.slice(0, 1).map(ride => {
+            const latIni = parseFloat(String(ride.lat_ini).replace(',', '.'));
+            const lngIni = parseFloat(String(ride.lng_ini).replace(',', '.'));
+            const latFim = parseFloat(String(ride.lat_fim).replace(',', '.'));
+            const lngFim = parseFloat(String(ride.lng_fim).replace(',', '.'));
+            return {
+              ...ride,
+              lat_ini: !isNaN(latIni) ? latIni : null,
+              lng_ini: !isNaN(lngIni) ? lngIni : null,
+              lat_fim: !isNaN(latFim) ? latFim : null,
+              lng_fim: !isNaN(lngFim) ? lngFim : null,
+            };
+          });
+          setRecentRides(parsed);
+        } else {
+          setRecentRides([]);
+        }
+      } catch (e) { console.warn('historico:', e); }
     } catch (e) {
-      console.error(e);
-      navigation.navigate('PassengerLogin');
+      // Erro inesperado (ex.: sessão ilegível) — NÃO desloga por falha transitória de rede.
+      console.error('loadData:', e);
     } finally {
       setLoading(false);
     }
@@ -549,18 +554,17 @@ const PrincipalScreen = () => {
                setCurrentBannerIndex(index);
             }}
           >
-            {banners && banners.length > 0 ? banners.map(banner => {
-              // Constrói a URL da imagem. Se já for uma URL completa (como no Mock), usa ela.
-              // Caso contrário, anexa o caminho de uploads do servidor.
-              const imageUrl = (banner?.img && banner.img.startsWith('http'))
-                ? banner.img 
-                : `https://geral-uberzap-api.r954jc.easypanel.host/_/admin/uploads/${banner?.img || ''}`;
-                
+            {banners && banners.length > 0 ? banners.map((banner, idx) => {
+              // Mesma regra das imagens: tenta o domínio ANTIGO e cai pro NOVO (SmartImage).
               return (
-                <TouchableOpacity key={banner?.id || Math.random()} activeOpacity={0.9} onPress={() => {
+                <TouchableOpacity key={banner?.id ?? idx} activeOpacity={0.9} onPress={() => {
                   if (banner?.link) Linking.openURL(banner.link);
                 }}>
-                  <BannerImage source={{ uri: imageUrl }} />
+                  <SmartImage
+                    value={banner?.img}
+                    style={{ width: width - 40, height: 140, borderRadius: 8, marginHorizontal: 20 }}
+                    fallbackIcon="image"
+                  />
                 </TouchableOpacity>
               );
             }) : (

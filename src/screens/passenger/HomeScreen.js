@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StatusBar, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Platform, ImageBackground, Animated, Image, StyleSheet, LayoutAnimation, UIManager, Dimensions, AppState } from 'react-native';
+import { View, Text, StatusBar, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Platform, ImageBackground, Animated, PanResponder, Image, StyleSheet, LayoutAnimation, UIManager, Dimensions, AppState } from 'react-native';
 import * as Location from 'expo-location';
 import styled from 'styled-components/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
+import SmartImage from '../../components/SmartImage';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { getSession, clearSession } from '../../utils/session';
 import { triggerLocalNotification, TRIP_STATUS_CHANNEL_ID, ensureNotificationPermissions } from '../../utils/notifications';
@@ -421,6 +422,8 @@ const BottomSheet = styled.View`
   z-index: 50;
 `;
 
+const AnimatedBottomSheet = Animated.createAnimatedComponent(BottomSheet);
+
 const Handle = styled.View`
   width: 40px;
   height: 5px;
@@ -498,6 +501,8 @@ const HomeScreen = () => {
   const [isSearchingDriver, setIsSearchingDriver] = useState(false);
   const [driverDetails, setDriverDetails] = useState(null);
   const driverDetailsRef = useRef(null);
+  const [carouselW, setCarouselW] = useState(0); // largura medida do carrossel de fotos do carro
+  const [carIndex, setCarIndex] = useState(0);   // foto atual do carrossel (bolinhas)
 
   const updateDriverDetails = (value) => {
     if (typeof value === 'function') {
@@ -511,6 +516,33 @@ const HomeScreen = () => {
       driverDetailsRef.current = value;
     }
   };
+
+  // Ao atribuir um motorista, busca o perfil completo pra trazer as FOTOS DO CARRO
+  // (o status_chamado não traz img_frente/img_lateral).
+  useEffect(() => {
+    const id = driverDetails?.id;
+    if (!id || driverDetails?.img_frente) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await api.driver.getDriverProfile(id);
+        const p = res?.data;
+        if (active && p && typeof p === 'object') {
+          updateDriverDetails((prev) => (prev && prev.id === id ? {
+            ...prev,
+            img_frente: p.img_frente || prev.img_frente,
+            img_lateral: p.img_lateral || prev.img_lateral,
+            img: p.img || prev.img,
+            foto: prev.foto || p.img,
+            veiculo: prev.veiculo || p.veiculo,
+            placa: prev.placa || p.placa,
+          } : prev));
+        }
+      } catch (e) {}
+    })();
+    return () => { active = false; };
+  }, [driverDetails?.id]);
+
   const [loading, setLoading] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -522,6 +554,37 @@ const HomeScreen = () => {
   const [ratingValue, setRatingValue] = useState(5);
   const [ratingComment, setRatingComment] = useState('');
   const mapRef = useRef(null);
+  const didCenterMapRef = useRef(false); // centra/zooma só na 1ª localização (não briga com o zoom/pan)
+
+  // Bottom sheet arrastável: arrasta a alça pra BAIXO recolhe (vê o mapa), pra CIMA expande
+  const SHEET_PEEK = 60; // quanto fica visível (alça) quando recolhido
+  const sheetHeightRef = useRef(0);
+  const sheetTranslate = useRef(new Animated.Value(0)).current; // 0 = expandido, + = recolhido (desce)
+  const sheetCollapsedRef = useRef(false);
+  const sheetPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5 && Math.abs(g.dy) > Math.abs(g.dx),
+      onPanResponderMove: (_, g) => {
+        const h = sheetHeightRef.current || 320;
+        const max = Math.max(0, h - SHEET_PEEK);
+        const base = sheetCollapsedRef.current ? max : 0;
+        let next = base + g.dy; // dy>0 (pra baixo) recolhe
+        if (next < 0) next = 0;
+        if (next > max) next = max;
+        sheetTranslate.setValue(next);
+      },
+      onPanResponderRelease: (_, g) => {
+        const h = sheetHeightRef.current || 320;
+        const max = Math.max(0, h - SHEET_PEEK);
+        let collapse;
+        if (g.dy > 40 || g.vy > 0.5) collapse = true;       // pra baixo -> recolhe
+        else if (g.dy < -40 || g.vy < -0.5) collapse = false; // pra cima -> expande
+        else collapse = sheetCollapsedRef.current;
+        sheetCollapsedRef.current = collapse;
+        Animated.spring(sheetTranslate, { toValue: collapse ? max : 0, useNativeDriver: false, bounciness: 2, speed: 16 }).start();
+      },
+    })
+  ).current;
   const [banners, setBanners] = useState([]);
   const [cityData, setCityData] = useState(null);
   const [currentLocationLabel, setCurrentLocationLabel] = useState('');
@@ -569,32 +632,36 @@ const HomeScreen = () => {
   // Motoristas próximos só na tela inicial (não durante busca/corrida — evita travamento)
   useEffect(() => {
     let interval;
+    let firstTimer;
+    // Mantém os carrinhos visíveis também durante a seleção/busca da corrida.
+    // Só para de mostrar quando um motorista é atribuído (driverDetails).
     const canShowNearby =
       user?.telefone &&
-      !driverDetails &&
-      !isSearchingDriver &&
-      !isSelecting &&
-      !isChoosingDestination;
+      !driverDetails;
 
     if (canShowNearby) {
       const fetchDrivers = async () => {
         try {
-          const response = await api.passenger.getAllDrivers(user.telefone, user.senha);
+          // Endpoint leve por cidade (mesmo do motorista). Passageiro vê só os disponíveis (online).
+          const response = await api.passenger.getNearbyByCity(user.cidade_id || 1);
           if (response.data && Array.isArray(response.data)) {
-            setNearbyDrivers(response.data);
+            setNearbyDrivers(response.data.filter(d => Number(d.online) !== 0));
           }
         } catch (error) {
           console.warn('Erro ao carregar motoristas próximos:', error);
         }
       };
 
-      fetchDrivers();
+      // Atrasa a 1ª busca pra não competir com o carregamento crítico do mapa (evita congestionar a rede)
+      firstTimer = setTimeout(fetchDrivers, 2500);
       interval = setInterval(fetchDrivers, 15000);
     } else {
       setNearbyDrivers([]);
     }
-    return () => interval && clearInterval(interval);
-  }, [user.telefone, user.senha, isSearchingDriver, driverDetails, isSelecting, isChoosingDestination]);
+    return () => { if (firstTimer) clearTimeout(firstTimer); if (interval) clearInterval(interval); };
+    // Deps enxutas: o effect só re-roda ao mudar credenciais ou ao entrar/sair de corrida.
+    // (re-rodar em isSelecting/isChoosingDestination disparava um fetch a cada toque -> flood)
+  }, [user.telefone, user.senha, user.cidade_id, driverDetails]);
 
   useEffect(() => {
     rideActiveRef.current = isSearchingDriver || Boolean(driverDetails);
@@ -827,7 +894,10 @@ const HomeScreen = () => {
         console.error('Erro ao buscar recentes:', e);
       }
     };
-    fetchRecent();
+    // "Destinos recentes" não é crítico — adia pra não competir com o load inicial do mapa
+    // (evita estourar o limite de conexões e dar timeout no get_historico, que é pesado).
+    const t = setTimeout(fetchRecent, 3500);
+    return () => clearTimeout(t);
   }, []);
 
   /** GPS + endereço de embarque + label de localização atual no header */
@@ -873,7 +943,8 @@ const HomeScreen = () => {
         (!isPickupPlaceholder(pickupRef.current));
 
       if (skipPickupOverwrite) {
-        if (mapRef.current) {
+        if (mapRef.current && !didCenterMapRef.current) {
+          didCenterMapRef.current = true;
           mapRef.current.animateToRegion({
             ...coords,
             latitudeDelta: 0.02,
@@ -883,7 +954,8 @@ const HomeScreen = () => {
         return;
       }
 
-      if (mapRef.current) {
+      if (mapRef.current && !didCenterMapRef.current) {
+        didCenterMapRef.current = true;
         mapRef.current.animateToRegion({
           ...coords,
           latitudeDelta: 0.02,
@@ -1898,34 +1970,6 @@ const HomeScreen = () => {
               geodesic={true}
             />
             )}
-            {!driverDetails && !isSearchingDriver && (nearbyDrivers || [])
-              .filter(driver => driver && !isNaN(parseFloat(driver.latitude)) && !isNaN(parseFloat(driver.longitude)))
-              .map((driver) => (
-                <Marker
-                  key={driver.id}
-                  coordinate={{
-                    latitude: parseFloat(driver.latitude),
-                    longitude: parseFloat(driver.longitude)
-                  }}
-                title={`Motorista #${driver.id}`}
-              >
-                <View style={{ 
-                  backgroundColor: '#fff', 
-                  padding: 5, 
-                  borderRadius: 20, 
-                  borderWidth: 1, 
-                  borderColor: colors.primary,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 3.84,
-                  elevation: 5
-                }}>
-                  <Icon name="directions-car" size={24} color={colors.primary} />
-                </View>
-              </Marker>
-            ))}
-            
             <Marker coordinate={destCoords} zIndex={11} tracksViewChanges={false}>
                <View style={{ alignItems: 'center' }}>
                  <View style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -1963,8 +2007,8 @@ const HomeScreen = () => {
           </Marker>
         )}
 
-        {!isSearchingDriver && !driverDetails && Array.isArray(nearbyDrivers) && nearbyDrivers
-          .filter(dr => dr && !isNaN(parseFloat(dr.latitude)) && !isNaN(parseFloat(dr.longitude)))
+        {!driverDetails && Array.isArray(nearbyDrivers) && nearbyDrivers
+          .filter(dr => dr && !isNaN(parseFloat(dr.latitude)) && !isNaN(parseFloat(dr.longitude)) && parseFloat(dr.latitude) !== 0 && parseFloat(dr.longitude) !== 0)
           .map(dr => (
             <Marker
               key={`nearby-${dr.id}`}
@@ -2294,7 +2338,7 @@ const HomeScreen = () => {
         <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 2000, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
            <View style={{ backgroundColor: '#fff', width: '100%', borderRadius: 25, padding: 25, alignItems: 'center' }}>
               <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#f9f9f9', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
-                 <Image source={{ uri: api.getImageUrl(driverDetails?.foto) }} style={{ width: 70, height: 70, borderRadius: 35 }} />
+                 <SmartImage value={driverDetails?.foto} style={{ width: 70, height: 70, borderRadius: 35 }} fallbackIcon="person" fallbackSize={36} fallbackBg="transparent" alignTop />
               </View>
               <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#333' }}>Como foi sua viagem?</Text>
               <Text style={{ fontSize: 16, color: '#666', marginTop: 5, marginBottom: 20 }}>Avalie {driverDetails?.nome}</Text>
@@ -2330,8 +2374,14 @@ const HomeScreen = () => {
         </View>
       )}
 
-      <BottomSheet expanded={isSelecting || isSearchingDriver || !!driverDetails}>
-        <Handle />
+      <AnimatedBottomSheet
+        onLayout={(e) => { const h = e.nativeEvent.layout.height; if (h) sheetHeightRef.current = h; }}
+        style={{ transform: [{ translateY: sheetTranslate }] }}
+        expanded={isSelecting || isSearchingDriver || !!driverDetails}
+      >
+        <View {...sheetPan.panHandlers} hitSlop={{ top: 12, bottom: 12, left: 100, right: 100 }} style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 6 }}>
+          <Handle />
+        </View>
         <ContentPadding>
           {driverDetails ? (
             <View style={{ paddingVertical: 5 }}>
@@ -2364,22 +2414,55 @@ const HomeScreen = () => {
                  </TimeLineStep>
               </TimeLineContainer>
 
-              <TouchableOpacity 
-                  activeOpacity={0.8} 
-                  onPress={() => navigation.navigate('DriverProfileScreen', { driver: driverDetails })}
-                  style={{ backgroundColor: '#f9f9f9', padding: 15, borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: '#eee', overflow: 'hidden' }}>
-                  
-                  <Image source={{ uri: api.getImageUrl(driverDetails?.img_frente || 'https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_956,h_637/v1555355171/assets/39/c46522-598d-442b-9441-2f22b784a0d9/original/UberX.png') }} 
-                         style={{ width: '100%', height: 120, borderRadius: 15, marginBottom: 15 }} 
-                         resizeMode="cover" />
+              <View style={{ backgroundColor: '#f9f9f9', padding: 15, borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: '#eee', overflow: 'hidden' }}>
 
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Image source={{ uri: api.getImageUrl(driverDetails?.foto) }} style={{ width: 50, height: 50, borderRadius: 25, marginRight: 15 }} />
+                  {(() => {
+                    const carPhotos = [driverDetails?.img_frente, driverDetails?.img_lateral].filter(p => p && p !== 'sem_imagem.png');
+                    const slideW = carouselW || 0;
+                    const H = 190;
+                    if (carPhotos.length === 0) {
+                      return (
+                        <SmartImage value={'https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_956,h_637/v1555355171/assets/39/c46522-598d-442b-9441-2f22b784a0d9/original/UberX.png'}
+                          style={{ width: '100%', height: H, borderRadius: 15, marginBottom: 15, backgroundColor: '#eef1f3' }} resizeMode="cover" fallbackIcon="directions-car" fallbackSize={40} />
+                      );
+                    }
+                    return (
+                      <View
+                        onLayout={(e) => { const w = e.nativeEvent.layout.width; if (w && Math.abs(w - carouselW) > 1) setCarouselW(w); }}
+                        style={{ marginBottom: 15, borderRadius: 15, overflow: 'hidden', backgroundColor: '#eef1f3' }}
+                      >
+                        <ScrollView
+                          horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+                          onMomentumScrollEnd={(e) => { if (slideW) setCarIndex(Math.round(e.nativeEvent.contentOffset.x / slideW)); }}
+                        >
+                          {carPhotos.map((p, i) => (
+                            <SmartImage key={i} value={p} resizeMode="cover"
+                              style={{ width: slideW || 1, height: H, backgroundColor: '#eef1f3' }}
+                              fallbackIcon="directions-car" />
+                          ))}
+                        </ScrollView>
+                        {carPhotos.length > 1 && (
+                          <View style={{ position: 'absolute', bottom: 8, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
+                            {carPhotos.map((_, i) => (
+                              <View key={i} style={{ width: i === carIndex ? 18 : 6, height: 6, borderRadius: 3, marginHorizontal: 3, backgroundColor: i === carIndex ? colors.primary : 'rgba(0,0,0,0.25)' }} />
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })()}
+
+                  <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('DriverProfileScreen', { driver: driverDetails })} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <SmartImage value={driverDetails?.foto} style={{ width: 50, height: 50, borderRadius: 25, marginRight: 15 }} fallbackIcon="person" fallbackSize={26} fallbackBg="transparent" alignTop />
                     <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>{driverDetails?.nome}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                             <Icon name="star" size={16} color="#f5b041" />
-                            <Text style={{ fontSize: 14, color: '#666', marginLeft: 4 }}>{driverDetails?.rating}</Text>
+                            <Text style={{ fontSize: 14, color: '#666', marginLeft: 4, marginRight: 8 }}>{driverDetails?.rating}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff8e1', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, borderWidth: 1, borderColor: '#f0c419' }}>
+                                <Icon name="workspace-premium" size={12} color="#d4a017" />
+                                <Text style={{ color: '#b8860b', fontWeight: '800', fontSize: 11, marginLeft: 3 }}>{driverDetails?.nivel || 'Ouro'}</Text>
+                            </View>
                         </View>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
@@ -2388,8 +2471,8 @@ const HomeScreen = () => {
                         </View>
                         <Text style={{ fontSize: 12, color: '#666' }}>{driverDetails?.veiculo}</Text>
                     </View>
-                  </View>
-               </TouchableOpacity>
+                  </TouchableOpacity>
+               </View>
 
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                  <TouchableOpacity 
@@ -2403,9 +2486,6 @@ const HomeScreen = () => {
                      <Icon name="chat" size={20} color="#fff" style={{ marginRight: 8 }} />
                      <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>MENSAGEM</Text>
                   </TouchableOpacity>
-                 <TouchableOpacity style={{ width: 60, backgroundColor: '#f0f0f0', height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginLeft: 10 }}>
-                    <Icon name="call" size={24} color="#333" />
-                 </TouchableOpacity>
               </View>
             </View>
           ) : isSearchingDriver ? (
@@ -2620,10 +2700,10 @@ const HomeScreen = () => {
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }}>
                     {banners.map((b, i) => (
                       <TouchableOpacity key={b.id || i} style={{ marginLeft: i === 0 ? 20 : 10, marginRight: i === banners.length - 1 ? 20 : 0 }}>
-                        <Image 
-                          source={{ uri: api.getImageUrl(b.img) }} 
-                          style={{ width: 300, height: 120, borderRadius: 15 }} 
-                          resizeMode="cover"
+                        <SmartImage
+                          value={b.img}
+                          style={{ width: 300, height: 120, borderRadius: 15 }}
+                          fallbackIcon="image"
                         />
                       </TouchableOpacity>
                     ))}
@@ -2669,7 +2749,7 @@ const HomeScreen = () => {
             </>
           )}
         </ContentPadding>
-      </BottomSheet>
+      </AnimatedBottomSheet>
     </Container>
   );
 };

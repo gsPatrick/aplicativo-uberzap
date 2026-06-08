@@ -4,9 +4,10 @@ import styled from 'styled-components/native';
 import Icon from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import api from '../../services/api';
 import { getSession } from '../../utils/session';
+import SmartImage from '../../components/SmartImage';
 
 const Container = styled.View`
   flex: 1;
@@ -123,23 +124,36 @@ const { width } = Dimensions.get('window');
 
 const VehicleProfileScreen = () => {
     const navigation = useNavigation();
+    const route = useRoute();
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    
+
+    const [tab, setTab] = useState(route.params?.initialTab === 'veiculo' ? 'veiculo' : 'perfil'); // 'perfil' | 'veiculo'
+
     const [driverData, setDriverData] = useState({
         nome: 'Carregando...',
         email: '',
         telefone: '',
         cpf: '',
-        marca_modelo: '',
+        veiculo: '',
         placa: '',
-        cor: '',
-        categoria: '',
+        img: null,
         img_frente: null,
         img_lateral: null,
         img_documento: null,
-        nivel: 'Básico'
+        img_cnh: null,
+        img_selfie: null,
+        nivel: 'Ouro'
     });
+
+    // Resolve o valor de uma foto: URI local (file://), URL http, nome de
+    // arquivo do servidor (vira URL completa) ou null/placeholder.
+    const photoUri = (val) => {
+        const s = String(val ?? '').trim();
+        if (!s || s === 'sem_imagem.png') return null;
+        if (/^(https?:|file:|content:|data:)/i.test(s)) return s;
+        return api.getImageUrl(s);
+    };
 
     useEffect(() => {
         loadProfile();
@@ -209,99 +223,105 @@ const VehicleProfileScreen = () => {
                 <View style={{ width: 28 }} />
             </Header>
 
+            {/* Tabs: Perfil | Veículo */}
+            <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 10, backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 16, padding: 4 }}>
+                {[{ k: 'perfil', label: 'Perfil', icon: 'person' }, { k: 'veiculo', label: 'Veículo', icon: 'directions-car' }].map(t => (
+                    <TouchableOpacity key={t.k} onPress={() => setTab(t.k)} activeOpacity={0.8}
+                        style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 12, backgroundColor: tab === t.k ? '#fff' : 'transparent' }}>
+                        <Icon name={t.icon} size={18} color={tab === t.k ? colors.primary : '#94a3b8'} />
+                        <Text style={{ marginLeft: 6, fontWeight: '900', fontSize: 13, color: tab === t.k ? colors.text : '#94a3b8' }}>{t.label}</Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+
             <Content showsVerticalScrollIndicator={false}>
-                <PhotoContainer>
-                    <View>
-                        <ProfilePhoto>
-                            <Icon name="person" size={80} color="#64748b" />
-                        </ProfilePhoto>
-                        <EditPhotoBtn style={{ right: 0, bottom: 5 }}>
-                            <Icon name="photo-camera" size={20} color="#fff" />
-                        </EditPhotoBtn>
-                    </View>
-                    <Text style={{ color: colors.text, fontSize: 24, fontWeight: 'bold', marginTop: 15 }}>{driverData.nome}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(58, 181, 107, 0.1)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, marginTop: 5 }}>
-                        <Icon name="verified" size={14} color={colors.primary} />
-                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '900', marginLeft: 5 }}>MOTORISTA {driverData.nivel.toUpperCase()}</Text>
-                    </View>
-                </PhotoContainer>
+                {tab === 'perfil' ? (
+                  <>
+                    <PhotoContainer>
+                        <View>
+                            <ProfilePhoto>
+                                <SmartImage value={driverData.img} style={{ width: '100%', height: '100%' }} fallbackIcon="person" fallbackSize={80} fallbackBg="transparent" alignTop />
+                            </ProfilePhoto>
+                            <EditPhotoBtn style={{ right: 0, bottom: 5 }}>
+                                <Icon name="photo-camera" size={20} color="#fff" />
+                            </EditPhotoBtn>
+                        </View>
+                        <Text style={{ color: colors.text, fontSize: 24, fontWeight: 'bold', marginTop: 15 }}>{(driverData.nome || '').trim() || 'Motorista'}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(58, 181, 107, 0.1)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, marginTop: 5 }}>
+                            <Icon name="verified" size={14} color={colors.primary} />
+                            <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '900', marginLeft: 5 }}>MOTORISTA {String(driverData.nivel || 'Ouro').toUpperCase()}</Text>
+                        </View>
+                    </PhotoContainer>
 
-                <Section>
-                    <SectionTitle>Dados Pessoais</SectionTitle>
-                    <InputGroup>
-                        <Label>NOME COMPLETO</Label>
-                        <StyledInput value={driverData.nome} onChangeText={t => setDriverData({...driverData, nome: t})} placeholder="Seu nome" />
-                    </InputGroup>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <InputGroup style={{ width: '48%' }}>
-                            <Label>TELEFONE</Label>
-                            <StyledInput value={driverData.telefone} keyboardType="phone-pad" onChangeText={t => setDriverData({...driverData, telefone: t})} placeholder="(00) 00000-0000" />
+                    <Section>
+                        <SectionTitle>Dados Pessoais</SectionTitle>
+                        <InputGroup>
+                            <Label>NOME COMPLETO</Label>
+                            <StyledInput value={driverData.nome} onChangeText={t => setDriverData({...driverData, nome: t})} placeholder="Seu nome" />
                         </InputGroup>
-                        <InputGroup style={{ width: '48%' }}>
-                            <Label>CPF</Label>
-                            <StyledInput value={driverData.cpf} editable={false} style={{ opacity: 0.6 }} />
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <InputGroup style={{ width: '48%' }}>
+                                <Label>TELEFONE</Label>
+                                <StyledInput value={driverData.telefone} keyboardType="phone-pad" onChangeText={t => setDriverData({...driverData, telefone: t})} placeholder="(00) 00000-0000" />
+                            </InputGroup>
+                            <InputGroup style={{ width: '48%' }}>
+                                <Label>CPF</Label>
+                                <StyledInput value={driverData.cpf} editable={false} style={{ opacity: 0.6 }} />
+                            </InputGroup>
+                        </View>
+                        <InputGroup>
+                            <Label>EMAIL</Label>
+                            <StyledInput value={driverData.email} keyboardType="email-address" onChangeText={t => setDriverData({...driverData, email: t})} placeholder="seu@email.com" />
                         </InputGroup>
-                    </View>
-                    <InputGroup>
-                        <Label>EMAIL</Label>
-                        <StyledInput value={driverData.email} keyboardType="email-address" onChangeText={t => setDriverData({...driverData, email: t})} placeholder="seu@email.com" />
-                    </InputGroup>
-                </Section>
-
-                <Section>
-                    <SectionTitle>Identidade do Veículo</SectionTitle>
-                    <InputGroup>
-                        <Label>MARCA E MODELO</Label>
-                        <StyledInput value={driverData.marca_modelo} onChangeText={t => setDriverData({...driverData, marca_modelo: t})} placeholder="Ex: Toyota Corolla" />
-                    </InputGroup>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <InputGroup style={{ width: '48%' }}>
+                    </Section>
+                  </>
+                ) : (
+                  <>
+                    <Section>
+                        <SectionTitle>Identidade do Veículo</SectionTitle>
+                        <InputGroup>
+                            <Label>VEÍCULO (MODELO)</Label>
+                            <StyledInput value={driverData.veiculo} onChangeText={t => setDriverData({...driverData, veiculo: t})} placeholder="Ex: Ônix Sedan branco" />
+                        </InputGroup>
+                        <InputGroup>
                             <Label>PLACA OFICIAL</Label>
                             <StyledInput value={driverData.placa} autoCapitalize="characters" onChangeText={t => setDriverData({...driverData, placa: t})} placeholder="ABC-1234" />
                         </InputGroup>
-                        <InputGroup style={{ width: '48%' }}>
-                            <Label>COR</Label>
-                            <StyledInput value={driverData.cor} onChangeText={t => setDriverData({...driverData, cor: t})} placeholder="Ex: Preto" />
-                        </InputGroup>
-                    </View>
 
-                    <View style={{ marginTop: 20, marginBottom: 15 }}>
-                        <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>Fotos do Veículo</Text>
-                        <Text style={{ color: '#64748b', fontSize: 12 }}>Essas fotos serão visíveis para os passageiros.</Text>
-                    </View>
-
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <TouchableOpacity style={{ width: '48%' }} onPress={() => pickImage('img_frente')}>
-                            <Label>VISTA FRONTAL</Label>
-                            <View style={{ height: 110, backgroundColor: '#f8f9fa', borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0' }}>
-                                <Image source={{ uri: driverData.img_frente }} style={{ flex: 1 }} resizeMode="cover" />
-                                <View style={{ position: 'absolute', bottom: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', elevation: 5 }}>
-                                    <Icon name="photo-camera" size={16} color="#fff" />
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={{ width: '48%' }} onPress={() => pickImage('img_lateral')}>
-                            <Label>VISTA LATERAL</Label>
-                            <View style={{ height: 110, backgroundColor: '#f8f9fa', borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0' }}>
-                                <Image source={{ uri: driverData.img_lateral }} style={{ flex: 1 }} resizeMode="cover" />
-                                <View style={{ position: 'absolute', bottom: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', elevation: 5 }}>
-                                    <Icon name="photo-camera" size={16} color="#fff" />
-                                </View>
-                            </View>
-                        </TouchableOpacity>
-                    </View>
-
-                    <TouchableOpacity style={{ marginTop: 25 }} onPress={() => pickImage('img_documento')}>
-                        <Label>DOCUMENTO CRLV (CAPTURAR)</Label>
-                        <View style={{ height: 140, backgroundColor: '#f8f9fa', borderRadius: 20, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0', justifyContent: 'center' }}>
-                            <Image source={{ uri: driverData.img_documento }} style={{ flex: 1, opacity: 0.4 }} resizeMode="cover" />
-                            <View style={{ position: 'absolute', alignSelf: 'center', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 15, flexDirection: 'row', alignItems: 'center' }}>
-                                <Icon name="document-scanner" size={22} color="#fff" style={{ marginRight: 10 }} />
-                                <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>ATUALIZAR DOCUMENTO</Text>
-                            </View>
+                        <View style={{ marginTop: 20, marginBottom: 15 }}>
+                            <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>Fotos do Veículo</Text>
+                            <Text style={{ color: '#64748b', fontSize: 12 }}>Essas fotos serão visíveis para os passageiros.</Text>
                         </View>
-                    </TouchableOpacity>
-                </Section>
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            {[{ f: 'img_frente', l: 'VISTA FRONTAL' }, { f: 'img_lateral', l: 'VISTA LATERAL' }].map(p => (
+                                <TouchableOpacity key={p.f} style={{ width: '48%' }} onPress={() => pickImage(p.f)}>
+                                    <Label>{p.l}</Label>
+                                    <View style={{ height: 110, backgroundColor: '#f8f9fa', borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' }}>
+                                        <SmartImage value={driverData[p.f]} style={{ width: '100%', height: '100%' }} fallbackBg="transparent" />
+                                        <View style={{ position: 'absolute', bottom: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', elevation: 5 }}>
+                                            <Icon name="photo-camera" size={16} color="#fff" />
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <TouchableOpacity style={{ marginTop: 25 }} onPress={() => pickImage('img_documento')}>
+                            <Label>DOCUMENTO CRLV</Label>
+                            <View style={{ height: 140, backgroundColor: '#f8f9fa', borderRadius: 20, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' }}>
+                                {!!String(driverData.img_documento || '').trim() && (
+                                    <SmartImage value={driverData.img_documento} style={{ width: '100%', height: '100%', opacity: 0.5 }} fallbackBg="transparent" fallbackIcon="picture-as-pdf" />
+                                )}
+                                <View style={{ position: 'absolute', alignSelf: 'center', backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 15, flexDirection: 'row', alignItems: 'center' }}>
+                                    <Icon name="document-scanner" size={22} color="#fff" style={{ marginRight: 10 }} />
+                                    <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13 }}>{String(driverData.img_documento || '').trim() ? 'ATUALIZAR DOCUMENTO' : 'ADICIONAR DOCUMENTO'}</Text>
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    </Section>
+                  </>
+                )}
 
                 <SaveButton activeOpacity={0.8} onPress={handleSave} disabled={isSaving}>
                     {isSaving ? <ActivityIndicator color="#fff" /> : (

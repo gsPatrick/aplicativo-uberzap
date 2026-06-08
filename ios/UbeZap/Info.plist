@@ -49,5 +49,23 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>O UbeZap usa sua localização para definir o embarque e calcular o valor da corrida.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>O UbeZap usa sua localização em segundo plano para rastrear o trajeto da corrida.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>O UbeZap usa sua localização em segundo plano para rastrear o trajeto da corrida.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>O UbeZap usa a câmera para você enviar suas fotos e documentos do cadastro.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O UbeZap acessa suas fotos para você enviar documentos e foto de perfil.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>O UbeZap salva imagens na sua galeria quando necessário.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

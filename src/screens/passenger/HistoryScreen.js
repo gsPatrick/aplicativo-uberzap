@@ -6,6 +6,8 @@ import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getSession } from '../../utils/session';
+import { isSemDestino, labelDestinoSemDestino } from '../../utils/rideDestination';
+import SmartImage from '../../components/SmartImage';
 
 // Fallback para MapView
 let MapView = View;
@@ -259,6 +261,13 @@ const RideItem = ({ item, index, onPress, onDriverPress }) => {
             <AddressText numberOfLines={1}>{item.endereco_fim || 'Destino não definido'}</AddressText>
           </AddressRow>
 
+          {item.semDestino && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 8, backgroundColor: 'rgba(245, 158, 11, 0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)' }}>
+              <Icon name="explore" size={13} color="#d97706" />
+              <Text style={{ color: '#b45309', fontSize: 10, fontWeight: '900', marginLeft: 4 }}>SEM DESTINO • TAXÍMETRO</Text>
+            </View>
+          )}
+
           <DriverSection>
             <DriverBadge onPress={onDriverPress} disabled={!item.motorista}>
               <DriverAvatar><Icon name="person" size={20} color="#94a3b8" /></DriverAvatar>
@@ -303,12 +312,16 @@ const HistoryScreen = () => {
           const lngIni = parseFloat(String(ride.lng_ini).replace(',', '.'));
           const latFim = parseFloat(String(ride.lat_fim).replace(',', '.'));
           const lngFim = parseFloat(String(ride.lng_fim).replace(',', '.'));
+          const rawFim = ride.endereco_fim ?? ride.endereco_fim_txt;
+          const semDestino = isSemDestino(rawFim);
           return {
             ...ride,
             lat_ini: !isNaN(latIni) ? latIni : null,
             lng_ini: !isNaN(lngIni) ? lngIni : null,
             lat_fim: !isNaN(latFim) ? latFim : null,
             lng_fim: !isNaN(lngFim) ? lngFim : null,
+            semDestino,
+            endereco_fim: semDestino ? labelDestinoSemDestino(rawFim) : ride.endereco_fim,
           };
         });
         setRides(parsed);
@@ -444,7 +457,7 @@ const HistoryScreen = () => {
                 {selectedRide?.motorista ? (
                   <View style={{ backgroundColor: '#f8fafc', padding: 20, borderRadius: 20, marginBottom: 25 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
-                          <Image source={{ uri: api.getImageUrl(selectedRide?.foto_motorista) }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                          <SmartImage value={selectedRide?.foto_motorista} style={{ width: 44, height: 44, borderRadius: 22 }} fallbackIcon="person" fallbackSize={22} alignTop />
                           <View style={{ marginLeft: 15 }}>
                                <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{selectedRide?.motorista}</Text>
                                <Text style={{ fontSize: 13, color: '#64748b' }}>Motorista Oficial</Text>
@@ -479,6 +492,12 @@ const HistoryScreen = () => {
                     <View>
                         <Text style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Destino</Text>
                         <Text style={{ fontSize: 16, color: colors.secondary, fontWeight: '500' }}>{selectedRide?.endereco_fim || 'Destino não registrado'}</Text>
+                        {selectedRide?.semDestino && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 8, backgroundColor: 'rgba(245, 158, 11, 0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)' }}>
+                                <Icon name="explore" size={13} color="#d97706" />
+                                <Text style={{ color: '#b45309', fontSize: 10, fontWeight: '900', marginLeft: 4 }}>SEM DESTINO • TAXÍMETRO</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
