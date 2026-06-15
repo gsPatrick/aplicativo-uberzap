@@ -412,14 +412,8 @@ const DriverHomeScreen = () => {
 
     const permissionsAskedRef = useRef(false);
 
-    useFocusEffect(
-        useCallback(() => {
-            if (permissionsAskedRef.current) return undefined;
-            permissionsAskedRef.current = true;
-            requestDriverPermissionsFlow().catch(() => {});
-            return undefined;
-        }, [])
-    );
+    // O fluxo de permissões agora é a tela DriverPermissions (1x após o login).
+    // O HomeScreen não dispara mais o pedido nem o aviso de bateria a cada foco.
 
     useEffect(() => {
         const loadInitial = async () => {

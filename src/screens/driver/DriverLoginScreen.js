@@ -8,6 +8,7 @@ import { syncPushTokenWithServer } from '../../services/pushSync';
 import api from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import { saveSession } from '../../utils/session';
+import { isPermissionsOnboarded } from '../../utils/driverPermissions';
 import { formatCpf, normalizeCpfForApi, isValidCpfDigits } from '../../utils/inputMasks';
 import DriverLogo from '../../components/DriverLogo';
 
@@ -134,9 +135,10 @@ const DriverLoginScreen = () => {
           cidade_id: response.data.cidade_id || 1,
         });
         await syncPushTokenWithServer().catch(() => {});
+        const onboarded = await isPermissionsOnboarded();
         navigation.reset({
           index: 0,
-          routes: [{ name: 'DriverHome' }],
+          routes: [{ name: onboarded ? 'DriverHome' : 'DriverPermissions' }],
         });
       } else {
         const errorMsg = typeof response.data === 'string' ? response.data : 'Credenciais inválidas.';

@@ -1,4 +1,5 @@
 import { Platform, Alert, InteractionManager, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import {
   ensureNotificationPermissions,
@@ -8,8 +9,19 @@ import { requestRideNotificationPermission } from '../services/rideNotification'
 import { ensureOverlayPermission } from './androidOverlay';
 import { syncPushTokenWithServer } from '../services/pushSync';
 
+const PERMISSIONS_ONBOARDED_KEY = '@UbeZap:permissionsOnboarded';
+
 let flowInProgress = false;
 let flowCompleted = false;
+
+/** Já passou pela tela de onboarding de permissões? (mostra só 1x) */
+export async function isPermissionsOnboarded() {
+  try {
+    return (await AsyncStorage.getItem(PERMISSIONS_ONBOARDED_KEY)) === '1';
+  } catch {
+    return false;
+  }
+}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -120,14 +132,19 @@ export async function requestDriverPermissionsFlow(options = {}) {
   }
 }
 
-/** Verifica se o motorista pode ficar online (pede permissões se faltar). */
+/**
+ * Verifica se o motorista pode ficar online. CHECAGEM PURA — não re-exibe o
+ * fluxo de permissões nem o aviso de bateria (que reaparecia a cada toque em
+ * ONLINE). Se faltar permissão essencial, apenas solicita a faltante uma vez.
+ */
 export async function ensureDriverCanGoOnline() {
-  const perms = await requestDriverPermissionsFlow({ force: true });
-  if (perms) {
-    return Boolean(perms.locationForeground && (perms.notifications || perms.notifee));
+  const { status: fg } = await Location.getForegroundPermissionsAsync();
+  let locationOk = fg === 'granted';
+  if (!locationOk) {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    locationOk = status === 'granted';
   }
 
-  const { status: fg } = await Location.getForegroundPermissionsAsync();
-  const notifications = await ensureNotificationPermissions();
-  return fg === 'granted' && notifications;
+  let notifOk = await ensureNotificationPermissions();
+  return locationOk && notifOk;
 }

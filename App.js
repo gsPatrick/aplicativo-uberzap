@@ -28,7 +28,7 @@ import {
   listenToRideNotificationActions,
   getInitialRideNotification,
 } from './src/services/rideNotification';
-import { requestDriverPermissionsFlow } from './src/utils/driverPermissions';
+import { isPermissionsOnboarded } from './src/utils/driverPermissions';
 import { recordRemotePush, rideAlertKey, tripStatusKey } from './src/utils/notificationDedup';
 import { registerBackgroundRideNotificationTask } from './src/services/backgroundRideNotification';
 import {
@@ -63,6 +63,7 @@ import PassengerRegisterScreen from './src/screens/passenger/RegisterScreen';
 // Screens - Motorista
 import DriverHomeScreen from './src/screens/driver/HomeScreen';
 import DriverLoginScreen from './src/screens/driver/DriverLoginScreen';
+import DriverPermissionsScreen from './src/screens/driver/DriverPermissionsScreen';
 import DriverRegisterScreen from './src/screens/driver/DriverRegisterScreen';
 import VehicleProfileScreen from './src/screens/driver/VehicleProfileScreen';
 import DriverEarningsScreen from './src/screens/driver/DriverEarningsScreen';
@@ -279,11 +280,15 @@ export default function App() {
     const resolveInitialRoute = async () => {
       try {
         const session = await getSession();
-        if (session?.telefone && session?.senha) {
-          return appVariant === 'driver' ? 'DriverHome' : 'PassengerPrincipal';
+        const isDriverLogged =
+          appVariant === 'driver' && (session?.id || (session?.telefone && session?.senha));
+        if (isDriverLogged) {
+          // Onboarding de permissões aparece 1x; depois sempre DriverHome.
+          const onboarded = await isPermissionsOnboarded();
+          return onboarded ? 'DriverHome' : 'DriverPermissions';
         }
-        if (session?.id && appVariant === 'driver') {
-          return 'DriverHome';
+        if (session?.telefone && session?.senha) {
+          return 'PassengerPrincipal';
         }
         return appVariant === 'driver' ? 'DriverLogin' : 'PassengerLogin';
       } catch {
@@ -391,7 +396,6 @@ export default function App() {
           onReady={() => {
             if (appVariant === 'driver') {
               processPendingRideActions(navigationRef).catch(() => {});
-              requestDriverPermissionsFlow().catch(() => {});
             }
           }}
         >
@@ -415,6 +419,7 @@ export default function App() {
 
             {/* Fluxo Motorista */}
             <Stack.Screen name="DriverLogin" component={DriverLoginScreen} />
+            <Stack.Screen name="DriverPermissions" component={DriverPermissionsScreen} />
             <Stack.Screen name="DriverHome" component={DriverHomeScreen} />
             <Stack.Screen name="DriverRegister" component={DriverRegisterScreen} />
             <Stack.Screen name="VehicleProfile" component={VehicleProfileScreen} />
