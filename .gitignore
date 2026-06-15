@@ -39,3 +39,5 @@ limpar_corridas.js
 credentials/*.jks
 credentials/*.keystore
 credentials/*.pem
+
+.smoke-export/
