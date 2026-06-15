@@ -307,7 +307,11 @@ const TaximeterScreen = () => {
                                 location.coords.latitude, location.coords.longitude
                             );
                             const accuracy = location.coords.accuracy || 0;
-                            if (d > 0.02 && accuracy < 25) {
+                            // O watcher dispara a cada ~10m (distanceInterval:10). O limiar antigo
+                            // (20m) era MAIOR que o passo, então a distância nunca acumulava.
+                            // Agora aceita passos reais (>4m), descarta saltos de GPS (>600m) e
+                            // relaxa a precisão (zona rural costuma ter accuracy pior).
+                            if (d > 0.004 && d < 0.6 && (accuracy === 0 || accuracy < 50)) {
                                 setDistance(prevDist => prevDist + d);
                                 if (isNoDestinationRide) {
                                     setCurrentPrice(prevPrice => prevPrice + (d * ratePerKm));
@@ -653,24 +657,32 @@ const TaximeterScreen = () => {
         const wazeApp = `waze://?ll=${lat},${lng}&navigate=yes`;
         const wazeWeb = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
         const googleIos = `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`;
-        const appleMap = `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
         const googleAndroid = `google.navigation:q=${lat},${lng}&mode=d`;
+        // URL universal do Google Maps: abre o app (via app links) ou o navegador.
+        // Nunca falha por app ausente — fallback final garantido.
+        const googleUniversal = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+        // Tenta o app preferido; se não der, cai no fallback web garantido.
+        const openWithFallback = async (preferred, fallback) => {
+            try {
+                const ok = await Linking.canOpenURL(preferred);
+                await Linking.openURL(ok ? preferred : fallback);
+            } catch (e) {
+                try {
+                    await Linking.openURL(fallback);
+                } catch (e2) {
+                    Alert.alert('Erro', 'Não foi possível abrir o aplicativo de navegação.');
+                }
+            }
+        };
 
         if (app === 'waze') {
-            Linking.canOpenURL(wazeApp)
-                .then((ok) => Linking.openURL(ok ? wazeApp : wazeWeb))
-                .catch(() => Alert.alert('Erro', 'Não foi possível abrir o Waze.'));
+            openWithFallback(wazeApp, wazeWeb);
             return;
         }
 
-        if (Platform.OS === 'ios') {
-            Linking.canOpenURL(googleIos)
-                .then((ok) => Linking.openURL(ok ? googleIos : appleMap))
-                .catch(() => Alert.alert('Erro', 'Não foi possível abrir o mapa.'));
-            return;
-        }
-
-        Linking.openURL(googleAndroid).catch(() => Alert.alert('Erro', 'Não foi possível abrir o Google Maps.'));
+        // Google Maps: scheme nativo por plataforma -> universal web.
+        openWithFallback(Platform.OS === 'ios' ? googleIos : googleAndroid, googleUniversal);
     };
 
     if (!ride?.id) {

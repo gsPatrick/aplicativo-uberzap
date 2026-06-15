@@ -30,8 +30,9 @@ module.exports = ({ config }) => {
    * versionCode DEVE ser maior que o publicado (motorista 30000, passageiro 10000).
    * versionName é só rótulo de exibição (não afeta a aceitação da atualização).
    */
-  const versionName = isDriver ? '3.0.2' : '1.0.1';
-  const versionCode = isDriver ? 30002 : 10001;
+  // Mesma versão para motorista e passageiro (pedido do cliente): 30003 em ambos.
+  const versionName = '30003';
+  const versionCode = 30003;
 
   /**
    * google-services.json por variante (FCM / push remoto).
@@ -100,6 +101,12 @@ module.exports = ({ config }) => {
       infoPlist: {
         ...(config.ios?.infoPlist || {}),
         CFBundleDisplayName: displayName,
+        // Permite que Linking.canOpenURL detecte Waze e Google Maps (navegação).
+        LSApplicationQueriesSchemes: [
+          ...((config.ios?.infoPlist || {}).LSApplicationQueriesSchemes || []),
+          'waze',
+          'comgooglemaps',
+        ],
       },
     },
     android: {
@@ -107,6 +114,11 @@ module.exports = ({ config }) => {
       package: androidPackage,
       versionCode,
       googleServicesFile,
+      // SDK 53 liga edge-to-edge por padrão, o que quebra o adjustResize do
+      // teclado (campos ficam escondidos no chat/login). Desligamos para manter
+      // o comportamento do SDK 52 e o teclado empurrar a tela corretamente.
+      edgeToEdgeEnabled: false,
+      softwareKeyboardLayoutMode: 'resize',
       adaptiveIcon: {
         foregroundImage: adaptiveForeground,
         backgroundColor: isDriver ? '#1f2120' : '#FFFFFF',
