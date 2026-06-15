@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from './api';
 import driverRideMonitor from './driverRideMonitor';
-import { saveSession } from '../utils/session';
+import { saveSession, getSession } from '../utils/session';
 import { buildTaximeterRide } from '../utils/driverRideUtils';
 import { stopRideAlertSound } from '../utils/rideAlertSound';
 import { triggerRideAlertNotification, cancelRideAlertNotification } from '../utils/notifications';
