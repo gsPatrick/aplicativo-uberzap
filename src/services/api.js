@@ -390,6 +390,11 @@ const api = {
         if (CONFIG.USE_MOCKS) return { data: { nome: 'Motorista Zap', nivel: 'Diamante', foto: null } };
         return axiosInstance.post('motoristas/get_perfil.php', toFormData({ id_motorista }));
     },
+    // Troca de senha do próprio motorista (logado). Backend valida a senha atual.
+    changePassword: async (id_motorista, senha_atual, nova_senha) => {
+        if (CONFIG.USE_MOCKS) return { data: { status: 'sucesso', mensagem: 'Senha alterada com sucesso.' } };
+        return axiosInstance.post('motoristas/redefinir_senha_logado.php', toFormData({ id_motorista, senha_atual, nova_senha }));
+    },
     // Motoristas online por perto (radar de carrinhos no mapa do motorista).
     getNearbyDrivers: async (cidade_id, excluir_id = '') => {
         if (CONFIG.USE_MOCKS) return { data: [] };

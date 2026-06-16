@@ -69,13 +69,24 @@ module.exports = ({ config }) => {
   const basePlugins = config.plugins || [];
   const rest = basePlugins.filter((p) => {
     if (p === 'expo-build-properties' || p === 'expo-font') return false;
-    if (Array.isArray(p) && p[0] === 'expo-build-properties') return false;
+    if (Array.isArray(p) && (p[0] === 'expo-build-properties' || p[0] === 'expo-font')) return false;
     return true;
   });
 
+  // Embute a fonte de ícones (MaterialIcons) no binário nativo. Sem isto, no
+  // SDK 53 (RN 0.79/React 19) o auto-load assíncrono do @expo/vector-icons
+  // corre com o primeiro paint no Android e os glifos ficam invisíveis
+  // (no iOS o fallback re-renderiza, por isso só quebra no Android).
+  const fontPlugin = [
+    'expo-font',
+    {
+      fonts: ['./assets/fonts/MaterialIcons.ttf'],
+    },
+  ];
+
   const plugins = [
     buildProps,
-    'expo-font',
+    fontPlugin,
     './plugins/withAndroidRideAlerts.js',
     ...rest,
   ];

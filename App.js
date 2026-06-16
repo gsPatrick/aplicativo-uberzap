@@ -40,6 +40,8 @@ import {
 import RideRequestScreen from './src/screens/driver/RideRequestScreen';
 import NotificationPopup from 'react-native-push-notification-popup';
 import * as Notifications from 'expo-notifications';
+import { useFonts } from 'expo-font';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const appVariant =
   Constants.expoConfig?.extra?.appVariant ||
@@ -138,6 +140,14 @@ const navigationRef = createNavigationContainerRef();
 export default function App() {
   const [initialRoute, setInitialRoute] = React.useState(null);
   const popupRef = React.useRef(null);
+
+  // Garante que a fonte de ícones (MaterialIcons) esteja registrada ANTES de
+  // qualquer ícone ser pintado. No SDK 53/Android o auto-load do
+  // @expo/vector-icons corre com o primeiro paint e os glifos somem; segurar o
+  // render até `fontsLoaded` elimina essa race. (Ver também o plugin expo-font.)
+  const [fontsLoaded] = useFonts({
+    ...MaterialIcons.font,
+  });
 
   React.useEffect(() => {
     if (appVariant !== 'driver') return undefined;
@@ -380,7 +390,7 @@ export default function App() {
     };
   }, []);
 
-  if (!initialRoute) {
+  if (!initialRoute || !fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
         <ActivityIndicator size="large" color="#FFC107" />

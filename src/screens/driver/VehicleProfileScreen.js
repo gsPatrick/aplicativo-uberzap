@@ -128,7 +128,12 @@ const VehicleProfileScreen = () => {
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    const [tab, setTab] = useState(route.params?.initialTab === 'veiculo' ? 'veiculo' : 'perfil'); // 'perfil' | 'veiculo'
+    const [tab, setTab] = useState(route.params?.initialTab === 'veiculo' ? 'veiculo' : 'perfil'); // 'perfil' | 'veiculo' | 'seguranca'
+
+    // Troca de senha
+    const [pwd, setPwd] = useState({ atual: '', nova: '', confirma: '' });
+    const [showPwd, setShowPwd] = useState(false);
+    const [isChangingPwd, setIsChangingPwd] = useState(false);
 
     const [driverData, setDriverData] = useState({
         nome: 'Carregando...',
@@ -198,6 +203,51 @@ const VehicleProfileScreen = () => {
         }
     };
 
+    const handleChangePassword = async () => {
+        const atual = pwd.atual.trim();
+        const nova = pwd.nova.trim();
+        const confirma = pwd.confirma.trim();
+
+        if (!atual || !nova || !confirma) {
+            Alert.alert('Atenção', 'Preencha todos os campos de senha.');
+            return;
+        }
+        if (nova.length < 4) {
+            Alert.alert('Atenção', 'A nova senha deve ter pelo menos 4 caracteres.');
+            return;
+        }
+        if (nova !== confirma) {
+            Alert.alert('Atenção', 'A confirmação não confere com a nova senha.');
+            return;
+        }
+        if (nova === atual) {
+            Alert.alert('Atenção', 'A nova senha deve ser diferente da atual.');
+            return;
+        }
+
+        setIsChangingPwd(true);
+        try {
+            const session = await getSession();
+            if (!session?.id) {
+                Alert.alert('Erro', 'Sessão expirada. Entre novamente.');
+                return;
+            }
+            const resp = await api.driver.changePassword(session.id, atual, nova);
+            const data = resp?.data || {};
+            if (data.status === 'sucesso') {
+                setPwd({ atual: '', nova: '', confirma: '' });
+                Alert.alert('Pronto', data.mensagem || 'Senha alterada com sucesso.');
+            } else {
+                Alert.alert('Erro', data.mensagem || 'Não foi possível alterar a senha.');
+            }
+        } catch (e) {
+            console.error(e);
+            Alert.alert('Erro', 'Falha de conexão ao alterar a senha.');
+        } finally {
+            setIsChangingPwd(false);
+        }
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
@@ -225,7 +275,7 @@ const VehicleProfileScreen = () => {
 
             {/* Tabs: Perfil | Veículo */}
             <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 10, backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 16, padding: 4 }}>
-                {[{ k: 'perfil', label: 'Perfil', icon: 'person' }, { k: 'veiculo', label: 'Veículo', icon: 'directions-car' }].map(t => (
+                {[{ k: 'perfil', label: 'Perfil', icon: 'person' }, { k: 'veiculo', label: 'Veículo', icon: 'directions-car' }, { k: 'seguranca', label: 'Senha', icon: 'lock' }].map(t => (
                     <TouchableOpacity key={t.k} onPress={() => setTab(t.k)} activeOpacity={0.8}
                         style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 12, backgroundColor: tab === t.k ? '#fff' : 'transparent' }}>
                         <Icon name={t.icon} size={18} color={tab === t.k ? colors.primary : '#94a3b8'} />
@@ -275,7 +325,7 @@ const VehicleProfileScreen = () => {
                         </InputGroup>
                     </Section>
                   </>
-                ) : (
+                ) : tab === 'veiculo' ? (
                   <>
                     <Section>
                         <SectionTitle>Identidade do Veículo</SectionTitle>
@@ -321,13 +371,69 @@ const VehicleProfileScreen = () => {
                         </TouchableOpacity>
                     </Section>
                   </>
+                ) : (
+                  <>
+                    <Section>
+                        <SectionTitle>Alterar Senha</SectionTitle>
+                        <Text style={{ color: '#64748b', fontSize: 13, marginTop: -10, marginBottom: 20 }}>
+                            Para sua segurança, confirme a senha atual antes de definir uma nova.
+                        </Text>
+
+                        <InputGroup>
+                            <Label>SENHA ATUAL</Label>
+                            <StyledInput
+                                value={pwd.atual}
+                                onChangeText={t => setPwd({ ...pwd, atual: t })}
+                                placeholder="Sua senha atual"
+                                secureTextEntry={!showPwd}
+                                autoCapitalize="none"
+                            />
+                        </InputGroup>
+                        <InputGroup>
+                            <Label>NOVA SENHA</Label>
+                            <StyledInput
+                                value={pwd.nova}
+                                onChangeText={t => setPwd({ ...pwd, nova: t })}
+                                placeholder="Mínimo 4 caracteres"
+                                secureTextEntry={!showPwd}
+                                autoCapitalize="none"
+                            />
+                        </InputGroup>
+                        <InputGroup>
+                            <Label>CONFIRMAR NOVA SENHA</Label>
+                            <StyledInput
+                                value={pwd.confirma}
+                                onChangeText={t => setPwd({ ...pwd, confirma: t })}
+                                placeholder="Repita a nova senha"
+                                secureTextEntry={!showPwd}
+                                autoCapitalize="none"
+                            />
+                        </InputGroup>
+
+                        <TouchableOpacity onPress={() => setShowPwd(v => !v)} activeOpacity={0.7}
+                            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                            <Icon name={showPwd ? 'visibility-off' : 'visibility'} size={18} color={colors.primary} />
+                            <Text style={{ marginLeft: 6, color: colors.primary, fontWeight: 'bold', fontSize: 13 }}>
+                                {showPwd ? 'Ocultar senhas' : 'Mostrar senhas'}
+                            </Text>
+                        </TouchableOpacity>
+                    </Section>
+
+                    <SaveButton activeOpacity={0.8} onPress={handleChangePassword} disabled={isChangingPwd}>
+                        {isChangingPwd ? <ActivityIndicator color="#fff" /> : (
+                            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 1 }}>ALTERAR SENHA</Text>
+                        )}
+                    </SaveButton>
+                  </>
                 )}
 
-                <SaveButton activeOpacity={0.8} onPress={handleSave} disabled={isSaving}>
+                {tab !== 'seguranca' && (
+                  <SaveButton activeOpacity={0.8} onPress={handleSave} disabled={isSaving}>
                     {isSaving ? <ActivityIndicator color="#fff" /> : (
                         <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 1 }}>SALVAR ALTERAÇÕES</Text>
                     )}
-                </SaveButton>
+                  </SaveButton>
+                )}
             </Content>
         </Container>
     );
