@@ -80,7 +80,14 @@ module.exports = ({ config }) => {
   const fontPlugin = [
     'expo-font',
     {
-      fonts: ['./assets/fonts/MaterialIcons.ttf'],
+      fonts: [
+        {
+          fontFamily: 'material',
+          fontDefinitions: [
+            { path: './assets/fonts/MaterialIcons.ttf', weight: 400, style: 'normal' },
+          ],
+        },
+      ],
     },
   ];
 
