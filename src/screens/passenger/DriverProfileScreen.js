@@ -27,7 +27,7 @@ const BackwardButton = styled.TouchableOpacity`
 `;
 
 const ContentCard = styled.View`
-  background-color: #fff;
+  background-color: #0B1220;
   border-top-left-radius: 35px;
   border-top-right-radius: 35px;
   margin-top: -60px;
@@ -48,20 +48,20 @@ const LargeProfileImage = styled.Image`
   border-radius: 60px;
   border-width: 5px;
   border-color: #fff;
-  background-color: #f0f0f0;
+  background-color: #131C2E;
 `;
 
 const DriverNameTitle = styled.Text`
   font-size: 26px;
   font-weight: 800;
-  color: #1f2120;
+  color: #F1F5F9;
   margin-top: 15px;
   letter-spacing: -0.5px;
 `;
 
 const DriverSubtitle = styled.Text`
   font-size: 15px;
-  color: #777;
+  color: #94A3B8;
   margin-top: 4px;
   font-weight: 500;
 `;
@@ -73,7 +73,7 @@ const StatsGrid = styled.View`
   padding-vertical: 20px;
   border-top-width: 1px;
   border-bottom-width: 1px;
-  border-color: #f0f0f0;
+  border-color: #243049;
 `;
 
 const StatItem = styled.View`
@@ -89,12 +89,12 @@ const StatHeader = styled.View`
 const StatValue = styled.Text`
   font-size: 22px;
   font-weight: 800;
-  color: #1f2120;
+  color: #F1F5F9;
 `;
 
 const StatLabel = styled.Text`
   font-size: 12px;
-  color: #888;
+  color: #94A3B8;
   font-weight: 600;
   text-transform: uppercase;
   margin-top: 2px;
@@ -103,7 +103,7 @@ const StatLabel = styled.Text`
 const SectionTitle = styled.Text`
   font-size: 19px;
   font-weight: 700;
-  color: #1f2120;
+  color: #F1F5F9;
   margin-top: 30px;
   margin-bottom: 15px;
 `;
@@ -115,7 +115,7 @@ const BadgesScroll = styled.ScrollView`
 `;
 
 const Badge = styled.View`
-  background-color: #f4fbf6;
+  background-color: #131C2E;
   padding-horizontal: 16px;
   padding-vertical: 12px;
   border-radius: 12px;
@@ -134,7 +134,7 @@ const BadgeText = styled.Text`
 `;
 
 const CarInfoContainer = styled.View`
-  background-color: #1f2120;
+  background-color: #131C2E;
   padding: 20px;
   border-radius: 20px;
   flex-direction: row;
@@ -188,7 +188,7 @@ export default function DriverProfileScreen() {
   const fmtDate = (s) => (s ? String(s).slice(0, 10).split('-').reverse().join('/') : '');
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+    <View style={{ flex: 1, backgroundColor: '#0B1220' }}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header: foto principal do carro (escurecida, estilo hero) ou cor da marca */}
@@ -200,7 +200,7 @@ export default function DriverProfileScreen() {
           </>
         ) : null}
         <BackwardButton onPress={() => navigation.goBack()} activeOpacity={0.8}>
-          <Icon name="close" size={24} color="#1f2120" />
+          <Icon name="close" size={24} color="#0B1220" />
         </BackwardButton>
       </View>
 
@@ -209,23 +209,23 @@ export default function DriverProfileScreen() {
           <ProfileHeader style={{ zIndex: 10, elevation: 10 }}>
             <SmartImage
               value={d.img || d.foto}
-              fallbackIcon="person" fallbackSize={60} fallbackBg="#f0f0f0" alignTop
-              style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 5, borderColor: '#fff', backgroundColor: '#f0f0f0', zIndex: 15, elevation: 15, shadowColor: '#000', shadowOffset: {width:0, height:4}, shadowOpacity: 0.3, shadowRadius: 5 }}
+              fallbackIcon="person" fallbackSize={60} fallbackBg="#131C2E" alignTop
+              style={{ width: 120, height: 120, borderRadius: 60, borderWidth: 5, borderColor: '#fff', backgroundColor: '#131C2E', zIndex: 15, elevation: 15, shadowColor: '#000', shadowOffset: {width:0, height:4}, shadowOpacity: 0.3, shadowRadius: 5 }}
             />
             <DriverNameTitle>{(d.nome || 'Motorista').trim()}</DriverNameTitle>
 
             {/* Nível */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff8e1', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginTop: 10, borderWidth: 1, borderColor: '#f0c419' }}>
-              <Icon name="workspace-premium" size={16} color="#d4a017" />
-              <Text style={{ color: '#b8860b', fontWeight: '800', marginLeft: 6, fontSize: 13 }}>Motorista {d.nivel || 'Ouro'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#131C2E', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginTop: 10, borderWidth: 1, borderColor: '#F59E0B' }}>
+              <Icon name="workspace-premium" size={16} color="#F59E0B" />
+              <Text style={{ color: '#F59E0B', fontWeight: '800', marginLeft: 6, fontSize: 13 }}>Motorista {d.nivel || 'Ouro'}</Text>
             </View>
 
             {/* Avaliação média */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
               {[1,2,3,4,5].map(s => (
-                <Icon key={s} name="star" size={22} color={hasRating && s <= Math.round(media) ? '#f5b041' : '#e0e0e0'} />
+                <Icon key={s} name="star" size={22} color={hasRating && s <= Math.round(media) ? '#F59E0B' : '#243049'} />
               ))}
-              <Text style={{ marginLeft: 8, fontSize: 18, fontWeight: '800', color: '#1f2120' }}>{hasRating ? ratingTxt : 'Novo'}</Text>
+              <Text style={{ marginLeft: 8, fontSize: 18, fontWeight: '800', color: '#F1F5F9' }}>{hasRating ? ratingTxt : 'Novo'}</Text>
               {totalReviews > 0 ? (
                 <Text style={{ marginLeft: 6, fontSize: 13, color: '#94a3b8' }}>({totalReviews})</Text>
               ) : null}
@@ -237,12 +237,12 @@ export default function DriverProfileScreen() {
           {carPhotos.length > 0 ? (
             <BadgesScroll horizontal showsHorizontalScrollIndicator={false}>
               {carPhotos.map((p, i) => (
-                <SmartImage key={i} value={p} style={{ width: 240, height: 150, borderRadius: 16, marginRight: 12, backgroundColor: '#f0f0f0' }} fallbackIcon="directions-car" />
+                <SmartImage key={i} value={p} style={{ width: 240, height: 150, borderRadius: 16, marginRight: 12, backgroundColor: '#131C2E' }} fallbackIcon="directions-car" />
               ))}
             </BadgesScroll>
           ) : (
-            <View style={{ height: 140, borderRadius: 16, backgroundColor: '#f8f9fa', borderWidth: 1, borderColor: '#e2e8f0', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' }}>
-              <Icon name="no-photography" size={30} color="#cbd5e1" />
+            <View style={{ height: 140, borderRadius: 16, backgroundColor: '#131C2E', borderWidth: 1, borderColor: '#243049', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' }}>
+              <Icon name="no-photography" size={30} color="#94A3B8" />
               <Text style={{ color: '#94a3b8', marginTop: 8 }}>Sem fotos do veículo</Text>
             </View>
           )}
@@ -255,7 +255,7 @@ export default function DriverProfileScreen() {
              </View>
              <View style={{ flex: 1 }}>
                <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', letterSpacing: 1 }}>{d.placa || '—'}</Text>
-               <Text style={{ fontSize: 15, color: '#aaa', marginTop: 2, fontWeight: '500' }}>{(d.veiculo || 'Veículo').trim()}</Text>
+               <Text style={{ fontSize: 15, color: '#94A3B8', marginTop: 2, fontWeight: '500' }}>{(d.veiculo || 'Veículo').trim()}</Text>
              </View>
           </CarInfoContainer>
 
@@ -263,24 +263,24 @@ export default function DriverProfileScreen() {
           <SectionTitle>Avaliações {totalReviews > 0 ? `(${totalReviews})` : ''}</SectionTitle>
           {reviews.length > 0 ? (
             reviews.map((r, i) => (
-              <View key={i} style={{ backgroundColor: '#f8f9fa', borderRadius: 16, padding: 16, marginBottom: 12 }}>
+              <View key={i} style={{ backgroundColor: '#131C2E', borderRadius: 16, padding: 16, marginBottom: 12 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={{ fontWeight: '800', color: '#1f2120', fontSize: 15 }}>{r.nome_cliente || 'Passageiro'}</Text>
+                  <Text style={{ fontWeight: '800', color: '#F1F5F9', fontSize: 15 }}>{r.nome_cliente || 'Passageiro'}</Text>
                   <Text style={{ color: '#94a3b8', fontSize: 12 }}>{fmtDate(r.date)}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', marginBottom: 6 }}>
                   {[1,2,3,4,5].map(s => (
-                    <Icon key={s} name="star" size={15} color={s <= (r.nota || 0) ? '#f5b041' : '#e0e0e0'} />
+                    <Icon key={s} name="star" size={15} color={s <= (r.nota || 0) ? '#F59E0B' : '#243049'} />
                   ))}
                 </View>
                 {!!(r.comentario || '').trim() && (
-                  <Text style={{ color: '#475569', fontSize: 14, fontStyle: 'italic' }}>"{r.comentario}"</Text>
+                  <Text style={{ color: '#94A3B8', fontSize: 14, fontStyle: 'italic' }}>"{r.comentario}"</Text>
                 )}
               </View>
             ))
           ) : (
-            <View style={{ backgroundColor: '#f8f9fa', borderRadius: 16, padding: 22, alignItems: 'center', marginBottom: 10 }}>
-              <Icon name="rate-review" size={30} color="#cbd5e1" />
+            <View style={{ backgroundColor: '#131C2E', borderRadius: 16, padding: 22, alignItems: 'center', marginBottom: 10 }}>
+              <Icon name="rate-review" size={30} color="#94A3B8" />
               <Text style={{ color: '#94a3b8', marginTop: 8, textAlign: 'center' }}>Este motorista ainda não tem avaliações.</Text>
             </View>
           )}

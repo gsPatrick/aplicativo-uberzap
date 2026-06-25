@@ -18,9 +18,9 @@ const Header = styled.View`
   justify-content: space-between;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
-  background-color: #fff;
+  background-color: #131C2E;
   border-bottom-width: 1px;
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: #243049;
 `;
 
 const HeaderTitle = styled.Text`
@@ -42,12 +42,12 @@ const SectionTitle = styled.Text`
 `;
 
 const MessageCard = styled.View`
-  background-color: #fff;
+  background-color: #131C2E;
   padding: 15px;
   border-radius: 15px;
   margin-bottom: 12px;
   border-width: 1px;
-  border-color: #e2e8f0;
+  border-color: #243049;
   border-left-width: 4px;
   border-left-color: ${props => props.isUser ? colors.primary : '#3b82f6'};
 `;
@@ -67,13 +67,13 @@ const MessageDate = styled.Text`
 const InputContainer = styled.View`
   padding: 20px;
   padding-bottom: ${Platform.OS === 'ios' ? 40 : 20}px;
-  background-color: #fff;
+  background-color: #131C2E;
   border-top-width: 1px;
-  border-top-color: #e2e8f0;
+  border-top-color: #243049;
 `;
 
 const StyledInput = styled.TextInput`
-  background-color: #f8f9fa;
+  background-color: #1B2740;
   color: ${colors.text};
   padding: 15px;
   border-radius: 15px;
@@ -156,7 +156,7 @@ const DriverSupportScreen = () => {
 
     return (
         <Container>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
             <Header>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Icon name="arrow-back" size={28} color={colors.text} />
@@ -192,7 +192,7 @@ const DriverSupportScreen = () => {
                     <View style={{ flex: 1 }}>
                          <StyledInput 
                             placeholder="Descreva sua dúvida ou problema..."
-                            placeholderTextColor="#64748b"
+                            placeholderTextColor="#64748B"
                             multiline
                             value={newMessage}
                             onChangeText={setNewMessage}

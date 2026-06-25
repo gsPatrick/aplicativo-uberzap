@@ -13,14 +13,14 @@ const Container = styled.View`
 `;
 
 const Header = styled.View`
-  background-color: #fff;
+  background-color: #131C2E;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   border-bottom-width: 1px;
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: #243049;
 `;
 
 const HeaderTitle = styled.Text`
@@ -30,7 +30,7 @@ const HeaderTitle = styled.Text`
 `;
 
 const AlertCard = styled.View`
-  background-color: #fff;
+  background-color: #131C2E;
   margin-horizontal: ${spacing.md}px;
   margin-top: ${spacing.md}px;
   padding: 20px;
@@ -38,7 +38,7 @@ const AlertCard = styled.View`
   border-left-width: 4px;
   border-left-color: ${colors.primary};
   border-width: 1px;
-  border-color: #e2e8f0;
+  border-color: #243049;
 `;
 
 const AlertDate = styled.Text`
@@ -100,7 +100,7 @@ const DriverAlertsScreen = () => {
 
     return (
         <Container>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
             <Header>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Icon name="arrow-back" size={28} color={colors.text} />
@@ -117,7 +117,7 @@ const DriverAlertsScreen = () => {
                 renderItem={renderItem}
                 ListEmptyComponent={
                     <EmptyContainer>
-                        <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(0,0,0,0.03)', justifyContent: 'center', alignItems: 'center' }}>
+                        <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' }}>
                             <Icon name="notifications-none" size={50} color="#94a3b8" />
                         </View>
                         <EmptyText>Sua central de alertas está vazia. Você receberá avisos importantes aqui.</EmptyText>

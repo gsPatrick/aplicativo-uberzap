@@ -54,18 +54,18 @@ const { width, height } = Dimensions.get('window');
 
 const Container = styled.View`
   flex: 1;
-  background-color: #f8f9fa;
+  background-color: #0B1220;
 `;
 
 const Header = styled.View`
-  background-color: #fff;
+  background-color: #131C2E;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   border-bottom-width: 1px;
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: #243049;
 `;
 
 const HeaderTitle = styled.Text`
@@ -75,7 +75,7 @@ const HeaderTitle = styled.Text`
 `;
 
 const DateSelector = styled.TouchableOpacity`
-  background-color: #fff;
+  background-color: #131C2E;
   margin: ${spacing.md}px;
   padding: 15px;
   border-radius: ${borderRadius.md}px;
@@ -83,7 +83,7 @@ const DateSelector = styled.TouchableOpacity`
   align-items: center;
   justify-content: space-between;
   border-width: 1px;
-  border-color: #e2e8f0;
+  border-color: #243049;
   elevation: 2;
   shadow-color: #000;
   shadow-offset: 0px 2px;
@@ -98,13 +98,13 @@ const DateText = styled.Text`
 `;
 
 const RideCard = styled.TouchableOpacity`
-  background-color: #fff;
+  background-color: #131C2E;
   margin-horizontal: ${spacing.md}px;
   margin-bottom: ${spacing.md}px;
   border-radius: ${borderRadius.lg}px;
   padding: 18px;
   border-width: 1px;
-  border-color: ${props => props.active ? colors.primary : '#e2e8f0'};
+  border-color: ${props => props.active ? colors.primary : '#243049'};
   elevation: 3;
   shadow-color: #000;
   shadow-offset: 0px 2px;
@@ -158,7 +158,7 @@ const Dot = styled.View`
 const PathLine = styled.View`
   width: 1px;
   height: 12px;
-  background-color: #e2e8f0;
+  background-color: #243049;
   margin-left: 3.5px;
 `;
 
@@ -170,7 +170,7 @@ const ModalOverlay = styled.View`
 `;
 
 const ModalContent = styled.View`
-  background-color: #fff;
+  background-color: #131C2E;
   border-top-left-radius: 30px;
   border-top-right-radius: 30px;
   height: ${height * 0.85}px;
@@ -183,13 +183,13 @@ const ModalHeader = styled.View`
   justify-content: space-between;
   align-items: center;
   border-bottom-width: 1px;
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: #243049;
 `;
 
 const MapWrapper = styled.View`
   height: 250px;
   width: 100%;
-  background-color: #f1f5f9;
+  background-color: #131C2E;
   overflow: hidden;
 `;
 
@@ -388,13 +388,13 @@ const DriverHistoryScreen = () => {
 
       {item.semDestino && (
         <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 12, backgroundColor: 'rgba(245, 158, 11, 0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)' }}>
-          <Icon name="explore" size={13} color="#d97706" />
-          <Text style={{ color: '#b45309', fontSize: 10, fontWeight: '900', marginLeft: 4 }}>SEM DESTINO • TAXÍMETRO</Text>
+          <Icon name="explore" size={13} color="#F59E0B" />
+          <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '900', marginLeft: 4 }}>SEM DESTINO • TAXÍMETRO</Text>
         </View>
       )}
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
-        <Text style={{ color: '#475569', fontSize: 11, fontWeight: 'bold' }}>ID: #{item.id}</Text>
+        <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: 'bold' }}>ID: #{item.id}</Text>
         <View style={{ 
           backgroundColor: (item.status === '4' || item.status === 'Finalizada') ? 'rgba(58, 181, 107, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
           paddingHorizontal: 12, 
@@ -413,7 +413,7 @@ const DriverHistoryScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
       <Header>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="arrow-back" size={28} color={colors.text} />
@@ -475,7 +475,7 @@ const DriverHistoryScreen = () => {
           renderItem={renderRideItem}
           ListEmptyComponent={
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 }}>
-              <Icon name="history" size={70} color="#cbd5e1" />
+              <Icon name="history" size={70} color="#243049" />
               <Text style={{ color: '#64748b', marginTop: 20, textAlign: 'center', paddingHorizontal: 30 }}>
                 {viewMode === 'recent'
                   ? 'Nenhuma viagem finalizada ainda.'
@@ -499,7 +499,7 @@ const DriverHistoryScreen = () => {
             <ModalHeader>
               <Text style={{ color: colors.text, fontSize: 20, fontWeight: 'bold' }}>Detalhes da Viagem</Text>
               <TouchableOpacity onPress={() => setSelectedRide(null)}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' }}>
                     <Icon name="close" size={24} color={colors.text} />
                 </View>
               </TouchableOpacity>
@@ -524,13 +524,13 @@ const DriverHistoryScreen = () => {
               <SectionTitle>Trajeto</SectionTitle>
               {selectedRide?.semDestino && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245, 158, 11, 0.12)', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)', marginBottom: 10 }}>
-                  <Icon name="explore" size={18} color="#d97706" />
-                  <Text style={{ color: '#b45309', fontSize: 12, fontWeight: 'bold', marginLeft: 8, flex: 1 }}>
+                  <Icon name="explore" size={18} color="#F59E0B" />
+                  <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: 'bold', marginLeft: 8, flex: 1 }}>
                     Corrida sem destino (taxímetro) — destino definido no fim da corrida.
                   </Text>
                 </View>
               )}
-              <View style={{ backgroundColor: 'rgba(0,0,0,0.03)', padding: 20, borderRadius: 20, borderLeftWidth: 3, borderLeftColor: colors.primary }}>
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: 20, borderRadius: 20, borderLeftWidth: 3, borderLeftColor: colors.primary }}>
                   <View style={{ flexDirection: 'row', marginBottom: 20 }}>
                     <Icon name="location-searching" size={20} color={colors.primary} />
                     <View style={{ marginLeft: 15, flex: 1 }}>
@@ -548,8 +548,8 @@ const DriverHistoryScreen = () => {
               </View>
 
               <SectionTitle style={{ marginTop: 30 }}>Passageiro</SectionTitle>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.03)', padding: 15, borderRadius: 20 }}>
-                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 20 }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
                       <SmartImage value={selectedRide?.foto_cliente} style={{ width: 44, height: 44 }} fallbackIcon="person" fallbackSize={24} fallbackBg="transparent" alignTop />
                   </View>
                   <View style={{ marginLeft: 15, flex: 1 }}>
@@ -563,7 +563,7 @@ const DriverHistoryScreen = () => {
                   <View style={{ backgroundColor: 'rgba(58, 181, 107, 0.05)', padding: 15, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(58, 181, 107, 0.1)' }}>
                       <View style={{ flexDirection: 'row', marginBottom: 8 }}>
                           {[1,2,3,4,5].map(star => (
-                              <Icon key={star} name="star" size={18} color={star <= selectedRide.avaliacao.nota ? '#fbbf24' : '#cbd5e1'} />
+                              <Icon key={star} name="star" size={18} color={star <= selectedRide.avaliacao.nota ? '#fbbf24' : '#243049'} />
                           ))}
                       </View>
                       <Text style={{ color: '#64748b', fontSize: 13, fontStyle: 'italic' }}>
@@ -571,7 +571,7 @@ const DriverHistoryScreen = () => {
                       </Text>
                   </View>
               ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.03)', padding: 15, borderRadius: 20 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 20 }}>
                       <Icon name="star-border" size={20} color="#94a3b8" />
                       <Text style={{ color: '#94a3b8', fontSize: 13, marginLeft: 8 }}>Esta corrida não foi avaliada.</Text>
                   </View>

@@ -98,14 +98,14 @@ export default class ErrorBoundary extends React.Component {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#0B1220',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   card: {
     width: '100%',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#131C2E',
     borderRadius: 20,
     padding: 20,
     alignItems: 'center',
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#fef3c7',
+    backgroundColor: '#F59E0B',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#F1F5F9',
     marginBottom: 8,
   },
   subtitle: {
@@ -167,13 +167,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#243049',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
   copyButtonText: {
-    color: '#475569',
+    color: '#94A3B8',
     fontSize: 13,
     fontWeight: 'bold',
   },
@@ -190,14 +190,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resetButton: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#EF4444',
   },
   restartButton: {
-    backgroundColor: '#ffc107',
+    backgroundColor: '#F59E0B',
   },
   actionButtonText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#F1F5F9',
   },
 });

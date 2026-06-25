@@ -9,7 +9,7 @@ import { getSession } from '../../utils/session';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #fff;
+  background-color: #0B1220;
 `;
 
 const Header = styled.View`
@@ -19,13 +19,13 @@ const Header = styled.View`
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
   border-bottom-width: 1px;
-  border-bottom-color: #f0f0f0;
+  border-bottom-color: #243049;
 `;
 
 const HeaderTitle = styled.Text`
   font-size: 20px;
   font-weight: bold;
-  color: ${colors.secondary};
+  color: #F1F5F9;
 `;
 
 const Content = styled.ScrollView`
@@ -37,7 +37,7 @@ const SectionTitle = styled.Text`
   font-size: 18px;
   font-weight: bold;
   margin-bottom: 15px;
-  color: ${colors.secondary};
+  color: #F1F5F9;
 `;
 
 const FAQItem = styled.TouchableOpacity`
@@ -46,31 +46,32 @@ const FAQItem = styled.TouchableOpacity`
   align-items: center;
   padding-vertical: 15px;
   border-bottom-width: 1px;
-  border-bottom-color: #f0f0f0;
+  border-bottom-color: #243049;
 `;
 
 const FAQText = styled.Text`
   font-size: 16px;
-  color: #444;
+  color: #F1F5F9;
 `;
 
 const ContactForm = styled.View`
   margin-top: 30px;
   padding: 20px;
-  background-color: #f8f9fa;
+  background-color: #131C2E;
   border-radius: 20px;
   margin-bottom: 50px;
 `;
 
 const StyledInput = styled.TextInput`
   height: 120px;
-  background-color: #fff;
+  background-color: #1B2740;
   border-width: 1px;
-  border-color: #e0e0e0;
+  border-color: #243049;
   border-radius: 12px;
   padding: 15px;
   font-size: 16px;
   margin-bottom: 15px;
+  color: #F1F5F9;
 `;
 
 const SubmitButton = styled.TouchableOpacity`
@@ -151,10 +152,10 @@ const SupportScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
       <Header>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={28} color={colors.secondary} />
+          <Icon name="arrow-back" size={28} color="#F1F5F9" />
         </TouchableOpacity>
         <HeaderTitle>Ajuda e Suporte</HeaderTitle>
         <View style={{ width: 28 }} />
@@ -188,16 +189,17 @@ const SupportScreen = () => {
         {faqData.map(item => (
           <FAQItem key={item.id} onPress={() => Alert.alert('FAQ', 'Em breve detalhamento desta dúvida')}>
             <FAQText>{item.q}</FAQText>
-            <Icon name="chevron-right" size={24} color="#ccc" />
+            <Icon name="chevron-right" size={24} color="#94A3B8" />
           </FAQItem>
         ))}
 
         <ContactForm>
           <SectionTitle>Ainda precisa de ajuda?</SectionTitle>
-          <Text style={{ color: '#666', marginBottom: 15 }}>Envie-nos uma mensagem e responderemos o mais rápido possível.</Text>
-          <StyledInput 
-            placeholder="Descreva seu problema..." 
-            multiline 
+          <Text style={{ color: '#94A3B8', marginBottom: 15 }}>Envie-nos uma mensagem e responderemos o mais rápido possível.</Text>
+          <StyledInput
+            placeholder="Descreva seu problema..."
+            placeholderTextColor="#64748B"
+            multiline
             numberOfLines={5}
             textAlignVertical="top"
             value={message}

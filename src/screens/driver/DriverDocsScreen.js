@@ -21,9 +21,9 @@ const Header = styled.View`
   justify-content: space-between;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
-  background-color: #fff;
+  background-color: #131C2E;
   border-bottom-width: 1px;
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: #243049;
 `;
 
 const HeaderTitle = styled.Text`
@@ -38,14 +38,14 @@ const Content = styled.ScrollView`
 `;
 
 const DocItem = styled.TouchableOpacity`
-  background-color: #fff;
+  background-color: #131C2E;
   padding: 12px;
   border-radius: 15px;
   flex-direction: row;
   align-items: center;
   margin-bottom: 12px;
   border-width: 1px;
-  border-color: ${props => props.hasImage ? colors.primary : '#e2e8f0'};
+  border-color: ${props => props.hasImage ? colors.primary : '#243049'};
 `;
 
 const SubmitButton = styled.TouchableOpacity`
@@ -196,7 +196,7 @@ const DriverDocsScreen = () => {
     if (fetching) {
         return (
             <Container>
-                <StatusBar barStyle="dark-content" />
+                <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
                 <Header>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
                         <Icon name="arrow-back" size={28} color={colors.text} />
@@ -214,7 +214,7 @@ const DriverDocsScreen = () => {
 
     return (
         <Container>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
             <Header>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Icon name="arrow-back" size={28} color={colors.text} />
@@ -225,9 +225,9 @@ const DriverDocsScreen = () => {
 
             <Content showsVerticalScrollIndicator={false}>
                 {allServerPresent ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ecfdf5', borderRadius: 12, padding: 14, marginBottom: 18, borderWidth: 1, borderColor: 'rgba(58,181,107,0.3)' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#131C2E', borderRadius: 12, padding: 14, marginBottom: 18, borderWidth: 1, borderColor: 'rgba(58,181,107,0.3)' }}>
                         <Icon name="verified-user" size={22} color={colors.primary} />
-                        <Text style={{ color: '#166534', marginLeft: 10, flex: 1, fontSize: 13 }}>
+                        <Text style={{ color: '#22C55E', marginLeft: 10, flex: 1, fontSize: 13 }}>
                             Seus documentos foram enviados. Toque em qualquer um para visualizar.
                         </Text>
                     </View>
@@ -249,7 +249,7 @@ const DriverDocsScreen = () => {
                     };
                     return (
                         <DocItem key={doc.key} onPress={onPress} hasImage={hasAny} activeOpacity={0.8}>
-                            <View style={{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 14 }}>
+                            <View style={{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 14 }}>
                                 {localUri ? (
                                     <Image source={{ uri: localUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                                 ) : onServer ? (
@@ -260,12 +260,12 @@ const DriverDocsScreen = () => {
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={{ color: colors.text, fontWeight: '600', fontSize: 14 }}>{doc.name}</Text>
-                                <Text style={{ color: localUri ? '#f59e0b' : onServer ? colors.primary : '#94a3b8', fontSize: 12, marginTop: 3, fontWeight: '600' }}>
+                                <Text style={{ color: localUri ? '#F59E0B' : onServer ? colors.primary : '#94a3b8', fontSize: 12, marginTop: 3, fontWeight: '600' }}>
                                     {localUri ? 'Nova foto (não enviada)' : onServer ? 'Enviado' : 'Pendente'}
                                 </Text>
                             </View>
                             {hasAny ? (
-                                <Icon name={localUri ? 'edit' : 'visibility'} size={22} color={localUri ? '#f59e0b' : colors.primary} />
+                                <Icon name={localUri ? 'edit' : 'visibility'} size={22} color={localUri ? '#F59E0B' : colors.primary} />
                             ) : (
                                 <Icon name="add-a-photo" size={22} color="#94a3b8" />
                             )}

@@ -12,6 +12,11 @@ import api from '../../services/api';
 import driverRideMonitor from '../../services/driverRideMonitor';
 import { getSession, saveSession } from '../../utils/session';
 import { safeRemoveLocationSubscription } from '../../utils/locationSubscription';
+import {
+    isCoordinateText,
+    parseLatLngText,
+    formatReverseGeocode,
+} from '../../utils/driverRideUtils';
 
 // Função Haversine para calcular distância entre coordenadas
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -36,7 +41,7 @@ const Container = styled.View`
 `;
 
 const StatusHeader = styled.View`
-  background-color: ${props => props.color || '#27ae60'};
+  background-color: ${props => props.color || '#22C55E'};
   padding: 15px 20px;
   padding-top: 55px;
   flex-direction: row;
@@ -57,7 +62,7 @@ const DashArea = styled.ScrollView`
 `;
 
 const InfoCard = styled.View`
-  background-color: ${colors.white};
+  background-color: ${colors.surface};
   margin: 20px;
   padding: 25px;
   border-radius: 24px;
@@ -114,7 +119,7 @@ const ActionFooter = styled.View`
 `;
 
 const SecondaryButton = styled.TouchableOpacity`
-  background-color: #2c3e50;
+  background-color: #1B2740;
   height: 64px;
   border-radius: 18px;
   flex-direction: row;
@@ -124,7 +129,7 @@ const SecondaryButton = styled.TouchableOpacity`
 `;
 
 const WaitingButton = styled.TouchableOpacity`
-  background-color: ${props => props.active ? '#e67e22' : '#2c3e50'};
+  background-color: ${props => props.active ? '#F59E0B' : '#1B2740'};
   height: 64px;
   border-radius: 18px;
   flex-direction: row;
@@ -134,7 +139,7 @@ const WaitingButton = styled.TouchableOpacity`
 `;
 
 const PrimaryButton = styled.TouchableOpacity`
-  background-color: ${props => props.color || '#2ecc71'};
+  background-color: ${props => props.color || '#22C55E'};
   height: 74px;
   border-radius: 20px;
   flex-direction: row;
@@ -149,6 +154,59 @@ const TaximeterScreen = () => {
     const ride = route.params?.ride || null;
     const isNoDestinationRide = Boolean(ride?.isNoDestination) || String(ride?.destino || '').toLowerCase().includes('sem destino');
     const resumeInitialStatus = route.params?.initialStatus || 'WAY_TO_ORIGIN';
+
+    // Endereços exibidos. Às vezes o passageiro salva a coordenada crua no campo
+    // de endereço (ex.: "-14.43,-54.05"); neste caso fazemos reverse-geocode para
+    // mostrar o endereço legível em vez dos números.
+    const GENERIC_ORIGIN = 'Localização atual';
+    const GENERIC_DEST = 'Destino';
+    const [originAddress, setOriginAddress] = useState(
+        () => (isCoordinateText(ride?.origem) ? GENERIC_ORIGIN : (ride?.origem || GENERIC_ORIGIN))
+    );
+    const [destAddress, setDestAddress] = useState(
+        () => (isCoordinateText(ride?.destino) ? GENERIC_DEST : (ride?.destino || GENERIC_DEST))
+    );
+
+    useEffect(() => {
+        let active = true;
+
+        const resolveAddress = async (text, coordObj, fallback, setter) => {
+            const isGeneric = !text || text === fallback;
+            // Já é um endereço textual de verdade: usa direto.
+            if (text && !isCoordinateText(text) && !isGeneric) {
+                setter(text);
+                return;
+            }
+            // Coordenada (do texto ou dos campos lat/lng): reverte para endereço.
+            const coords =
+                (coordObj && Number.isFinite(coordObj.latitude) && Number.isFinite(coordObj.longitude))
+                    ? coordObj
+                    : parseLatLngText(text);
+            if (coords) {
+                try {
+                    const [geo] = await Location.reverseGeocodeAsync(coords);
+                    const addr = formatReverseGeocode(geo);
+                    if (active && addr) {
+                        setter(addr);
+                        return;
+                    }
+                } catch (e) {
+                    // sem rede/sem geocoder: cai no fallback abaixo
+                }
+            }
+            if (active) setter(text && !isCoordinateText(text) ? text : fallback);
+        };
+
+        resolveAddress(ride?.origem, ride?.origin, GENERIC_ORIGIN, setOriginAddress);
+        if (!isNoDestinationRide) {
+            resolveAddress(ride?.destino, ride?.destination, GENERIC_DEST, setDestAddress);
+        }
+
+        return () => {
+            active = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ride]);
 
     const [status, setStatus] = useState(resumeInitialStatus);
     const [seconds, setSeconds] = useState(0);
@@ -688,14 +746,14 @@ const TaximeterScreen = () => {
     if (!ride?.id) {
         return (
             <Container style={{ justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-                <Icon name="error-outline" size={56} color="#f39c12" />
+                <Icon name="error-outline" size={56} color="#F59E0B" />
                 <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 18, textAlign: 'center' }}>
                     Nenhuma corrida ativa no taxímetro
                 </Text>
                 <Text style={{ color: colors.textSecondary, marginTop: 10, textAlign: 'center' }}>
                     Aceite uma corrida primeiro para iniciar o fluxo.
                 </Text>
-                <PrimaryButton color="#2c3e50" style={{ width: '100%', marginTop: 30 }} onPress={goToDriverHome}>
+                <PrimaryButton color="#1B2740" style={{ width: '100%', marginTop: 30 }} onPress={goToDriverHome}>
                     <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900' }}>VOLTAR</Text>
                 </PrimaryButton>
             </Container>
@@ -708,7 +766,7 @@ const TaximeterScreen = () => {
                 <Icon name="check-circle" size={60} color={colors.primary} />
                 <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', marginVertical: 20 }}>CONCLUÍDO</Text>
                 <Value>R$ {currentPrice.toFixed(2).replace('.', ',')}</Value>
-                <PrimaryButton color="#2ecc71" style={{ width: '100%', marginTop: 40 }} onPress={goToDriverHome}>
+                <PrimaryButton color="#22C55E" style={{ width: '100%', marginTop: 40 }} onPress={goToDriverHome}>
                     <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>PRÓXIMA CORRIDA</Text>
                 </PrimaryButton>
             </Container>
@@ -718,7 +776,7 @@ const TaximeterScreen = () => {
     return (
         <Container>
             <StatusBar barStyle="light-content" />
-            <StatusHeader color={isWaiting ? '#e67e22' : (status === 'WAY_TO_ORIGIN' ? '#34495e' : (status === 'ARRIVED' ? '#f39c12' : '#27ae60'))}>
+            <StatusHeader color={isWaiting ? '#F59E0B' : (status === 'WAY_TO_ORIGIN' ? '#243049' : (status === 'ARRIVED' ? '#F59E0B' : '#22C55E'))}>
                 <TouchableOpacity onPress={confirmLeaveTaximeter}>
                     <Icon name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -742,7 +800,7 @@ const TaximeterScreen = () => {
 
             <DashArea>
                 <View style={{ padding: 25, flexDirection: 'row', alignItems: 'center' }}>
-                    <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#2ecc71', marginRight: 10, opacity: gpsOpacity }} />
+                    <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E', marginRight: 10, opacity: gpsOpacity }} />
                     <Text style={{ color: '#64748b', fontSize: 12, fontWeight: 'bold' }}>SINCRO GPS ATIVA</Text>
                 </View>
 
@@ -757,7 +815,7 @@ const TaximeterScreen = () => {
                         </Stat>
                         <Stat>
                             <Label>ESPERA</Label>
-                            <StatText style={{ color: isWaiting ? '#e67e22' : colors.text }}>{formatTime(waitingSeconds)}</StatText>
+                            <StatText style={{ color: isWaiting ? '#F59E0B' : colors.text }}>{formatTime(waitingSeconds)}</StatText>
                         </Stat>
                         <Stat>
                             <Label>DISTÂNCIA</Label>
@@ -772,16 +830,16 @@ const TaximeterScreen = () => {
                         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, marginRight: 15 }} />
                         <View style={{ flex: 1 }}>
                             <Text style={{ color: '#64748b', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 }}>PARTIDA</Text>
-                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>{ride.origem || 'Localização atual'}</Text>
+                            <Text style={{ color: colors.text, fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>{originAddress}</Text>
                         </View>
                     </View>
                     <View style={{ width: 1, height: 15, backgroundColor: 'rgba(255,255,255,0.1)', marginLeft: 3, marginBottom: 15 }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f44', marginRight: 15 }} />
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444', marginRight: 15 }} />
                         <View style={{ flex: 1 }}>
                             <Text style={{ color: '#64748b', fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1 }}>DESTINO FINAL</Text>
                             <Text style={{ color: colors.text, fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>
-                                {isNoDestinationRide ? 'Sem destino definido (A combinar)' : (ride.destino || 'A definir durante trajeto')}
+                                {isNoDestinationRide ? 'Sem destino definido (A combinar)' : (destAddress || 'A definir durante trajeto')}
                             </Text>
                         </View>
                     </View>
@@ -804,7 +862,7 @@ const TaximeterScreen = () => {
 
                 <PrimaryButton 
                     disabled={actionLoading || cancelLoading}
-                    color={status === 'IN_PROGRESS' ? '#e74c3c' : '#2ecc71'} 
+                    color={status === 'IN_PROGRESS' ? '#EF4444' : '#22C55E'} 
                     onPress={handleAction}
                 >
                     {actionLoading ? <ActivityIndicator color="#fff" /> : (
@@ -823,9 +881,9 @@ const TaximeterScreen = () => {
                         style={{ marginTop: 14, alignItems: 'center', paddingVertical: 8 }}
                     >
                         {cancelLoading ? (
-                            <ActivityIndicator color="#e74c3c" />
+                            <ActivityIndicator color="#EF4444" />
                         ) : (
-                            <Text style={{ color: '#e74c3c', fontSize: 15, fontWeight: '800' }}>
+                            <Text style={{ color: '#EF4444', fontSize: 15, fontWeight: '800' }}>
                                 Cancelar corrida
                             </Text>
                         )}
@@ -835,15 +893,15 @@ const TaximeterScreen = () => {
             
             <Modal visible={showNavModal} transparent animationType="slide">
                 <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }} onPress={() => setShowNavModal(false)}>
-                    <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 35 }}>
-                        <Text style={{ fontSize: 18, fontWeight: '900', color: '#1a1c22', marginBottom: 25, textAlign: 'center' }}>NAVEGAR COM</Text>
-                        <TouchableOpacity style={{ backgroundColor: '#f1f5f9', height: 74, borderRadius: 20, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 25, marginBottom: 15 }} onPress={() => openMap('waze')}>
+                    <View style={{ backgroundColor: '#131C2E', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 35 }}>
+                        <Text style={{ fontSize: 18, fontWeight: '900', color: '#F1F5F9', marginBottom: 25, textAlign: 'center' }}>NAVEGAR COM</Text>
+                        <TouchableOpacity style={{ backgroundColor: '#1B2740', height: 74, borderRadius: 20, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 25, marginBottom: 15 }} onPress={() => openMap('waze')}>
                             <Icon name="navigation" size={28} color="#05c8f8" />
-                            <Text style={{ fontSize: 18, fontWeight: '800', marginLeft: 20 }}>Waze</Text>
+                            <Text style={{ fontSize: 18, fontWeight: '800', marginLeft: 20, color: '#F1F5F9' }}>Waze</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={{ backgroundColor: '#f1f5f9', height: 74, borderRadius: 20, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 25 }} onPress={() => openMap('google')}>
+                        <TouchableOpacity style={{ backgroundColor: '#1B2740', height: 74, borderRadius: 20, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 25 }} onPress={() => openMap('google')}>
                             <Icon name="map" size={28} color="#4285F4" />
-                            <Text style={{ fontSize: 18, fontWeight: '800', marginLeft: 20 }}>Google Maps</Text>
+                            <Text style={{ fontSize: 18, fontWeight: '800', marginLeft: 20, color: '#F1F5F9' }}>Google Maps</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setShowNavModal(false)} style={{ marginTop: 25, alignItems: 'center' }}>
                             <Text style={{ color: '#64748b', fontSize: 16, fontWeight: 'bold' }}>FECHAR</Text>

@@ -43,7 +43,7 @@ function Stars({ rating }) {
           key={star}
           name="star"
           size={16}
-          color={star <= r ? '#fbbf24' : '#cbd5e1'}
+          color={star <= r ? '#fbbf24' : '#243049'}
         />
       ))}
       <Text style={styles.ratingText}>{Number(rating || 5).toFixed(1)}</Text>
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: '#fff',
+    backgroundColor: '#131C2E',
     borderRadius: 24,
     padding: 22,
     elevation: 12,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   },
   timerBarTrack: {
     height: 4,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#243049',
     borderRadius: 2,
     overflow: 'hidden',
     marginBottom: 8,
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(58,181,107,0.12)',
+    backgroundColor: 'rgba(34,197,94,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   routeBlock: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#1B2740',
     borderRadius: 16,
     padding: 14,
     marginBottom: 14,
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   },
   routeDivider: {
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#243049',
     marginVertical: 10,
     marginLeft: 26,
   },
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metricText: {
-    color: '#475569',
+    color: '#94A3B8',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   declineText: {
-    color: '#ef4444',
+    color: '#EF4444',
     fontSize: 15,
     fontWeight: '700',
   },

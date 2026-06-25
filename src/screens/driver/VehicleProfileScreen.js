@@ -20,9 +20,9 @@ const Header = styled.View`
   justify-content: space-between;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
-  background-color: #fff;
+  background-color: #131C2E;
   border-bottom-width: 1px;
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: #243049;
 `;
 
 const HeaderTitle = styled.Text`
@@ -45,7 +45,7 @@ const ProfilePhoto = styled.View`
   width: 120px;
   height: 120px;
   border-radius: 60px;
-  background-color: #e2e8f0;
+  background-color: #243049;
   justify-content: center;
   align-items: center;
   border-width: 2px;
@@ -64,16 +64,16 @@ const EditPhotoBtn = styled.TouchableOpacity`
   justify-content: center;
   align-items: center;
   border-width: 3px;
-  border-color: #fff;
+  border-color: #0B1220;
 `;
 
 const Section = styled.View`
   margin-bottom: 30px;
-  background-color: #fff;
+  background-color: #131C2E;
   padding: 20px;
   border-radius: 25px;
   border-width: 1px;
-  border-color: #e2e8f0;
+  border-color: #243049;
 `;
 
 const SectionTitle = styled.Text`
@@ -97,13 +97,13 @@ const Label = styled.Text`
 `;
 
 const StyledInput = styled.TextInput`
-  background-color: #f8f9fa;
+  background-color: #1B2740;
   color: ${colors.text};
   padding: 15px;
   border-radius: 12px;
   font-size: 16px;
   border-width: 1px;
-  border-color: #e2e8f0;
+  border-color: #243049;
 `;
 
 const SaveButton = styled.TouchableOpacity`
@@ -264,7 +264,7 @@ const VehicleProfileScreen = () => {
 
     return (
         <Container>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
             <Header>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Icon name="arrow-back" size={28} color={colors.text} />
@@ -274,10 +274,10 @@ const VehicleProfileScreen = () => {
             </Header>
 
             {/* Tabs: Perfil | Veículo */}
-            <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 10, backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 16, padding: 4 }}>
+            <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 4 }}>
                 {[{ k: 'perfil', label: 'Perfil', icon: 'person' }, { k: 'veiculo', label: 'Veículo', icon: 'directions-car' }, { k: 'seguranca', label: 'Senha', icon: 'lock' }].map(t => (
                     <TouchableOpacity key={t.k} onPress={() => setTab(t.k)} activeOpacity={0.8}
-                        style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 12, backgroundColor: tab === t.k ? '#fff' : 'transparent' }}>
+                        style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 12, backgroundColor: tab === t.k ? '#243049' : 'transparent' }}>
                         <Icon name={t.icon} size={18} color={tab === t.k ? colors.primary : '#94a3b8'} />
                         <Text style={{ marginLeft: 6, fontWeight: '900', fontSize: 13, color: tab === t.k ? colors.text : '#94a3b8' }}>{t.label}</Text>
                     </TouchableOpacity>
@@ -347,7 +347,7 @@ const VehicleProfileScreen = () => {
                             {[{ f: 'img_frente', l: 'VISTA FRONTAL' }, { f: 'img_lateral', l: 'VISTA LATERAL' }].map(p => (
                                 <TouchableOpacity key={p.f} style={{ width: '48%' }} onPress={() => pickImage(p.f)}>
                                     <Label>{p.l}</Label>
-                                    <View style={{ height: 110, backgroundColor: '#f8f9fa', borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' }}>
+                                    <View style={{ height: 110, backgroundColor: '#131C2E', borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: '#243049', justifyContent: 'center', alignItems: 'center' }}>
                                         <SmartImage value={driverData[p.f]} style={{ width: '100%', height: '100%' }} fallbackBg="transparent" />
                                         <View style={{ position: 'absolute', bottom: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', elevation: 5 }}>
                                             <Icon name="photo-camera" size={16} color="#fff" />
@@ -359,7 +359,7 @@ const VehicleProfileScreen = () => {
 
                         <TouchableOpacity style={{ marginTop: 25 }} onPress={() => pickImage('img_documento')}>
                             <Label>DOCUMENTO CRLV</Label>
-                            <View style={{ height: 140, backgroundColor: '#f8f9fa', borderRadius: 20, overflow: 'hidden', borderWidth: 2, borderColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' }}>
+                            <View style={{ height: 140, backgroundColor: '#131C2E', borderRadius: 20, overflow: 'hidden', borderWidth: 2, borderColor: '#243049', justifyContent: 'center', alignItems: 'center' }}>
                                 {!!String(driverData.img_documento || '').trim() && (
                                     <SmartImage value={driverData.img_documento} style={{ width: '100%', height: '100%', opacity: 0.5 }} fallbackBg="transparent" fallbackIcon="picture-as-pdf" />
                                 )}

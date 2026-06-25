@@ -22,7 +22,7 @@ import { getSession, clearSession } from '../../utils/session';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #f8f9fa;
+  background-color: #0B1220;
 `;
 
 const Header = styled.View`
@@ -31,26 +31,26 @@ const Header = styled.View`
   justify-content: space-between;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
-  background-color: #fff;
+  background-color: #131C2E;
 `;
 
 const HeaderTitle = styled.Text`
   font-size: 20px;
   font-weight: bold;
-  color: ${colors.secondary};
+  color: #F1F5F9;
 `;
 
 const ProfileSection = styled.View`
   align-items: center;
   padding: 30px;
-  background-color: #fff;
+  background-color: #0B1220;
 `;
 
 const AvatarContainer = styled.TouchableOpacity`
   width: 100px;
   height: 100px;
   border-radius: 50px;
-  background-color: #f0f0f0;
+  background-color: #131C2E;
   justify-content: center;
   align-items: center;
   margin-bottom: 15px;
@@ -68,19 +68,20 @@ const InputGroup = styled.View`
 
 const Label = styled.Text`
   font-size: 14px;
-  color: #666;
+  color: #94A3B8;
   margin-bottom: 8px;
   font-weight: 600;
 `;
 
 const StyledInput = styled.TextInput`
   height: 55px;
-  background-color: #fff;
+  background-color: #1B2740;
   border-width: 1px;
-  border-color: #e0e0e0;
+  border-color: #243049;
   border-radius: 12px;
   padding-horizontal: 15px;
   font-size: 16px;
+  color: #F1F5F9;
 `;
 
 const SaveButton = styled.TouchableOpacity`
@@ -93,14 +94,14 @@ const SaveButton = styled.TouchableOpacity`
 `;
 
 const LogoutButton = styled.TouchableOpacity`
-  background-color: #fff;
+  background-color: #131C2E;
   height: 55px;
   border-radius: 12px;
   justify-content: center;
   align-items: center;
   margin-top: 20px;
   border-width: 1px;
-  border-color: #ff4444;
+  border-color: #EF4444;
 `;
 
 const ProfileScreen = () => {
@@ -175,10 +176,10 @@ const ProfileScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
       <Header>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={28} color={colors.secondary} />
+          <Icon name="arrow-back" size={28} color="#F1F5F9" />
         </TouchableOpacity>
         <HeaderTitle>Configurações</HeaderTitle>
         <View style={{ width: 28 }} />
@@ -188,46 +189,49 @@ const ProfileScreen = () => {
         <ProfileSection style={{ backgroundColor: 'transparent' }}>
           <View style={{ alignItems: 'center', marginTop: 20 }}>
             <AvatarContainer>
-              <Icon name="person" size={60} color="#cbd5e0" />
-              <TouchableOpacity style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: colors.primary, width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#f8f9fa' }}>
+              <Icon name="person" size={60} color="#94A3B8" />
+              <TouchableOpacity style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: colors.primary, width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#0B1220' }}>
                 <Icon name="photo-camera" size={16} color="#000" />
               </TouchableOpacity>
             </AvatarContainer>
-            <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.secondary }}>{name}</Text>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#F1F5F9' }}>{name}</Text>
             <Text style={{ color: '#64748b', fontSize: 14 }}>{phone}</Text>
           </View>
         </ProfileSection>
 
         <EditInfoSection>
-          <View style={{ backgroundColor: '#fff', padding: 25, borderRadius: 25, elevation: 2, shadowColor: '#000', shadowOffset: {width:0, height:2}, shadowOpacity: 0.05, shadowRadius: 10, marginBottom: 25 }}>
+          <View style={{ backgroundColor: '#131C2E', padding: 25, borderRadius: 25, elevation: 2, shadowColor: '#000', shadowOffset: {width:0, height:2}, shadowOpacity: 0.05, shadowRadius: 10, marginBottom: 25 }}>
               <InputGroup>
                 <Label>NOME COMPLETO</Label>
-                <StyledInput 
-                  value={name} 
-                  onChangeText={setName} 
-                  placeholder="Ex: João Silva" 
-                  style={{ backgroundColor: '#f8fafc', borderWidth: 0 }} 
+                <StyledInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Ex: João Silva"
+                  placeholderTextColor="#64748B"
+                  style={{ backgroundColor: '#1B2740', borderWidth: 0 }}
                 />
               </InputGroup>
 
               <InputGroup>
                 <Label>E-MAIL</Label>
-                <StyledInput 
-                  value={email} 
-                  onChangeText={setEmail} 
-                  keyboardType="email-address" 
-                  placeholder="seu@email.com" 
-                  style={{ backgroundColor: '#f8fafc', borderWidth: 0 }} 
+                <StyledInput
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  placeholder="seu@email.com"
+                  placeholderTextColor="#64748B"
+                  style={{ backgroundColor: '#1B2740', borderWidth: 0 }}
                 />
               </InputGroup>
 
               <InputGroup style={{ marginBottom: 10 }}>
                 <Label>TELEFONE</Label>
-                <StyledInput 
-                  value={phone} 
-                  onChangeText={setPhone} 
-                  keyboardType="phone-pad" 
-                  style={{ backgroundColor: '#f8fafc', borderWidth: 0 }} 
+                <StyledInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  placeholderTextColor="#64748B"
+                  style={{ backgroundColor: '#1B2740', borderWidth: 0 }}
                 />
               </InputGroup>
 
@@ -243,7 +247,7 @@ const ProfileScreen = () => {
           </SaveButton>
 
           <LogoutButton activeOpacity={0.7} onPress={handleLogout} style={{ borderStyle: 'dashed' }}>
-            <Text style={{ color: '#ff4444', fontSize: 16, fontWeight: 'bold' }}>ENCERRAR SESSÃO</Text>
+            <Text style={{ color: '#EF4444', fontSize: 16, fontWeight: 'bold' }}>ENCERRAR SESSÃO</Text>
           </LogoutButton>
 
           <TouchableOpacity style={{ marginTop: 40, alignItems: 'center' }}>

@@ -56,7 +56,7 @@ const { width } = Dimensions.get('window');
 
 const Container = styled.View`
   flex: 1;
-  background-color: #f8f9fa;
+  background-color: #0B1220;
 `;
 
 const Header = styled.View`
@@ -64,9 +64,9 @@ const Header = styled.View`
   align-items: center;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
-  background-color: #fff;
+  background-color: #131C2E;
   border-bottom-width: 1px;
-  border-bottom-color: #f0f0f0;
+  border-bottom-color: #243049;
 `;
 
 const BackButton = styled.TouchableOpacity`
@@ -79,12 +79,12 @@ const BackButton = styled.TouchableOpacity`
 const HeaderTitle = styled.Text`
   font-size: 20px;
   font-weight: bold;
-  color: ${colors.secondary};
+  color: #F1F5F9;
   margin-left: 10px;
 `;
 
 const RideCard = styled(Animated.createAnimatedComponent(TouchableOpacity))`
-  background-color: #fff;
+  background-color: #131C2E;
   margin-horizontal: ${spacing.md}px;
   margin-vertical: 10px;
   border-radius: 20px;
@@ -99,7 +99,7 @@ const RideCard = styled(Animated.createAnimatedComponent(TouchableOpacity))`
 const MapPreview = styled.View`
   height: 120px;
   width: 100%;
-  background-color: #eef2f3;
+  background-color: #131C2E;
 `;
 
 const MapOverlay = styled.View`
@@ -133,7 +133,7 @@ const RideDate = styled.Text`
 const RideValue = styled.Text`
   font-size: 18px;
   font-weight: bold;
-  color: ${colors.secondary};
+  color: #F1F5F9;
 `;
 
 const AddressRow = styled.View`
@@ -144,7 +144,7 @@ const AddressRow = styled.View`
 
 const AddressText = styled.Text`
   font-size: 14px;
-  color: #475569;
+  color: #94A3B8;
   flex: 1;
   margin-left: 10px;
 `;
@@ -153,7 +153,7 @@ const DriverSection = styled.View`
   flex-direction: row;
   align-items: center;
   border-top-width: 1px;
-  border-top-color: #f1f5f9;
+  border-top-color: #243049;
   padding-top: 12px;
   margin-top: 12px;
 `;
@@ -168,7 +168,7 @@ const DriverAvatar = styled.View`
   width: 32px;
   height: 32px;
   border-radius: 16px;
-  background-color: #f1f5f9;
+  background-color: #1B2740;
   justify-content: center;
   align-items: center;
 `;
@@ -183,7 +183,7 @@ const DriverName = styled.Text`
 const RatingSmall = styled.View`
   flex-direction: row;
   align-items: center;
-  background-color: #fffbeb;
+  background-color: #1B2740;
   padding-horizontal: 8px;
   padding-vertical: 4px;
   border-radius: 8px;
@@ -191,7 +191,7 @@ const RatingSmall = styled.View`
 
 const DetailModal = styled.View`
   flex: 1;
-  background-color: #fff;
+  background-color: #0B1220;
 `;
 
 const RideItem = ({ item, index, onPress, onDriverPress }) => {
@@ -227,8 +227,8 @@ const RideItem = ({ item, index, onPress, onDriverPress }) => {
               }}
             />
           ) : (
-             <View style={{ flex: 1, backgroundColor: '#f0f4f8', justifyContent: 'center', alignItems: 'center' }}>
-                <Icon name="map" size={40} color="#cbd5e0" />
+             <View style={{ flex: 1, backgroundColor: '#131C2E', justifyContent: 'center', alignItems: 'center' }}>
+                <Icon name="map" size={40} color="#94A3B8" />
              </View>
           )}
           <MapOverlay>
@@ -241,30 +241,30 @@ const RideItem = ({ item, index, onPress, onDriverPress }) => {
             <RideDate>{item.date}</RideDate>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                {item.status !== 'Cancelado' && item.status !== 'Cancelada' && (
-                 <RatingSmall style={{ marginRight: 10, backgroundColor: '#f8fafc' }}>
-                   <Icon name="star" size={14} color="#f59e0b" />
-                   <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#f59e0b', marginLeft: 4 }}>{item.avaliacao || '5'}.0</Text>
+                 <RatingSmall style={{ marginRight: 10, backgroundColor: '#1B2740' }}>
+                   <Icon name="star" size={14} color="#F59E0B" />
+                   <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#F59E0B', marginLeft: 4 }}>{item.avaliacao || '5'}.0</Text>
                  </RatingSmall>
                )}
-               <RideValue style={{ color: (item.status === 'Cancelado' || item.status === 'Cancelada') ? '#94a3b8' : colors.secondary }}>
+               <RideValue style={{ color: (item.status === 'Cancelado' || item.status === 'Cancelada') ? '#94a3b8' : '#F1F5F9' }}>
                  {(item.status === 'Cancelado' || item.status === 'Cancelada') ? 'CANCELADA' : (item.valor ? `R$ ${item.valor}` : 'R$ 0,00')}
                </RideValue>
             </View>
           </RideHeader>
 
           <AddressRow>
-            <Icon name="circle" size={10} color={(item.status === 'Cancelado' || item.status === 'Cancelada') ? "#cbd5e0" : "#2ecc71"} />
+            <Icon name="circle" size={10} color={(item.status === 'Cancelado' || item.status === 'Cancelada') ? "#94A3B8" : "#22C55E"} />
             <AddressText numberOfLines={1}>{item.endereco_ini || 'Origem não definida'}</AddressText>
           </AddressRow>
           <AddressRow>
-            <Icon name="location-on" size={12} color={(item.status === 'Cancelado' || item.status === 'Cancelada') ? "#cbd5e0" : "#ef4444"} />
+            <Icon name="location-on" size={12} color={(item.status === 'Cancelado' || item.status === 'Cancelada') ? "#94A3B8" : "#EF4444"} />
             <AddressText numberOfLines={1}>{item.endereco_fim || 'Destino não definido'}</AddressText>
           </AddressRow>
 
           {item.semDestino && (
             <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 8, backgroundColor: 'rgba(245, 158, 11, 0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)' }}>
-              <Icon name="explore" size={13} color="#d97706" />
-              <Text style={{ color: '#b45309', fontSize: 10, fontWeight: '900', marginLeft: 4 }}>SEM DESTINO • TAXÍMETRO</Text>
+              <Icon name="explore" size={13} color="#F59E0B" />
+              <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '900', marginLeft: 4 }}>SEM DESTINO • TAXÍMETRO</Text>
             </View>
           )}
 
@@ -278,13 +278,13 @@ const RideItem = ({ item, index, onPress, onDriverPress }) => {
             
             {item.avaliacao > 0 ? (
               <RatingSmall>
-                <Icon name="star" size={14} color="#f59e0b" />
-                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#f59e0b', marginLeft: 4 }}>{item.avaliacao}.0</Text>
+                <Icon name="star" size={14} color="#F59E0B" />
+                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#F59E0B', marginLeft: 4 }}>{item.avaliacao}.0</Text>
               </RatingSmall>
             ) : (
               <Text style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Não avaliado</Text>
             )}
-            <Icon name="chevron-right" size={20} color="#cbd5e0" style={{ marginLeft: 8 }} />
+            <Icon name="chevron-right" size={20} color="#94A3B8" style={{ marginLeft: 8 }} />
           </DriverSection>
         </CardContent>
       </RideCard>
@@ -344,9 +344,9 @@ const HistoryScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
       <Header>
-        <BackButton onPress={() => navigation.goBack()}><Icon name="close" size={28} color={colors.secondary} /></BackButton>
+        <BackButton onPress={() => navigation.goBack()}><Icon name="close" size={28} color="#F1F5F9" /></BackButton>
         <HeaderTitle>Suas Viagens</HeaderTitle>
       </Header>
 
@@ -375,7 +375,7 @@ const HistoryScreen = () => {
         ListEmptyComponent={
           !loading && (
             <View style={{ flex: 1, alignItems: 'center', marginTop: 100 }}>
-              <Icon name="history" size={80} color="#e2e8f0" />
+              <Icon name="history" size={80} color="#243049" />
               <Text style={{ color: '#94a3b8', marginTop: 15 }}>Sem viagens recentes</Text>
             </View>
           )
@@ -414,8 +414,8 @@ const HistoryScreen = () => {
                     )}
                   </MapView>
                 ) : (
-                   <View style={{ flex: 1, backgroundColor: '#f0f4f8', justifyContent: 'center', alignItems: 'center' }}>
-                      <Icon name="map" size={60} color="#cbd5e0" />
+                   <View style={{ flex: 1, backgroundColor: '#131C2E', justifyContent: 'center', alignItems: 'center' }}>
+                      <Icon name="map" size={60} color="#94A3B8" />
                    </View>
                 )}
                 <TouchableOpacity 
@@ -428,25 +428,25 @@ const HistoryScreen = () => {
             <ScrollView style={{ flex: 1, padding: 25 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                     <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.secondary }}>
+                        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#F1F5F9' }}>
                           Viagem em {selectedRide?.date?.split(' ')[0]}
                         </Text>
-                        <Text style={{ 
-                          fontSize: 16, 
+                        <Text style={{
+                          fontSize: 16,
                           fontWeight: '600',
-                          color: (selectedRide?.status === 'Cancelado' || selectedRide?.status === 'Cancelada') ? '#ef4444' : '#666' 
+                          color: (selectedRide?.status === 'Cancelado' || selectedRide?.status === 'Cancelada') ? '#EF4444' : '#94A3B8'
                         }}>
                           {(selectedRide?.status === 'Cancelado' || selectedRide?.status === 'Cancelada') ? 'CORRIDA CANCELADA' : selectedRide?.status}
                         </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                        <RideValue style={{ color: (selectedRide?.status === 'Cancelado' || selectedRide?.status === 'Cancelada') ? '#94a3b8' : colors.secondary }}>
+                        <RideValue style={{ color: (selectedRide?.status === 'Cancelado' || selectedRide?.status === 'Cancelada') ? '#94a3b8' : '#F1F5F9' }}>
                           {selectedRide?.valor ? `R$ ${selectedRide.valor}` : '---'}
                         </RideValue>
                         {selectedRide?.status !== 'Cancelado' && (
                           <RatingSmall style={{ marginTop: 5 }}>
-                              <Icon name="star" size={14} color="#f59e0b" />
-                              <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#f59e0b', marginLeft: 4 }}>
+                              <Icon name="star" size={14} color="#F59E0B" />
+                              <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#F59E0B', marginLeft: 4 }}>
                                 {selectedRide?.avaliacao}.0
                               </Text>
                           </RatingSmall>
@@ -455,47 +455,47 @@ const HistoryScreen = () => {
                 </View>
 
                 {selectedRide?.motorista ? (
-                  <View style={{ backgroundColor: '#f8fafc', padding: 20, borderRadius: 20, marginBottom: 25 }}>
+                  <View style={{ backgroundColor: '#131C2E', padding: 20, borderRadius: 20, marginBottom: 25 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
                           <SmartImage value={selectedRide?.foto_motorista} style={{ width: 44, height: 44, borderRadius: 22 }} fallbackIcon="person" fallbackSize={22} alignTop />
                           <View style={{ marginLeft: 15 }}>
-                               <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{selectedRide?.motorista}</Text>
+                               <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#F1F5F9' }}>{selectedRide?.motorista}</Text>
                                <Text style={{ fontSize: 13, color: '#64748b' }}>Motorista Oficial</Text>
                           </View>
                       </View>
                       
                       {/* Veículo Details */}
-                      <View style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingTop: 15 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#243049', paddingTop: 15 }}>
                           <View style={{ flex: 1 }}>
                               <Text style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase' }}>Veículo</Text>
-                              <Text style={{ fontSize: 16, color: colors.secondary, fontWeight: '600' }}>{selectedRide?.veiculo || 'Veículo Atribuído'}</Text>
+                              <Text style={{ fontSize: 16, color: '#F1F5F9', fontWeight: '600' }}>{selectedRide?.veiculo || 'Veículo Atribuído'}</Text>
                           </View>
                           {selectedRide?.placa && (
-                            <View style={{ alignItems: 'flex-end', backgroundColor: '#1a1c1e', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 10 }}>
+                            <View style={{ alignItems: 'flex-end', backgroundColor: '#0B1220', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 10 }}>
                                  <Text style={{ fontSize: 16, fontWeight: '800', color: colors.primary, letterSpacing: 1 }}>{selectedRide.placa}</Text>
                             </View>
                           )}
                       </View>
                   </View>
                 ) : (
-                  <View style={{ backgroundColor: '#fef2f2', padding: 20, borderRadius: 20, marginBottom: 25, borderDashArray: [5, 5], borderWidth: 1, borderColor: '#fee2e2' }}>
-                      <Text style={{ color: '#ef4444', fontWeight: 'bold', textAlign: 'center' }}>Nenhum motorista foi atribuído a esta corrida.</Text>
+                  <View style={{ backgroundColor: '#131C2E', padding: 20, borderRadius: 20, marginBottom: 25, borderDashArray: [5, 5], borderWidth: 1, borderColor: '#243049' }}>
+                      <Text style={{ color: '#EF4444', fontWeight: 'bold', textAlign: 'center' }}>Nenhum motorista foi atribuído a esta corrida.</Text>
                   </View>
                 )}
                 
-                <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15 }}>Caminho Percorrido</Text>
-                <View style={{ paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: '#f1f5f9', marginLeft: 5 }}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#F1F5F9' }}>Caminho Percorrido</Text>
+                <View style={{ paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: '#243049', marginLeft: 5 }}>
                     <View style={{ marginBottom: 20 }}>
                         <Text style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Origem</Text>
-                        <Text style={{ fontSize: 16, color: colors.secondary, fontWeight: '500' }}>{selectedRide?.endereco_ini || 'Local de partida não registrado'}</Text>
+                        <Text style={{ fontSize: 16, color: '#F1F5F9', fontWeight: '500' }}>{selectedRide?.endereco_ini || 'Local de partida não registrado'}</Text>
                     </View>
                     <View>
                         <Text style={{ fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Destino</Text>
-                        <Text style={{ fontSize: 16, color: colors.secondary, fontWeight: '500' }}>{selectedRide?.endereco_fim || 'Destino não registrado'}</Text>
+                        <Text style={{ fontSize: 16, color: '#F1F5F9', fontWeight: '500' }}>{selectedRide?.endereco_fim || 'Destino não registrado'}</Text>
                         {selectedRide?.semDestino && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 8, backgroundColor: 'rgba(245, 158, 11, 0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)' }}>
-                                <Icon name="explore" size={13} color="#d97706" />
-                                <Text style={{ color: '#b45309', fontSize: 10, fontWeight: '900', marginLeft: 4 }}>SEM DESTINO • TAXÍMETRO</Text>
+                                <Icon name="explore" size={13} color="#F59E0B" />
+                                <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '900', marginLeft: 4 }}>SEM DESTINO • TAXÍMETRO</Text>
                             </View>
                         )}
                     </View>
@@ -503,7 +503,7 @@ const HistoryScreen = () => {
 
                 <TouchableOpacity 
                    onPress={() => setSelectedRide(null)}
-                   style={{ backgroundColor: colors.secondary, height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 40, marginBottom: 50 }}>
+                   style={{ backgroundColor: colors.primary, height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 40, marginBottom: 50 }}>
                     <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>OK, ENTENDI</Text>
                 </TouchableOpacity>
             </ScrollView>

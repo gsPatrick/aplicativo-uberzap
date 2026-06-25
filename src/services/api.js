@@ -4,7 +4,10 @@ import { MOCK_DATA } from './mocks';
 
 const axiosInstance = axios.create({
   baseURL: CONFIG.API_BASE_URL,
-  timeout: 30000,
+  // 12s: antes era 30s — um endpoint lento/pendurado segurava a tela por até
+  // 30s (nome/saldo/ganhos/redirect ficavam presos). 12s já cobre rede móvel
+  // ruim sem deixar a UI "travada" esperando.
+  timeout: 12000,
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
   },

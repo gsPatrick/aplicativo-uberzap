@@ -47,21 +47,21 @@ const SummaryRow = styled.ScrollView.attrs({
 
 const SummaryCard = styled.View`
   width: ${width * 0.4}px;
-  background-color: ${props => props.active ? colors.primary : '#fff'};
+  background-color: ${props => props.active ? colors.primary : '#131C2E'};
   padding: 20px;
   border-radius: 25px;
   margin-right: 15px;
   border-width: 1px;
-  border-color: ${props => props.active ? 'transparent' : '#e2e8f0'};
+  border-color: ${props => props.active ? 'transparent' : '#243049'};
 `;
 
 const ChartContainer = styled.View`
-  background-color: #fff;
+  background-color: #131C2E;
   border-radius: 30px;
   padding: 25px;
   margin-top: 30px;
   border-width: 1px;
-  border-color: #e2e8f0;
+  border-color: #243049;
 `;
 
 const BarRow = styled.View`
@@ -79,7 +79,7 @@ const BarCol = styled.View`
 const Bar = styled.View`
   width: 15px;
   height: ${props => props.height}%;
-  background-color: ${props => props.active ? colors.primary : '#cbd5e1'};
+  background-color: ${props => props.active ? colors.primary : '#243049'};
   border-radius: 10px;
   margin-bottom: 10px;
 `;
@@ -99,14 +99,14 @@ const SectionHeader = styled.View`
 `;
 
 const TripCard = styled.TouchableOpacity`
-  background-color: #fff;
+  background-color: #131C2E;
   padding: 20px;
   border-radius: 20px;
   flex-direction: row;
   align-items: center;
   margin-bottom: 12px;
   border-width: 1px;
-  border-color: #e2e8f0;
+  border-color: #243049;
   border-left-width: 4px;
   border-left-color: ${colors.primary};
 `;
@@ -156,8 +156,8 @@ const DriverEarningsScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" />
-      <Header colors={['#fff', '#f8f9fa']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
+      <Header colors={['#0B1220', '#131C2E']}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: 15 }}>
           <Icon name="arrow-back" size={28} color={colors.text} />
         </TouchableOpacity>
@@ -209,7 +209,7 @@ const DriverEarningsScreen = () => {
         {recentTrips.length > 0 ? (
           recentTrips.map((item, idx) => (
             <TripCard key={idx} activeOpacity={0.8} onPress={() => navigation.navigate('DriverHistory')}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 }}>
                 <Icon name="directions-car" size={24} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
@@ -220,7 +220,7 @@ const DriverEarningsScreen = () => {
             </TripCard>
           ))
         ) : (
-          <View style={{ padding: 30, alignItems: 'center', backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#e2e8f0' }}>
+          <View style={{ padding: 30, alignItems: 'center', backgroundColor: '#131C2E', borderRadius: 20, borderWidth: 1, borderColor: '#243049' }}>
               <Icon name="history" size={40} color="#94a3b8" />
               <Text style={{ color: '#64748b', marginTop: 10 }}>Nenhuma atividade hoje.</Text>
           </View>

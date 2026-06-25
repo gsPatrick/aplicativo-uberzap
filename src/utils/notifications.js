@@ -139,6 +139,9 @@ export async function registerForPushNotificationsAsync() {
     const projectId =
       Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
     const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    // Log explícito para capturar o token no logcat (diagnóstico de push):
+    //   npx react-native log-android  |  adb logcat | grep PushToken
+    console.log('[PushToken]', token);
     await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
     return token;
   } catch (e) {

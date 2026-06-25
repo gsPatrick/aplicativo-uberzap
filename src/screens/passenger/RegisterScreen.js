@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 
 const Container = styled.KeyboardAvoidingView`
   flex: 1;
-  background-color: ${colors.white};
+  background-color: ${colors.background};
 `;
 
 const Header = styled.View`
@@ -27,7 +27,7 @@ const logoImageStyle = { width: 280, height: 100, alignSelf: 'center', marginBot
 const Title = styled.Text`
   font-size: 28px;
   font-weight: bold;
-  color: ${colors.secondary};
+  color: ${colors.text};
   margin-bottom: ${spacing.xs}px;
 `;
 
@@ -79,7 +79,7 @@ const ModalOverlay = styled.View`
 `;
 
 const ModalContent = styled.View`
-  background-color: ${colors.white};
+  background-color: ${colors.surface};
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
   padding: 24px;
@@ -89,7 +89,7 @@ const ModalContent = styled.View`
 const CityItem = styled.TouchableOpacity`
   padding-vertical: 18px;
   border-bottom-width: 1px;
-  border-bottom-color: #f0f0f0;
+  border-bottom-color: #243049;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
@@ -259,7 +259,7 @@ const RegisterScreen = () => {
     <Container behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Header>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={28} color={colors.secondary} />
+          <MaterialIcons name="arrow-back" size={28} color={colors.text} />
         </TouchableOpacity>
       </Header>
       
@@ -300,10 +300,10 @@ const RegisterScreen = () => {
 
           <Label>Cidade</Label>
           <CitySelector onPress={() => setShowCityModal(true)}>
-             <Text style={{ color: selectedCity ? colors.secondary : '#999', fontSize: 16 }}>
+             <Text style={{ color: selectedCity ? colors.text : '#64748B', fontSize: 16 }}>
                {selectedCity ? selectedCity.nome : 'Selecione sua cidade'}
              </Text>
-             <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
+             <MaterialIcons name="keyboard-arrow-down" size={24} color="#94A3B8" />
           </CitySelector>
 
           <Label>Senha</Label>
@@ -327,9 +327,9 @@ const RegisterScreen = () => {
         <ModalOverlay>
           <ModalContent>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Selecione sua cidade</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>Selecione sua cidade</Text>
               <TouchableOpacity onPress={() => setShowCityModal(false)}>
-                <MaterialIcons name="close" size={24} color="#000" />
+                <MaterialIcons name="close" size={24} color="#F1F5F9" />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -337,7 +337,7 @@ const RegisterScreen = () => {
               keyExtractor={item => item.id.toString()}
               renderItem={({ item }) => (
                 <CityItem onPress={() => { setSelectedCity(item); setShowCityModal(false); }}>
-                  <Text style={{ fontSize: 16, color: colors.secondary }}>{item.nome}</Text>
+                  <Text style={{ fontSize: 16, color: colors.text }}>{item.nome}</Text>
                   {selectedCity?.id === item.id && <MaterialIcons name="check" size={20} color={colors.primary} />}
                 </CityItem>
               )}

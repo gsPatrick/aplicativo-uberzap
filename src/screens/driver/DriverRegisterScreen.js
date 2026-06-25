@@ -53,7 +53,7 @@ const StepCircle = styled.View`
   width: 35px;
   height: 35px;
   border-radius: 20px;
-  background-color: ${props => props.active ? colors.primary : props.completed ? colors.primary : '#cbd5e1'};
+  background-color: ${props => props.active ? colors.primary : props.completed ? colors.primary : '#243049'};
   justify-content: center;
   align-items: center;
   margin-horizontal: 10px;
@@ -64,7 +64,7 @@ const StepCircle = styled.View`
 const StepLine = styled.View`
   width: 40px;
   height: 2px;
-  background-color: ${props => props.completed ? colors.primary : '#cbd5e1'};
+  background-color: ${props => props.completed ? colors.primary : '#243049'};
 `;
 
 const InputGroup = styled.View`
@@ -79,36 +79,36 @@ const Label = styled.Text`
 `;
 
 const Input = styled.TextInput`
-  background-color: #fff;
+  background-color: #1B2740;
   height: 55px;
   border-radius: 12px;
   padding-horizontal: 15px;
   color: ${colors.text};
   font-size: 16px;
   border-width: 1px;
-  border-color: #cbd5e1;
+  border-color: #243049;
 `;
 
 const CitySelector = styled.TouchableOpacity`
   height: 55px;
-  background-color: #fff;
+  background-color: #1B2740;
   border-radius: 12px;
   padding-horizontal: 15px;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   border-width: 1px;
-  border-color: #cbd5e1;
+  border-color: #243049;
 `;
 
 const DocCard = styled.TouchableOpacity`
-  background-color: #fff;
+  background-color: #131C2E;
   padding: 20px;
   border-radius: 15px;
   margin-bottom: 15px;
   border-width: 1px;
   border-style: dashed;
-  border-color: ${props => props.filled ? colors.primary : '#cbd5e1'};
+  border-color: ${props => props.filled ? colors.primary : '#243049'};
   flex-direction: row;
   align-items: center;
 `;
@@ -132,7 +132,7 @@ const ModalOverlay = styled.View`
 `;
 
 const ModalContent = styled.View`
-  background-color: #fff;
+  background-color: #131C2E;
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
   padding: 24px;
@@ -142,7 +142,7 @@ const ModalContent = styled.View`
 const CityItem = styled.TouchableOpacity`
   padding-vertical: 18px;
   border-bottom-width: 1px;
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: #243049;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
@@ -567,7 +567,7 @@ const DriverRegisterScreen = () => {
                 width: 44,
                 height: 44,
                 borderRadius: 22,
-                backgroundColor: docs[doc.key] ? colors.primary : '#cbd5e1',
+                backgroundColor: docs[doc.key] ? colors.primary : '#243049',
                 justifyContent: 'center',
                 alignItems: 'center',
                 marginRight: 15,
@@ -611,7 +611,7 @@ const DriverRegisterScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Container>
-        <Header colors={['#fff', '#f8f9fa']}>
+        <Header colors={['#0B1220', '#131C2E']}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <MaterialIcons name="arrow-back" size={28} color={colors.text} />
           </TouchableOpacity>

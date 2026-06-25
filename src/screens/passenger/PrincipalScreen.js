@@ -26,12 +26,12 @@ try {
 
 const Container = styled.View`
   flex: 1;
-  background-color: #fff;
+  background-color: #0B1220;
 `;
 
 const Content = styled.ScrollView`
   flex: 1;
-  background-color: #f8fafc;
+  background-color: #0B1220;
 `;
 
 const Header = styled.View`
@@ -50,7 +50,7 @@ const GreetingText = styled.Text`
 `;
 
 const UserName = styled.Text`
-  color: ${colors.secondary};
+  color: ${colors.text};
   font-size: 20px;
   font-weight: bold;
 `;
@@ -59,11 +59,11 @@ const AvatarCircle = styled.TouchableOpacity`
   width: 45px;
   height: 45px;
   border-radius: 22.5px;
-  background-color: #f1f5f9;
+  background-color: #131C2E;
   justify-content: center;
   align-items: center;
   border-width: 1px;
-  border-color: #e2e8f0;
+  border-color: #243049;
 `;
 
 const WalletCard = styled(LinearGradient)`
@@ -104,7 +104,7 @@ const AddFundsBtn = styled.TouchableOpacity`
 `;
 
 const SearchAction = styled.TouchableOpacity`
-  background-color: #fff;
+  background-color: #131C2E;
   margin-horizontal: ${spacing.md}px;
   margin-vertical: 10px;
   height: 65px;
@@ -120,7 +120,7 @@ const SearchAction = styled.TouchableOpacity`
 `;
 
 const SearchText = styled.Text`
-  color: #1a1a1a;
+  color: #F1F5F9;
   font-size: 18px;
   font-weight: 500;
   margin-left: 15px;
@@ -136,7 +136,7 @@ const SectionHeader = styled.View`
 `;
 
 const SectionTitle = styled.Text`
-  color: ${colors.secondary};
+  color: ${colors.text};
   font-size: 18px;
   font-weight: bold;
 `;
@@ -183,14 +183,14 @@ const IconCircle = styled.View`
 `;
 
 const CategoryLabel = styled.Text`
-  color: ${colors.secondary};
+  color: ${colors.text};
   font-size: 12px;
   margin-top: 8px;
   font-weight: 600;
 `;
 
 const RecentRideCard = styled.TouchableOpacity`
-  background-color: #fff;
+  background-color: #131C2E;
   margin-horizontal: ${spacing.md}px;
   margin-bottom: 20px;
   border-radius: 20px;
@@ -205,7 +205,7 @@ const RecentRideCard = styled.TouchableOpacity`
 const RideMapPreview = styled.View`
   height: 120px;
   width: 100%;
-  background-color: #f1f5f9;
+  background-color: #131C2E;
 `;
 
 const RideDetails = styled.View`
@@ -232,13 +232,13 @@ const RidePriceText = styled.Text`
 const RidePath = styled.View`
   margin-top: 10px;
   border-left-width: 2px;
-  border-left-color: #f1f5f9;
+  border-left-color: #243049;
   padding-left: 10px;
 `;
 
 const PathPoint = styled.Text`
   font-size: 13px;
-  color: ${colors.secondary};
+  color: ${colors.text};
   margin-vertical: 2px;
 `;
 
@@ -249,17 +249,17 @@ const SideMenu = styled(Animated.View)`
   left: 0;
   bottom: 0;
   width: 80%;
-  background-color: #fff;
+  background-color: #131C2E;
   z-index: 1000;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
   border-right-width: 1px;
-  border-right-color: #f1f5f9;
+  border-right-color: #243049;
 `;
 
 const MenuHeader = styled.View`
   padding: 20px;
   border-bottom-width: 1px;
-  border-bottom-color: #f1f5f9;
+  border-bottom-color: #243049;
   margin-bottom: 20px;
 `;
 
@@ -270,7 +270,7 @@ const MenuItem = styled.TouchableOpacity`
 `;
 
 const MenuText = styled.Text`
-  color: ${colors.secondary};
+  color: ${colors.text};
   font-size: 16px;
   margin-left: 15px;
 `;
@@ -339,33 +339,32 @@ const PrincipalScreen = () => {
         return;
       }
 
-      try {
-        const openRes = await api.passenger.hasOpenRide(session.telefone, session.senha);
-        if (openRes.data === true) {
-          const stayOnHub = route.params?.preferDashboard === true;
-          if (stayOnHub) {
-            navigation.setParams({ preferDashboard: undefined });
-            setHubOpenRide(true);
-          } else {
-            setHubOpenRide(false);
-            navigation.navigate('PassengerHome', { resumeActiveRide: true });
-            return;
-          }
+      // hasOpenRide e getProfile são independentes — buscamos em paralelo
+      // (antes era em série, dobrando o tempo até a tela liberar).
+      const [openRes, profileRes] = await Promise.all([
+        api.passenger.hasOpenRide(session.telefone, session.senha).catch((e) => { console.warn('busca_inicio:', e); return null; }),
+        api.passenger.getProfile(session.telefone, session.senha).catch((e) => { console.warn('perfil:', e); return null; }),
+      ]);
+
+      if (openRes?.data === true) {
+        const stayOnHub = route.params?.preferDashboard === true;
+        if (stayOnHub) {
+          navigation.setParams({ preferDashboard: undefined });
+          setHubOpenRide(true);
         } else {
           setHubOpenRide(false);
+          navigation.navigate('PassengerHome', { resumeActiveRide: true });
+          return;
         }
-      } catch (e) {
-        console.warn('busca_inicio:', e);
+      } else {
+        setHubOpenRide(false);
       }
 
       let cityId = 1;
-      try {
-        const profileRes = await api.passenger.getProfile(session.telefone, session.senha);
-        if (profileRes.data && profileRes.data.nome) {
-          setUser({ nome: profileRes.data.nome || 'Passageiro' });
-          cityId = profileRes.data.cidade_id || 1;
-        }
-      } catch (e) { console.warn('perfil:', e); }
+      if (profileRes?.data && profileRes.data.nome) {
+        setUser({ nome: profileRes.data.nome || 'Passageiro' });
+        cityId = profileRes.data.cidade_id || 1;
+      }
 
       // Libera a tela já com o essencial; banners/carteira/histórico carregam sem travar.
       setLoading(false);
@@ -460,23 +459,23 @@ const PrincipalScreen = () => {
            await clearSession();
            navigation.navigate('PassengerLogin');
         }}>
-           <Icon name="exit-to-app" size={24} color="#f44" />
-           <MenuText style={{ color: '#f44' }}>Sair</MenuText>
+           <Icon name="exit-to-app" size={24} color="#EF4444" />
+           <MenuText style={{ color: '#EF4444' }}>Sair</MenuText>
         </MenuItem>
       </SideMenu>
 
       <Content showsVerticalScrollIndicator={false}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle="light-content" />
         <Header>
           <TouchableOpacity onPress={toggleMenu}>
-            <Icon name="menu" size={30} color={colors.secondary} />
+            <Icon name="menu" size={30} color={colors.text} />
           </TouchableOpacity>
           <UserGreeting>
             <GreetingText>Bem-vindo de volta,</GreetingText>
             <UserName>{user.nome.split(' ')[0]}</UserName>
           </UserGreeting>
           <AvatarCircle onPress={() => navigation.navigate('ProfileScreen')}>
-            <Icon name="person" size={28} color={colors.secondary} />
+            <Icon name="person" size={28} color={colors.text} />
           </AvatarCircle>
         </Header>
 
@@ -568,12 +567,12 @@ const PrincipalScreen = () => {
                 </TouchableOpacity>
               );
             }) : (
-              <View style={{ width: width - 40, marginHorizontal: 20, height: 140, backgroundColor: '#fff', borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#cbd5e0' }}>
+              <View style={{ width: width - 40, marginHorizontal: 20, height: 140, backgroundColor: '#131C2E', borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#243049' }}>
                  {loading ? (
                    <ActivityIndicator color={colors.primary} />
                  ) : (
                    <>
-                     <Icon name="local-offer" size={32} color="#cbd5e0" />
+                     <Icon name="local-offer" size={32} color="#64748B" />
                      <Text style={{ color: '#94a3b8', marginTop: 10, fontWeight: '500' }}>Sem ofertas no momento</Text>
                    </>
                  )}
@@ -621,7 +620,7 @@ const PrincipalScreen = () => {
                     </MapView>
                  ) : (
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                       <Icon name="map" size={40} color="#cbd5e0" />
+                       <Icon name="map" size={40} color="#64748B" />
                     </View>
                  )}
              </RideMapPreview>
@@ -632,7 +631,7 @@ const PrincipalScreen = () => {
                  </RideInfoRow>
                  <RidePath>
                     <PathPoint numberOfLines={1}><Text style={{ fontWeight: 'bold' }}>• </Text>{ride.endereco_ini}</PathPoint>
-                    <PathPoint numberOfLines={1}><Text style={{ fontWeight: 'bold', color: '#f44' }}>• </Text>{ride.endereco_fim}</PathPoint>
+                    <PathPoint numberOfLines={1}><Text style={{ fontWeight: 'bold', color: '#EF4444' }}>• </Text>{ride.endereco_fim}</PathPoint>
                  </RidePath>
              </RideDetails>
           </RecentRideCard>

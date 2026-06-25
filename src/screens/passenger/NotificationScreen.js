@@ -9,7 +9,7 @@ import { getSession } from '../../utils/session';
 
 const Container = styled.View`
   flex: 1;
-  background-color: #f8f9fa;
+  background-color: #0B1220;
 `;
 
 const Header = styled.View`
@@ -18,19 +18,19 @@ const Header = styled.View`
   justify-content: space-between;
   padding: ${spacing.md}px;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
-  background-color: #fff;
+  background-color: #131C2E;
   border-bottom-width: 1px;
-  border-bottom-color: #f0f0f0;
+  border-bottom-color: #243049;
 `;
 
 const HeaderTitle = styled.Text`
   font-size: 20px;
   font-weight: bold;
-  color: ${colors.secondary};
+  color: #F1F5F9;
 `;
 
 const NotificationItem = styled.TouchableOpacity`
-  background-color: #fff;
+  background-color: #131C2E;
   padding: 20px;
   margin-horizontal: 16px;
   margin-vertical: 8px;
@@ -48,7 +48,7 @@ const IconContainer = styled.View`
   width: 50px;
   height: 50px;
   border-radius: 25px;
-  background-color: #f0f0f0;
+  background-color: #1B2740;
   justify-content: center;
   align-items: center;
   margin-right: 15px;
@@ -60,13 +60,13 @@ const ContentContainer = styled.View`
 
 const Message = styled.Text`
   font-size: 15px;
-  color: #333;
+  color: #F1F5F9;
   line-height: 20px;
 `;
 
 const DateText = styled.Text`
   font-size: 12px;
-  color: #999;
+  color: #94A3B8;
   margin-top: 5px;
 `;
 
@@ -110,16 +110,16 @@ const NotificationScreen = () => {
                 <Message numberOfLines={2}>{item.msg}</Message>
                 <DateText>{item.hora}</DateText>
             </ContentContainer>
-            <Icon name="chevron-right" size={20} color="#ccc" />
+            <Icon name="chevron-right" size={20} color="#94A3B8" />
         </NotificationItem>
     );
 
     return (
         <Container>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
             <Header>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Icon name="arrow-back" size={28} color={colors.secondary} />
+                    <Icon name="arrow-back" size={28} color="#F1F5F9" />
                 </TouchableOpacity>
                 <HeaderTitle>Mensagens</HeaderTitle>
                 <TouchableOpacity onPress={onRefresh}>
@@ -139,8 +139,8 @@ const NotificationScreen = () => {
                     contentContainerStyle={{ paddingVertical: 10 }}
                     ListEmptyComponent={
                         <View style={{ flex: 1, padding: 40, alignItems: 'center' }}>
-                            <Icon name="mail-outline" size={80} color="#eee" />
-                            <Text style={{ color: '#aaa', marginTop: 20 }}>Nenhuma mensagem nova.</Text>
+                            <Icon name="mail-outline" size={80} color="#243049" />
+                            <Text style={{ color: '#94A3B8', marginTop: 20 }}>Nenhuma mensagem nova.</Text>
                         </View>
                     }
                     refreshControl={

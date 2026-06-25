@@ -145,9 +145,12 @@ export default function App() {
   // qualquer ícone ser pintado. No SDK 53/Android o auto-load do
   // @expo/vector-icons corre com o primeiro paint e os glifos somem; segurar o
   // render até `fontsLoaded` elimina essa race. (Ver também o plugin expo-font.)
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     ...MaterialIcons.font,
   });
+  // Se o load em runtime falhar, seguimos mesmo assim: a fonte também está
+  // embutida no binário (plugin expo-font), então os glifos ainda renderizam.
+  const fontsReady = fontsLoaded || Boolean(fontError);
 
   React.useEffect(() => {
     if (appVariant !== 'driver') return undefined;
@@ -390,10 +393,13 @@ export default function App() {
     };
   }, []);
 
-  if (!initialRoute) {
+  // Segura o render até a fonte de ícones (MaterialIcons) estar registrada E a
+  // rota inicial resolvida. Sem o gate de `fontsLoaded`, no Android release os
+  // glifos podem pintar antes do font load assíncrono e ficar invisíveis.
+  if (!initialRoute || !fontsReady) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
-        <ActivityIndicator size="large" color="#FFC107" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0B1220' }}>
+        <ActivityIndicator size="large" color="#22C55E" />
       </View>
     );
   }

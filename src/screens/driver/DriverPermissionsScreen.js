@@ -32,7 +32,7 @@ const Dot = styled.View`
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background-color: ${(props) => (props.active ? colors.primary : '#e2e8f0')};
+  background-color: ${(props) => (props.active ? colors.primary : '#243049')};
 `;
 
 const IconCircle = styled.View`
@@ -219,7 +219,7 @@ export default function DriverPermissionsScreen() {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
 
       <ProgressRow>
         {STEPS.map((s, i) => (

@@ -129,7 +129,7 @@ const DestinationOverlay = styled.View`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: ${colors.white};
+  background-color: ${colors.background};
   z-index: 1000;
   padding-top: ${Platform.OS === 'ios' ? 60 : 40}px;
 `;
@@ -154,7 +154,8 @@ const SearchHeaderScroll = styled.View`
 const SearchInput = styled.TextInput`
   flex: 1;
   height: 50px;
-  background-color: #f0f0f0;
+  background-color: #1B2740;
+  color: ${colors.text};
   border-radius: ${borderRadius.md}px;
   padding-horizontal: ${spacing.md}px;
   margin-left: ${spacing.md}px;
@@ -170,14 +171,14 @@ const SearchResultItem = styled.TouchableOpacity`
   align-items: center;
   padding: ${spacing.md}px;
   border-bottom-width: 1px;
-  border-bottom-color: #f5f5f5;
+  border-bottom-color: #243049;
 `;
 
 const ResultIcon = styled.View`
   width: 40px;
   height: 40px;
   border-radius: 20px;
-  background-color: #f0f0f0;
+  background-color: #1B2740;
   justify-content: center;
   align-items: center;
   margin-right: ${spacing.md}px;
@@ -188,7 +189,7 @@ const ResultTextContainer = styled.View`
 `;
 
 const SearchPlaceholder = styled.Text`
-  color: #888;
+  color: #94A3B8;
   font-size: 18px;
   font-weight: 500;
   margin-left: 12px;
@@ -210,7 +211,7 @@ const FavoriteIcon = styled.View`
   width: 50px;
   height: 50px;
   border-radius: 25px;
-  background-color: ${props => props.bg || '#f0f0f0'};
+  background-color: ${props => props.bg || '#1B2740'};
   justify-content: center;
   align-items: center;
   margin-bottom: 5px;
@@ -252,7 +253,7 @@ const IconButton = styled.TouchableOpacity`
   width: 45px;
   height: 45px;
   border-radius: ${borderRadius.full}px;
-  background-color: ${colors.white};
+  background-color: ${colors.surface};
   justify-content: center;
   align-items: center;
   elevation: 8;
@@ -263,7 +264,7 @@ const IconButton = styled.TouchableOpacity`
 `;
 
 const SelectionHeader = styled.TouchableOpacity`
-  background-color: ${colors.white};
+  background-color: ${colors.surface};
   margin-horizontal: ${spacing.md}px;
   margin-top: ${spacing.sm}px;
   border-radius: ${borderRadius.lg}px;
@@ -276,7 +277,7 @@ const SelectionHeader = styled.TouchableOpacity`
 `;
 
 const MapLabel = styled.TouchableOpacity`
-  background-color: ${colors.white};
+  background-color: ${colors.surface};
   padding: 8px 12px;
   border-radius: 12px;
   elevation: 8;
@@ -285,7 +286,7 @@ const MapLabel = styled.TouchableOpacity`
   shadow-opacity: 0.3;
   shadow-radius: 5px;
   border-width: 1px;
-  border-color: #f0f0f0;
+  border-color: #243049;
   flex-direction: row;
   align-items: center;
 `;
@@ -322,7 +323,7 @@ const Dot = styled.View`
 const Line = styled.View`
   width: 1px;
   height: 20px;
-  background-color: #ddd;
+  background-color: #243049;
   margin-vertical: 2px;
 `;
 
@@ -338,7 +339,7 @@ const AddressText = styled.Text`
 
 const Divider = styled.View`
   height: 1px;
-  background-color: #f0f0f0;
+  background-color: #243049;
   margin-vertical: 6px;
 `;
 
@@ -347,8 +348,8 @@ const CategoryItem = styled.TouchableOpacity`
   align-items: center;
   padding-vertical: ${spacing.md}px;
   border-bottom-width: 1px;
-  border-bottom-color: #f5f5f5;
-  background-color: ${props => props.selected ? '#fcfdfc' : 'transparent'};
+  border-bottom-color: #243049;
+  background-color: ${props => props.selected ? '#1B2740' : 'transparent'};
 `;
 
 const CategoryInfo = styled.View`
@@ -364,7 +365,7 @@ const CategoryName = styled.Text`
 const CategoryPrice = styled.Text`
   font-size: 17px;
   font-weight: 800;
-  color: ${colors.secondary};
+  color: ${colors.text};
 `;
 
 const TimeLineContainer = styled.View`
@@ -382,16 +383,16 @@ const StepDot = styled.View`
   width: 12px;
   height: 12px;
   border-radius: 6px;
-  background-color: ${props => props.active ? colors.primary : '#e0e0e0'};
+  background-color: ${props => props.active ? colors.primary : '#243049'};
   border-width: 2px;
-  border-color: ${props => props.active ? colors.primary : '#fff'};
+  border-color: ${props => props.active ? colors.primary : '#243049'};
   z-index: 2;
 `;
 
 const StepLine = styled.View`
   width: 2px;
   height: 25px;
-  background-color: ${props => props.active ? colors.primary : '#e0e0e0'};
+  background-color: ${props => props.active ? colors.primary : '#243049'};
   margin-left: 5px;
   margin-top: -2px;
   margin-bottom: -2px;
@@ -401,7 +402,7 @@ const StepText = styled.Text`
   margin-left: 15px;
   font-size: 14px;
   font-weight: ${props => props.active ? 'bold' : 'normal'};
-  color: ${props => props.active ? colors.secondary : '#94a3b8'};
+  color: ${props => props.active ? colors.text : '#94a3b8'};
 `;
 
 const BottomSheet = styled.View`
@@ -409,7 +410,7 @@ const BottomSheet = styled.View`
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: ${props => props.isDark ? colors.secondary : colors.white};
+  background-color: ${props => props.isDark ? colors.secondary : colors.surface};
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
   padding-top: ${spacing.sm}px;
@@ -427,7 +428,7 @@ const AnimatedBottomSheet = Animated.createAnimatedComponent(BottomSheet);
 const Handle = styled.View`
   width: 40px;
   height: 5px;
-  background-color: ${props => props.isDark ? '#333' : '#e0e0e0'};
+  background-color: ${props => props.isDark ? '#333' : '#243049'};
   border-radius: 3px;
   align-self: center;
   margin-vertical: ${spacing.sm}px;
@@ -1918,9 +1919,9 @@ const HomeScreen = () => {
   const renderMap = () => {
     if (Platform.OS === 'web') {
       return (
-        <View style={{ flex: 1, backgroundColor: '#eef2f3', justifyContent: 'center', alignItems: 'center' }}>
-          <Icon name="map" size={120} color="#cbd5e0" />
-          <Text style={{ color: '#718096', marginTop: 15, fontSize: 18, fontWeight: '500' }}>Mapa Interativo (99 Style Mock)</Text>
+        <View style={{ flex: 1, backgroundColor: '#131C2E', justifyContent: 'center', alignItems: 'center' }}>
+          <Icon name="map" size={120} color="#64748B" />
+          <Text style={{ color: '#94A3B8', marginTop: 15, fontSize: 18, fontWeight: '500' }}>Mapa Interativo (99 Style Mock)</Text>
         </View>
       );
     }
@@ -1951,9 +1952,9 @@ const HomeScreen = () => {
                   <LabelText>{driverDetails ? 'Local de Embarque' : isSelecting ? ((categories.find(c => c.id === selectedCat)?.motorista_tempo || '--') + ' min') : 'Onde você está?'}</LabelText>
                   <AddressLabelText numberOfLines={1}>{(pickup || '').split('(')[0].trim()}</AddressLabelText>
                 </View>
-                <Icon name="chevron-right" size={14} color="#ccc" />
+                <Icon name="chevron-right" size={14} color="#94A3B8" />
              </MapLabel>
-             <View style={{ width: 14, height: 14, backgroundColor: '#2ecc71', borderRadius: 7, borderWidth: 3, borderColor: '#fff' }} />
+             <View style={{ width: 14, height: 14, backgroundColor: '#22C55E', borderRadius: 7, borderWidth: 3, borderColor: '#fff' }} />
            </View>
         </Marker>
         )}
@@ -1984,7 +1985,7 @@ const HomeScreen = () => {
                         <LabelText>{rideDetails.distance || 0} km • {rideDetails.time || 0} min</LabelText>
                         <AddressLabelText numberOfLines={1}>{destination || 'Destino'}</AddressLabelText>
                       </View>
-                      <Icon name="search" size={14} color="#ccc" />
+                      <Icon name="search" size={14} color="#94A3B8" />
                    </MapLabel>
                  )}
                </View>
@@ -2001,7 +2002,7 @@ const HomeScreen = () => {
             zIndex={20}
             tracksViewChanges={false}
           >
-             <View style={{ width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOffset: {width:0, height:3}, shadowOpacity: 0.3, shadowRadius: 4, borderWidth: 2, borderColor: colors.primary }}>
+             <View style={{ width: 44, height: 44, backgroundColor: '#131C2E', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOffset: {width:0, height:3}, shadowOpacity: 0.3, shadowRadius: 4, borderWidth: 2, borderColor: colors.primary }}>
                 <Icon name={(categories.find(c => c.id === selectedCat)?.nome || '').toLowerCase().includes('moto') ? 'motorcycle' : 'directions-car'} size={24} color={colors.primary} />
              </View>
           </Marker>
@@ -2034,7 +2035,7 @@ const HomeScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
       {isChoosingDestination && (
         <DestinationOverlay>
@@ -2049,7 +2050,7 @@ const HomeScreen = () => {
               >
                 <Icon name="arrow-back" size={30} color={colors.text} />
               </TouchableOpacity>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', marginLeft: 15 }}>{activeSearchInput === 'stop' ? 'Adicionar Parada' : 'Para onde vamos?'}</Text>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginLeft: 15, color: colors.text }}>{activeSearchInput === 'stop' ? 'Adicionar Parada' : 'Para onde vamos?'}</Text>
               {!isAddingStop && activeSearchInput === 'destination' && (
                 <TouchableOpacity 
                   onPress={() => {
@@ -2066,30 +2067,30 @@ const HomeScreen = () => {
             <View style={{ marginTop: 20 }}>
                {isAddingStop && (
                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f39c12', marginRight: 10 }} />
+                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F59E0B', marginRight: 10 }} />
                    <SearchInput
                      autoFocus={activeSearchInput === 'stop'}
                      onFocus={() => setActiveSearchInput('stop')}
                      placeholder="Endereço da parada..."
                      value={activeSearchInput === 'stop' ? destSearchText : (stop || '')}
                      onChangeText={setDestSearchText}
-                     style={{ marginLeft: 0, height: 45, backgroundColor: activeSearchInput === 'stop' ? '#fff' : '#f5f5f5', borderBottomWidth: 2, borderBottomColor: activeSearchInput === 'stop' ? colors.primary : 'transparent' }}
+                     style={{ marginLeft: 0, height: 45, backgroundColor: activeSearchInput === 'stop' ? '#1B2740' : '#131C2E', borderBottomWidth: 2, borderBottomColor: activeSearchInput === 'stop' ? colors.primary : 'transparent' }}
                    />
                    <TouchableOpacity onPress={() => { setIsAddingStop(false); setStop(''); setStopCoords(null); setActiveSearchInput('destination'); }}>
-                     <Icon name="close" size={20} color="#999" style={{ marginLeft: 10 }} />
+                     <Icon name="close" size={20} color="#94A3B8" style={{ marginLeft: 10 }} />
                    </TouchableOpacity>
                  </View>
                )}
 
                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f44', marginRight: 10 }} />
+                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444', marginRight: 10 }} />
                  <SearchInput
                    autoFocus={activeSearchInput === 'destination' && !isAddingStop}
                    onFocus={() => setActiveSearchInput('destination')}
                    placeholder="Endereço do destino..."
                    value={activeSearchInput === 'destination' ? destSearchText : (destination || '')}
                    onChangeText={setDestSearchText}
-                   style={{ marginLeft: 0, height: 45, backgroundColor: activeSearchInput === 'destination' ? '#fff' : '#f5f5f5', borderBottomWidth: 2, borderBottomColor: activeSearchInput === 'destination' ? colors.primary : 'transparent' }}
+                   style={{ marginLeft: 0, height: 45, backgroundColor: activeSearchInput === 'destination' ? '#1B2740' : '#131C2E', borderBottomWidth: 2, borderBottomColor: activeSearchInput === 'destination' ? colors.primary : 'transparent' }}
                  />
                </View>
             </View>
@@ -2113,23 +2114,23 @@ const HomeScreen = () => {
                   <Icon name="speed" size={24} color="#fff" />
                 </View>
                 <View>
-                  <Text style={{ fontSize: 16, fontWeight: '900', color: colors.secondary }}>Sem Destino / Taxímetro</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text }}>Sem Destino / Taxímetro</Text>
                   <Text style={{ fontSize: 12, color: '#64748b' }}>O valor será calculado durante a viagem</Text>
                 </View>
                 <Icon name="chevron-right" size={24} color={colors.primary} style={{ marginLeft: 'auto' }} />
               </TouchableOpacity>
 
-              <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#999', marginBottom: 8, marginTop: 8 }}>
+              <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#94A3B8', marginBottom: 8, marginTop: 8 }}>
                 RESULTADOS
               </Text>
               {destSearchLoading ? (
                 <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
               ) : destSearchText.trim().length < 3 ? (
-                <Text style={{ color: '#aaa', fontSize: 13, marginBottom: 12 }}>
+                <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 12 }}>
                   Digite pelo menos 3 caracteres para buscar endereços no Brasil.
                 </Text>
               ) : destSearchResults.length === 0 ? (
-                <Text style={{ color: '#aaa', fontSize: 13, marginBottom: 12 }}>
+                <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 12 }}>
                   Nenhum endereço encontrado. Tente outro termo.
                 </Text>
               ) : (
@@ -2160,7 +2161,7 @@ const HomeScreen = () => {
                     }}
                   >
                     <ResultIcon>
-                      <Icon name="place" size={20} color="#666" />
+                      <Icon name="place" size={20} color="#94A3B8" />
                     </ResultIcon>
                     <ResultTextContainer>
                       <ResultTitle numberOfLines={2}>
@@ -2172,7 +2173,7 @@ const HomeScreen = () => {
                 ))
               )}
 
-              <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#999', marginBottom: 10, marginTop: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#94A3B8', marginBottom: 10, marginTop: 16 }}>
                 HISTÓRICO
               </Text>
               {recentLocations.length > 0 ? (
@@ -2186,7 +2187,7 @@ const HomeScreen = () => {
                     }}
                   >
                     <ResultIcon>
-                      <Icon name="history" size={20} color="#666" />
+                      <Icon name="history" size={20} color="#94A3B8" />
                     </ResultIcon>
                     <ResultTextContainer>
                       <ResultTitle numberOfLines={2}>{loc.title}</ResultTitle>
@@ -2195,7 +2196,7 @@ const HomeScreen = () => {
                   </SearchResultItem>
                 ))
               ) : (
-                <Text style={{ color: '#ccc', fontSize: 13 }}>Nenhuma viagem recente.</Text>
+                <Text style={{ color: '#94A3B8', fontSize: 13 }}>Nenhuma viagem recente.</Text>
               )}
             </ContentPadding>
           </SearchResultList>
@@ -2209,16 +2210,16 @@ const HomeScreen = () => {
             else if (isSelecting) toggleSelection();
             else toggleMenu();
           }}>
-            <Icon name={(isSelecting || isSelectingPayment) ? "arrow-back" : "menu"} size={28} color={colors.secondary} />
+            <Icon name={(isSelecting || isSelectingPayment) ? "arrow-back" : "menu"} size={28} color={colors.text} />
           </IconButton>
           
           {!isSelecting && !isSearchingDriver && !driverDetails && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 30, padding: 3, elevation: 20, shadowColor: '#000', shadowOffset: {width:0, height:6}, shadowOpacity: 0.25, shadowRadius: 15, borderWidth: 1, borderColor: '#f0f0f0' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(19,28,46,0.95)', borderRadius: 30, padding: 3, elevation: 20, shadowColor: '#000', shadowOffset: {width:0, height:6}, shadowOpacity: 0.25, shadowRadius: 15, borderWidth: 1, borderColor: '#243049' }}>
               <IconButton onPress={() => navigation.navigate('HistoryScreen')} style={{ width: 36, height: 36, elevation: 0, shadowOpacity: 0, backgroundColor: 'transparent' }}>
-                <Icon name="history" size={18} color={colors.secondary} />
+                <Icon name="history" size={18} color={colors.text} />
               </IconButton>
-              
-              <View style={{ width: 1, height: 14, backgroundColor: '#eee', alignSelf: 'center' }} />
+
+              <View style={{ width: 1, height: 14, backgroundColor: '#243049', alignSelf: 'center' }} />
 
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 6, paddingRight: 4, maxWidth: width * 0.42 }}>
                 {currentLocationLabel ? (
@@ -2228,7 +2229,7 @@ const HomeScreen = () => {
                 ) : null}
 
                 <IconButton onPress={() => navigation.navigate('WalletScreen')} style={{ width: 36, height: 36, elevation: 0, shadowOpacity: 0, backgroundColor: 'transparent' }}>
-                  <Icon name="account-balance-wallet" size={18} color={colors.secondary} />
+                  <Icon name="account-balance-wallet" size={18} color={colors.text} />
                 </IconButton>
               </View>
             </View>
@@ -2245,20 +2246,20 @@ const HomeScreen = () => {
       <Animated.View style={[{ 
         position: 'absolute', 
         top: 0, bottom: 0, left: 0, 
-        width: width * 0.8, 
-        backgroundColor: '#fff', 
-        zIndex: 10001, 
+        width: width * 0.8,
+        backgroundColor: '#131C2E',
+        zIndex: 10001,
         transform: [{ translateX: menuAnim }],
         paddingTop: Platform.OS === 'ios' ? 60 : 40,
         borderRightWidth: 1,
-        borderRightColor: '#f1f5f9',
+        borderRightColor: '#243049',
       }]}>
-          <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', marginBottom: 20 }}>
-            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#e2e8f0' }}>
+          <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#243049', marginBottom: 20 }}>
+            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#1B2740', justifyContent: 'center', alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#243049' }}>
                <Icon name="person" size={40} color={colors.primary} />
             </View>
             <View>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.secondary }}>{user.nome}</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>{user.nome}</Text>
             </View>
           </View>
 
@@ -2277,7 +2278,7 @@ const HomeScreen = () => {
             }} style={{ flexDirection: 'row', alignItems: 'center', padding: 15, paddingHorizontal: 20 }}>
               <Icon name={item.icon} size={24} color={colors.primary} />
               <View style={{ marginLeft: 15 }}>
-                <Text style={{ fontSize: 16, color: colors.secondary }}>{item.title}</Text>
+                <Text style={{ fontSize: 16, color: colors.text }}>{item.title}</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -2286,38 +2287,38 @@ const HomeScreen = () => {
              await clearSession();
              navigation.navigate('PassengerLogin');
           }}>
-             <Icon name="exit-to-app" size={24} color="#f44" />
-             <Text style={{ fontSize: 16, color: '#f44', marginLeft: 15 }}>Sair</Text>
+             <Icon name="exit-to-app" size={24} color="#EF4444" />
+             <Text style={{ fontSize: 16, color: '#EF4444', marginLeft: 15 }}>Sair</Text>
           </TouchableOpacity>
       </Animated.View>
 
       {showSummary && (
         <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000, justifyContent: 'center', padding: 20 }]}>
-           <View style={{ backgroundColor: '#fff', borderRadius: 30, padding: 30, alignItems: 'center' }}>
+           <View style={{ backgroundColor: '#131C2E', borderRadius: 30, padding: 30, alignItems: 'center' }}>
               <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
                  <Icon name="check" size={36} color="#fff" />
               </View>
-              <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1f2120', textAlign: 'center' }}>Viagem Finalizada!</Text>
-              <Text style={{ fontSize: 16, color: '#777', marginTop: 8, textAlign: 'center' }}>Esperamos que tenha tido uma excelente experiência com a UbeZap.</Text>
-              
-              <View style={{ width: '100%', backgroundColor: '#f9f9f9', borderRadius: 20, padding: 20, marginVertical: 30 }}>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#F1F5F9', textAlign: 'center' }}>Viagem Finalizada!</Text>
+              <Text style={{ fontSize: 16, color: '#94A3B8', marginTop: 8, textAlign: 'center' }}>Esperamos que tenha tido uma excelente experiência com a UbeZap.</Text>
+
+              <View style={{ width: '100%', backgroundColor: '#1B2740', borderRadius: 20, padding: 20, marginVertical: 30 }}>
                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-                    <Text style={{ color: '#888' }}>Total Pago</Text>
+                    <Text style={{ color: '#94A3B8' }}>Total Pago</Text>
                     <Text style={{ fontWeight: 'bold', color: colors.primary, fontSize: 18 }}>
                       R$ {finalPrice}
                     </Text>
                  </View>
                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-                    <Text style={{ color: '#888' }}>Distância</Text>
-                    <Text style={{ fontWeight: '600' }}>{rideDetails.distance} km</Text>
+                    <Text style={{ color: '#94A3B8' }}>Distância</Text>
+                    <Text style={{ fontWeight: '600', color: colors.text }}>{rideDetails.distance} km</Text>
                  </View>
                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-                    <Text style={{ color: '#888' }}>Embarque</Text>
-                    <Text style={{ fontWeight: '600', flex: 0.8, textAlign: 'right' }}>{(pickup || '').split('(')[0].trim()}</Text>
+                    <Text style={{ color: '#94A3B8' }}>Embarque</Text>
+                    <Text style={{ fontWeight: '600', flex: 0.8, textAlign: 'right', color: colors.text }}>{(pickup || '').split('(')[0].trim()}</Text>
                  </View>
                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
-                    <Text style={{ color: '#888' }}>Destino</Text>
-                    <Text style={{ fontWeight: '600', flex: 0.8, textAlign: 'right' }}>{stop ? `${stop} ➔ ${destination}` : destination}</Text>
+                    <Text style={{ color: '#94A3B8' }}>Destino</Text>
+                    <Text style={{ fontWeight: '600', flex: 0.8, textAlign: 'right', color: colors.text }}>{stop ? `${stop} ➔ ${destination}` : destination}</Text>
                  </View>
               </View>
 
@@ -2328,7 +2329,7 @@ const HomeScreen = () => {
               </TouchableOpacity>
               
               <TouchableOpacity onPress={dismissRatingPrompt} style={{ marginTop: 20 }}>
-                 <Text style={{ color: '#aaa', fontSize: 14 }}>Fechar sem avaliar</Text>
+                 <Text style={{ color: '#94A3B8', fontSize: 14 }}>Fechar sem avaliar</Text>
               </TouchableOpacity>
            </View>
         </View>
@@ -2336,17 +2337,17 @@ const HomeScreen = () => {
 
       {showRating && (
         <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 2000, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
-           <View style={{ backgroundColor: '#fff', width: '100%', borderRadius: 25, padding: 25, alignItems: 'center' }}>
-              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#f9f9f9', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
+           <View style={{ backgroundColor: '#131C2E', width: '100%', borderRadius: 25, padding: 25, alignItems: 'center' }}>
+              <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#1B2740', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
                  <SmartImage value={driverDetails?.foto} style={{ width: 70, height: 70, borderRadius: 35 }} fallbackIcon="person" fallbackSize={36} fallbackBg="transparent" alignTop />
               </View>
-              <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#333' }}>Como foi sua viagem?</Text>
-              <Text style={{ fontSize: 16, color: '#666', marginTop: 5, marginBottom: 20 }}>Avalie {driverDetails?.nome}</Text>
+              <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#F1F5F9' }}>Como foi sua viagem?</Text>
+              <Text style={{ fontSize: 16, color: '#94A3B8', marginTop: 5, marginBottom: 20 }}>Avalie {driverDetails?.nome}</Text>
               
               <View style={{ flexDirection: 'row', marginBottom: 25 }}>
                  {[1, 2, 3, 4, 5].map((star) => (
                    <TouchableOpacity key={star} onPress={() => setRatingValue(star)}>
-                      <Icon name="star" size={40} color={star <= ratingValue ? "#f5b041" : "#e0e0e0"} />
+                      <Icon name="star" size={40} color={star <= ratingValue ? "#F59E0B" : "#243049"} />
                    </TouchableOpacity>
                  ))}
               </View>
@@ -2357,7 +2358,8 @@ const HomeScreen = () => {
                 numberOfLines={3}
                 value={ratingComment}
                 onChangeText={setRatingComment}
-                style={{ width: '100%', backgroundColor: '#f5f5f5', borderRadius: 12, padding: 15, fontSize: 16, textAlignVertical: 'top', marginBottom: 25 }}
+                placeholderTextColor="#64748B"
+                style={{ width: '100%', backgroundColor: '#1B2740', color: colors.text, borderRadius: 12, padding: 15, fontSize: 16, textAlignVertical: 'top', marginBottom: 25 }}
               />
 
               <TouchableOpacity 
@@ -2368,7 +2370,7 @@ const HomeScreen = () => {
               </TouchableOpacity>
               
               <TouchableOpacity onPress={dismissRatingPrompt} style={{ marginTop: 15 }}>
-                 <Text style={{ color: '#999', fontSize: 14 }}>Pular agora</Text>
+                 <Text style={{ color: '#94A3B8', fontSize: 14 }}>Pular agora</Text>
               </TouchableOpacity>
            </View>
         </View>
@@ -2386,8 +2388,8 @@ const HomeScreen = () => {
           {driverDetails ? (
             <View style={{ paddingVertical: 5 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                 <Text style={{ fontSize: 20, fontWeight: '900', color: colors.secondary }}>{rideStatus === '3' ? 'Viagem em curso' : 'Motorista a caminho'}</Text>
-                 <View style={{ backgroundColor: '#e8f5e9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 }}>
+                 <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>{rideStatus === '3' ? 'Viagem em curso' : 'Motorista a caminho'}</Text>
+                 <View style={{ backgroundColor: 'rgba(34,197,94,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 }}>
                     <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 14 }}>{driverDetails?.tempo || 'N/A'}</Text>
                  </View>
               </View>
@@ -2414,7 +2416,7 @@ const HomeScreen = () => {
                  </TimeLineStep>
               </TimeLineContainer>
 
-              <View style={{ backgroundColor: '#f9f9f9', padding: 15, borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: '#eee', overflow: 'hidden' }}>
+              <View style={{ backgroundColor: '#1B2740', padding: 15, borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: '#243049', overflow: 'hidden' }}>
 
                   {(() => {
                     const carPhotos = [driverDetails?.img_frente, driverDetails?.img_lateral].filter(p => p && p !== 'sem_imagem.png');
@@ -2423,13 +2425,13 @@ const HomeScreen = () => {
                     if (carPhotos.length === 0) {
                       return (
                         <SmartImage value={'https://www.uber-assets.com/image/upload/f_auto,q_auto:eco,c_fill,w_956,h_637/v1555355171/assets/39/c46522-598d-442b-9441-2f22b784a0d9/original/UberX.png'}
-                          style={{ width: '100%', height: H, borderRadius: 15, marginBottom: 15, backgroundColor: '#eef1f3' }} resizeMode="cover" fallbackIcon="directions-car" fallbackSize={40} />
+                          style={{ width: '100%', height: H, borderRadius: 15, marginBottom: 15, backgroundColor: '#1B2740' }} resizeMode="cover" fallbackIcon="directions-car" fallbackSize={40} />
                       );
                     }
                     return (
                       <View
                         onLayout={(e) => { const w = e.nativeEvent.layout.width; if (w && Math.abs(w - carouselW) > 1) setCarouselW(w); }}
-                        style={{ marginBottom: 15, borderRadius: 15, overflow: 'hidden', backgroundColor: '#eef1f3' }}
+                        style={{ marginBottom: 15, borderRadius: 15, overflow: 'hidden', backgroundColor: '#1B2740' }}
                       >
                         <ScrollView
                           horizontal pagingEnabled showsHorizontalScrollIndicator={false}
@@ -2437,14 +2439,14 @@ const HomeScreen = () => {
                         >
                           {carPhotos.map((p, i) => (
                             <SmartImage key={i} value={p} resizeMode="cover"
-                              style={{ width: slideW || 1, height: H, backgroundColor: '#eef1f3' }}
+                              style={{ width: slideW || 1, height: H, backgroundColor: '#1B2740' }}
                               fallbackIcon="directions-car" />
                           ))}
                         </ScrollView>
                         {carPhotos.length > 1 && (
                           <View style={{ position: 'absolute', bottom: 8, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
                             {carPhotos.map((_, i) => (
-                              <View key={i} style={{ width: i === carIndex ? 18 : 6, height: 6, borderRadius: 3, marginHorizontal: 3, backgroundColor: i === carIndex ? colors.primary : 'rgba(0,0,0,0.25)' }} />
+                              <View key={i} style={{ width: i === carIndex ? 18 : 6, height: 6, borderRadius: 3, marginHorizontal: 3, backgroundColor: i === carIndex ? colors.primary : 'rgba(241,245,249,0.25)' }} />
                             ))}
                           </View>
                         )}
@@ -2455,21 +2457,21 @@ const HomeScreen = () => {
                   <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('DriverProfileScreen', { driver: driverDetails })} style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <SmartImage value={driverDetails?.foto} style={{ width: 50, height: 50, borderRadius: 25, marginRight: 15 }} fallbackIcon="person" fallbackSize={26} fallbackBg="transparent" alignTop />
                     <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>{driverDetails?.nome}</Text>
+                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#F1F5F9' }}>{driverDetails?.nome}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                            <Icon name="star" size={16} color="#f5b041" />
-                            <Text style={{ fontSize: 14, color: '#666', marginLeft: 4, marginRight: 8 }}>{driverDetails?.rating}</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff8e1', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, borderWidth: 1, borderColor: '#f0c419' }}>
-                                <Icon name="workspace-premium" size={12} color="#d4a017" />
-                                <Text style={{ color: '#b8860b', fontWeight: '800', fontSize: 11, marginLeft: 3 }}>{driverDetails?.nivel || 'Ouro'}</Text>
+                            <Icon name="star" size={16} color="#F59E0B" />
+                            <Text style={{ fontSize: 14, color: '#94A3B8', marginLeft: 4, marginRight: 8 }}>{driverDetails?.rating}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245,158,11,0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, borderWidth: 1, borderColor: '#F59E0B' }}>
+                                <Icon name="workspace-premium" size={12} color="#F59E0B" />
+                                <Text style={{ color: '#F59E0B', fontWeight: '800', fontSize: 11, marginLeft: 3 }}>{driverDetails?.nivel || 'Ouro'}</Text>
                             </View>
                         </View>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#1a1c1e', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8, marginBottom: 4 }}>
+                        <View style={{ backgroundColor: '#0B1220', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8, marginBottom: 4 }}>
                             <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.primary, letterSpacing: 1 }}>{driverDetails?.placa}</Text>
                         </View>
-                        <Text style={{ fontSize: 12, color: '#666' }}>{driverDetails?.veiculo}</Text>
+                        <Text style={{ fontSize: 12, color: '#94A3B8' }}>{driverDetails?.veiculo}</Text>
                     </View>
                   </TouchableOpacity>
                </View>
@@ -2477,8 +2479,8 @@ const HomeScreen = () => {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                  <TouchableOpacity 
                    onPress={handleCancelRide}
-                   style={{ width: 60, backgroundColor: '#ffebee', height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                    <Icon name="close" size={24} color="#E53935" />
+                   style={{ width: 60, backgroundColor: 'rgba(239,68,68,0.15)', height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                    <Icon name="close" size={24} color="#EF4444" />
                  </TouchableOpacity>
                  <TouchableOpacity 
                     onPress={() => navigation.navigate('ChatScreen', { rideId: rideId, isDriver: false, otherUser: driverDetails })}
@@ -2490,11 +2492,11 @@ const HomeScreen = () => {
             </View>
           ) : isSearchingDriver ? (
             <View style={{ alignItems: 'center', paddingVertical: 10 }}>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 25, color: '#333' }}>Procurando motoristas...</Text>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 25, color: '#F1F5F9' }}>Procurando motoristas...</Text>
               
               <View style={{ width: 120, height: 120, justifyContent: 'center', alignItems: 'center', marginBottom: 25 }}>
                 <PulseCircle style={{ transform: [{ scale: pulseScale }], opacity: pulseOpacity }} />
-                <View style={{ width: 70, height: 70, backgroundColor: '#fff', borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: colors.primary, shadowOffset: {width:0, height:4}, shadowOpacity: 0.5, shadowRadius: 6, overflow: 'hidden' }}>
+                <View style={{ width: 70, height: 70, backgroundColor: '#131C2E', borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: colors.primary, shadowOffset: {width:0, height:4}, shadowOpacity: 0.5, shadowRadius: 6, overflow: 'hidden' }}>
                    <Animated.View style={{ position: 'absolute', opacity: carOpacity, transform: [{ translateX: carTranslateX }] }}>
                      <Icon name="directions-car" size={36} color={colors.primary} />
                    </Animated.View>
@@ -2504,9 +2506,9 @@ const HomeScreen = () => {
                 </View>
               </View>
               
-              <View style={{ alignSelf: 'stretch', backgroundColor: '#f9f9f9', padding: 15, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#f0f0f0' }}>
-                 <Text style={{ fontSize: 14, color: '#333', fontWeight: 'bold', marginBottom: 5 }}>Distância: {rideDetails.distance} km • Tempo: {rideDetails.time} min</Text>
-                 <Text style={{ fontSize: 12, color: '#666' }}>{pickup.split('(')[0].trim()} ➔ {destination}</Text>
+              <View style={{ alignSelf: 'stretch', backgroundColor: '#1B2740', padding: 15, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#243049' }}>
+                 <Text style={{ fontSize: 14, color: '#F1F5F9', fontWeight: 'bold', marginBottom: 5 }}>Distância: {rideDetails.distance} km • Tempo: {rideDetails.time} min</Text>
+                 <Text style={{ fontSize: 12, color: '#94A3B8' }}>{pickup.split('(')[0].trim()} ➔ {destination}</Text>
                  <Text style={{ fontSize: 13, color: colors.primary, fontWeight: 'bold', marginTop: 8 }}>
                     Custo: R$ {(categories.find(c => c.id === selectedCat)?.taxa || categories.find(c => c.id === selectedCat)?.valor || '--').toString().replace('.', ',')}
                  </Text>
@@ -2515,18 +2517,18 @@ const HomeScreen = () => {
               <TouchableOpacity 
                 onPress={handleCancelRide}
                 activeOpacity={0.8}
-                style={{ width: '100%', height: 50, borderRadius: 25, backgroundColor: '#ffebee', justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: '#d32f2f', fontSize: 16, fontWeight: 'bold' }}>CANCELAR BUSCA</Text>
+                style={{ width: '100%', height: 50, borderRadius: 25, backgroundColor: 'rgba(239,68,68,0.15)', justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: '#EF4444', fontSize: 16, fontWeight: 'bold' }}>CANCELAR BUSCA</Text>
               </TouchableOpacity>
             </View>
           ) : isSelectingPayment ? (
             <>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 20 }}>Pagamento</Text>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 20, color: colors.text }}>Pagamento</Text>
               <ScrollView style={{ maxHeight: 300 }}>
                 {paymentOptions.map((opt) => (
-                  <TouchableOpacity key={opt.id} onPress={() => { setPaymentMethod(opt); setIsSelectingPayment(false); }} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
-                    <Icon name={opt.icon} size={28} color={paymentMethod.id === opt.id ? "#f39c12" : "#aaa"} />
-                    <Text style={{ flex: 1, marginLeft: 15, fontSize: 16 }}>{opt.label}</Text>
+                  <TouchableOpacity key={opt.id} onPress={() => { setPaymentMethod(opt); setIsSelectingPayment(false); }} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#243049' }}>
+                    <Icon name={opt.icon} size={28} color={paymentMethod.id === opt.id ? "#F59E0B" : "#94A3B8"} />
+                    <Text style={{ flex: 1, marginLeft: 15, fontSize: 16, color: colors.text }}>{opt.label}</Text>
                     {paymentMethod.id === opt.id && <Icon name="check-circle" size={24} color={colors.primary} />}
                   </TouchableOpacity>
                 ))}
@@ -2535,10 +2537,10 @@ const HomeScreen = () => {
           ) : isSelecting ? (
             <>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold' }}>Opções de Viagem</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text }}>Opções de Viagem</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Icon name="timer" size={14} color="#999" />
-                  <Text style={{ fontSize: 12, color: '#999', marginLeft: 4 }}>{rideDetails.time} min • {rideDetails.distance} km</Text>
+                  <Icon name="timer" size={14} color="#94A3B8" />
+                  <Text style={{ fontSize: 12, color: '#94A3B8', marginLeft: 4 }}>{rideDetails.time} min • {rideDetails.distance} km</Text>
                 </View>
               </View>
               
@@ -2561,10 +2563,10 @@ const HomeScreen = () => {
                         marginBottom: 8,
                         paddingHorizontal: 12,
                         paddingVertical: 10,
-                        backgroundColor: selectedCat === cat.id ? '#f8fafc' : 'transparent'
+                        backgroundColor: selectedCat === cat.id ? '#1B2740' : 'transparent'
                       }}
                     >
-                      <View style={{ width: 55, height: 55, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, elevation: 2, shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.1, shadowRadius: 2 }}>
+                      <View style={{ width: 55, height: 55, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1B2740', borderRadius: 12, elevation: 2, shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.1, shadowRadius: 2 }}>
                          {showRemoteImg ? (
                            <Image
                              source={{ uri: api.getImageUrl(imgKey) }}
@@ -2578,10 +2580,10 @@ const HomeScreen = () => {
                       </View>
                       <CategoryInfo style={{ marginLeft: 15 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                          <CategoryName style={{ fontSize: 16, color: colors.secondary }}>{cat.nome}</CategoryName>
+                          <CategoryName style={{ fontSize: 16, color: colors.text }}>{cat.nome}</CategoryName>
                           {(cat.dinamico_mapa_ini || cat.dinamico_mapa_fim || cat.dinamico_horarios) && (
-                              <View style={{ backgroundColor: '#fff3e0', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginLeft: 10 }}>
-                                  <Text style={{ color: '#ef6c00', fontSize: 10, fontWeight: '800' }}>⚡ ALTA DEMANDA</Text>
+                              <View style={{ backgroundColor: 'rgba(245,158,11,0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginLeft: 10 }}>
+                                  <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '800' }}>⚡ ALTA DEMANDA</Text>
                               </View>
                           )}
                         </View>
@@ -2593,7 +2595,7 @@ const HomeScreen = () => {
                       <View style={{ alignItems: 'flex-end' }}>
                         <CategoryPrice style={{ 
                           textDecorationLine: (appliedCoupon && selectedCat === cat.id) ? 'line-through' : 'none',
-                          color: (appliedCoupon && selectedCat === cat.id) ? '#94a3b8' : colors.secondary,
+                          color: (appliedCoupon && selectedCat === cat.id) ? '#94a3b8' : colors.text,
                           fontSize: (appliedCoupon && selectedCat === cat.id) ? 13 : 18
                         }}>
                           R$ {(cat.taxa || cat.tx_base || '--').toString().replace('.', ',')}

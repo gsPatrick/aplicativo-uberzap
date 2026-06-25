@@ -56,13 +56,13 @@ const WithdrawButton = styled.TouchableOpacity`
 
 const HistoryContainer = styled.View`
   flex: 1;
-  background-color: #fff;
+  background-color: #131C2E;
   border-top-left-radius: 40px;
   border-top-right-radius: 40px;
   padding: 30px 20px;
   margin-top: 20px;
   border-top-width: 1px;
-  border-top-color: #e2e8f0;
+  border-top-color: #243049;
 `;
 
 const TransactionItem = styled.View`
@@ -70,7 +70,7 @@ const TransactionItem = styled.View`
   align-items: center;
   padding-vertical: 18px;
   border-bottom-width: 1px;
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: #243049;
 `;
 
 const IconBox = styled.View`
@@ -112,7 +112,7 @@ const DriverWalletScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
       <Header>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="arrow-back" size={28} color={colors.text} />
@@ -152,7 +152,7 @@ const DriverWalletScreen = () => {
                   <Icon
                     name={isDebit ? 'call-made' : 'call-received'}
                     size={24}
-                    color={isDebit ? '#f44336' : colors.primary}
+                    color={isDebit ? '#EF4444' : colors.primary}
                   />
                 </IconBox>
                 <View style={{ flex: 1 }}>
@@ -160,7 +160,7 @@ const DriverWalletScreen = () => {
                   <Text style={{ color: '#64748b', fontSize: 13 }}>{item.date}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ color: isDebit ? '#f44336' : colors.primary, fontSize: 18, fontWeight: '900' }}>
+                  <Text style={{ color: isDebit ? '#EF4444' : colors.primary, fontSize: 18, fontWeight: '900' }}>
                     {isDebit ? '-' : '+'} R$ {item.valor}
                   </Text>
                   <Text style={{ color: '#94a3b8', fontSize: 10, fontWeight: 'bold' }}>{String(item.status || '').toUpperCase()}</Text>

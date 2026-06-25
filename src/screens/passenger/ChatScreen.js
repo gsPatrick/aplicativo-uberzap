@@ -50,7 +50,7 @@ const UserSub = styled.Text`
 
 const Container = styled.View`
   flex: 1;
-  background-color: #f5f5f5;
+  background-color: #0B1220;
 `;
 
 const MessageBubble = styled.View`
@@ -58,7 +58,7 @@ const MessageBubble = styled.View`
   padding: 12px 16px;
   border-radius: 20px;
   margin-bottom: 10px;
-  background-color: ${props => props.isMine ? '#dcf8c6' : '#fff'};
+  background-color: ${props => props.isMine ? '#16A34A' : '#131C2E'};
   align-self: ${props => props.isMine ? 'flex-end' : 'flex-start'};
   border-bottom-right-radius: ${props => props.isMine ? 0 : 20}px;
   border-bottom-left-radius: ${props => !props.isMine ? 0 : 20}px;
@@ -70,12 +70,12 @@ const MessageBubble = styled.View`
 `;
 
 const MessageText = styled.Text`
-  color: #333;
+  color: #F1F5F9;
   font-size: 15px;
 `;
 
 const MessageTime = styled.Text`
-  color: #999;
+  color: #94A3B8;
   font-size: 10px;
   align-self: flex-end;
   margin-top: 4px;
@@ -85,28 +85,28 @@ const InputArea = styled.View`
   flex-direction: row;
   align-items: center;
   padding: 10px ${spacing.md}px;
-  background-color: #fff;
+  background-color: #131C2E;
   border-top-width: 1px;
-  border-top-color: #eee;
+  border-top-color: #243049;
   padding-bottom: ${Platform.OS === 'ios' ? 25 : 10}px;
 `;
 
 const InputField = styled.TextInput`
   flex: 1;
-  background-color: #f0f0f0;
+  background-color: #1B2740;
   border-radius: 25px;
   padding: 12px 20px;
   font-size: 15px;
   max-height: 100px;
   margin-right: 10px;
-  color: #333;
+  color: #F1F5F9;
 `;
 
 const SendButton = styled.TouchableOpacity`
   width: 46px;
   height: 46px;
   border-radius: 23px;
-  background-color: ${props => props.disabled ? '#ccc' : colors.primary};
+  background-color: ${props => props.disabled ? '#243049' : colors.primary};
   justify-content: center;
   align-items: center;
 `;
@@ -271,13 +271,13 @@ export default function ChatScreen() {
                     </MessageBubble>
                 )}
                 ListEmptyComponent={() => (
-                    <Text style={{ textAlign: 'center', color: '#999', marginTop: 50 }}>Inicie uma conversa com seu {isDriver ? 'passageiro' : 'motorista'}.</Text>
+                    <Text style={{ textAlign: 'center', color: '#94A3B8', marginTop: 50 }}>Inicie uma conversa com seu {isDriver ? 'passageiro' : 'motorista'}.</Text>
                 )}
             />
         )}
 
         {/* Mensagens Rápidas */}
-        <View style={{ backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0' }}>
+        <View style={{ backgroundColor: '#131C2E', borderTopWidth: 1, borderTopColor: '#243049' }}>
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -288,17 +288,17 @@ export default function ChatScreen() {
               renderItem={({ item }) => (
                 <TouchableOpacity 
                   onPress={() => handleSendPreset(item)}
-                  style={{ 
-                    backgroundColor: '#f1f5f9', 
-                    paddingHorizontal: 15, 
-                    paddingVertical: 8, 
-                    borderRadius: 20, 
+                  style={{
+                    backgroundColor: '#1B2740',
+                    paddingHorizontal: 15,
+                    paddingVertical: 8,
+                    borderRadius: 20,
                     marginRight: 8,
                     borderWidth: 1,
-                    borderColor: '#e2e8f0'
+                    borderColor: '#243049'
                   }}
                 >
-                  <Text style={{ color: colors.secondary, fontSize: 13, fontWeight: '500' }}>{item}</Text>
+                  <Text style={{ color: colors.text, fontSize: 13, fontWeight: '500' }}>{item}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -307,7 +307,7 @@ export default function ChatScreen() {
         <InputArea>
           <InputField
             placeholder="Digite uma mensagem..."
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
             value={inputText}
             onChangeText={setInputText}
             multiline

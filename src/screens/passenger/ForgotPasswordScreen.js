@@ -39,14 +39,14 @@ const Subtitle = styled.Text`
 `;
 
 const InputContainer = styled.View`
-  background-color: #fff;
+  background-color: #1B2740;
   border-radius: 18px;
   margin-bottom: 20px;
   padding: 5px 15px;
   flex-direction: row;
   align-items: center;
   border-width: 1px;
-  border-color: #cbd5e1;
+  border-color: #243049;
 `;
 
 const Input = styled.TextInput`
@@ -86,7 +86,7 @@ const StepDot = styled.View`
   width: 10px;
   height: 10px;
   border-radius: 5px;
-  background-color: ${props => props.active ? colors.primary : '#cbd5e1'};
+  background-color: ${props => props.active ? colors.primary : '#243049'};
   margin-horizontal: 5px;
 `;
 
@@ -168,7 +168,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" />
       <SafeAreaView style={{ flex: 1 }}>
         <Header>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -206,7 +206,7 @@ export default function ForgotPasswordScreen() {
                   </InputContainer>
 
                   <Button onPress={handleSendOTP} disabled={loading}>
-                    {loading ? <ActivityIndicator color="#000" /> : <ButtonText>ENVIAR CÓDIGO</ButtonText>}
+                    {loading ? <ActivityIndicator color="#F1F5F9" /> : <ButtonText>ENVIAR CÓDIGO</ButtonText>}
                   </Button>
                 </>
               )}
@@ -229,7 +229,7 @@ export default function ForgotPasswordScreen() {
                   </InputContainer>
 
                   <Button onPress={handleVerifyOTP} disabled={loading}>
-                    {loading ? <ActivityIndicator color="#000" /> : <ButtonText>VERIFICAR</ButtonText>}
+                    {loading ? <ActivityIndicator color="#F1F5F9" /> : <ButtonText>VERIFICAR</ButtonText>}
                   </Button>
 
                   <TouchableOpacity onPress={() => setStep(1)} style={{ marginTop: 20, alignSelf: 'center' }}>
@@ -266,7 +266,7 @@ export default function ForgotPasswordScreen() {
                   </InputContainer>
 
                   <Button onPress={handleResetPassword} disabled={loading}>
-                    {loading ? <ActivityIndicator color="#000" /> : <ButtonText>ALTERAR SENHA</ButtonText>}
+                    {loading ? <ActivityIndicator color="#F1F5F9" /> : <ButtonText>ALTERAR SENHA</ButtonText>}
                   </Button>
                 </>
               )}

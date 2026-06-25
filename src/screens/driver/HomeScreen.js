@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, StatusBar, SafeAreaView, Switch, TouchableOpacity, Animated, PanResponder, Dimensions, Platform, LayoutAnimation, UIManager, ActivityIndicator, Modal, Alert, AppState } from 'react-native';
+import { View, Text, StatusBar, SafeAreaView, Switch, TouchableOpacity, Animated, PanResponder, Dimensions, Platform, LayoutAnimation, UIManager, ActivityIndicator, Modal, Alert, AppState, InteractionManager } from 'react-native';
 import * as Location from 'expo-location';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import styled from 'styled-components/native';
@@ -72,7 +72,7 @@ const TopRow = styled.View`
 const OnlineToggle = styled.TouchableOpacity`
   flex-direction: row;
   align-items: center;
-  background-color: ${props => props.active ? 'rgba(58, 181, 107, 0.1)' : colors.surface};
+  background-color: ${props => props.active ? 'rgba(34, 197, 94, 0.1)' : colors.surface};
   padding: 8px 16px;
   border-radius: 25px;
   border-width: 1px;
@@ -83,12 +83,12 @@ const GlowDot = styled(Animated.View)`
   width: 10px;
   height: 10px;
   border-radius: 5px;
-  background-color: ${props => props.active ? colors.primary : '#ff4444'};
+  background-color: ${props => props.active ? colors.primary : '#EF4444'};
   margin-right: 8px;
 `;
 
 const EarningsCard = styled.View`
-  background-color: ${colors.white};
+  background-color: ${colors.surface};
   margin: ${spacing.md}px;
   padding: 20px;
   border-radius: 20px;
@@ -124,7 +124,7 @@ const FloatingButton = styled.TouchableOpacity`
   width: 60px;
   height: 60px;
   border-radius: 30px;
-  background-color: ${props => props.color || colors.white};
+  background-color: ${props => props.color || colors.surface};
   justify-content: center;
   align-items: center;
   elevation: 8;
@@ -150,7 +150,7 @@ const RideAlertContainer = styled(Animated.View)`
 
 const AlertCard = styled(Animated.View)`
   width: 100%;
-  background-color: ${colors.white};
+  background-color: ${colors.surface};
   border-top-left-radius: 26px;
   border-top-right-radius: 26px;
   padding: 18px;
@@ -168,7 +168,7 @@ const TimerSemicircle = styled.View`
   justify-content: center;
   align-items: center;
   margin-bottom: 20px;
-  background-color: rgba(58, 181, 107, 0.1);
+  background-color: rgba(34, 197, 94, 0.1);
 `;
 
 const Overlay = styled.TouchableOpacity`
@@ -422,16 +422,20 @@ const DriverHomeScreen = () => {
                 setSessionId(session.id);
                 setIsOnRide(hasActiveRide(session.activeRideId));
                 try {
-                    const profile = await api.driver.getDriverProfile(session.id);
+                    // Perfil, avaliações e ganhos são independentes entre si — buscamos
+                    // em paralelo (antes era em série, ~3x mais lento ao abrir).
+                    const [profile, rt, earnResponse] = await Promise.all([
+                        api.driver.getDriverProfile(session.id),
+                        api.driver.getDriverRatings(session.id).catch(() => null),
+                        api.driver.getDriverEarnings(session.id).catch(() => null),
+                    ]);
+
                     // Avaliação real (média das avaliações) — o get_perfil não traz a nota
                     let ratingMedia = 0, ratingTotal = 0;
-                    try {
-                        const rt = await api.driver.getDriverRatings(session.id);
-                        if (rt?.data) {
-                            ratingMedia = parseFloat(String(rt.data.media ?? 0).replace(',', '.')) || 0;
-                            ratingTotal = Number(rt.data.total) || 0;
-                        }
-                    } catch (e) {}
+                    if (rt?.data) {
+                        ratingMedia = parseFloat(String(rt.data.media ?? 0).replace(',', '.')) || 0;
+                        ratingTotal = Number(rt.data.total) || 0;
+                    }
                     if (profile.data) {
                         const cid = profile.data.cidade_id || 1;
                         const onlineVal = Number(profile.data.online);
@@ -454,15 +458,15 @@ const DriverHomeScreen = () => {
                             rejectedRides: [],
                         });
                     }
-                    // Carrega ganhos reais
-                    const earnResponse = await api.driver.getDriverEarnings(session.id);
-                    if (earnResponse.data) setEarnings(earnResponse.data);
-
-
+                    if (earnResponse?.data) setEarnings(earnResponse.data);
                 } catch (e) {
                     console.warn('Erro ao carregar perfil:', e);
                 }
-                await resumeActiveRideIfNeeded();
+                // Não é necessário para o primeiro frame — roda depois das interações
+                // para não disputar a thread JS enquanto a tela monta.
+                InteractionManager.runAfterInteractions(() => {
+                    resumeActiveRideIfNeeded().catch(() => {});
+                });
             }
         };
         loadInitial();
@@ -1014,8 +1018,8 @@ const DriverHomeScreen = () => {
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
             {/* Topo nativo: header fixo + SALDO colapsável + alça minimalista acoplada */}
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, elevation: 6, backgroundColor: colors.white, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 6 }}>
-                <StatusHeader colors={isAvailable ? [colors.white, '#f8fafc'] : ['#fee2e2', colors.white]} start={{x:0, y:0}} end={{x:1, y:1}}>
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 5, elevation: 6, backgroundColor: colors.surface, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 6 }}>
+                <StatusHeader colors={isAvailable ? [colors.white, '#131C2E'] : ['#2A1620', colors.white]} start={{x:0, y:0}} end={{x:1, y:1}}>
                     <TopRow>
                         <TouchableOpacity onPress={toggleMenu}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1042,20 +1046,20 @@ const DriverHomeScreen = () => {
                         {isOnRide && resumeError ? (
                             <TouchableOpacity
                                 onPress={() => resumeActiveRideIfNeeded(true)}
-                                style={{ marginHorizontal: spacing.md, marginBottom: 8, backgroundColor: '#fef3c7', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center' }}
+                                style={{ marginHorizontal: spacing.md, marginBottom: 8, backgroundColor: 'rgba(245,158,11,0.12)', borderColor: '#F59E0B', borderWidth: 1, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center' }}
                             >
-                                <Icon name="warning" size={22} color="#b45309" style={{ marginRight: 10 }} />
+                                <Icon name="warning" size={22} color="#F59E0B" style={{ marginRight: 10 }} />
                                 <View style={{ flex: 1 }}>
-                                    <Text style={{ color: '#92400e', fontWeight: '800' }}>Corrida em andamento</Text>
-                                    <Text style={{ color: '#92400e', fontSize: 12, marginTop: 2 }}>{resumeError}</Text>
+                                    <Text style={{ color: '#FCD34D', fontWeight: '800' }}>Corrida em andamento</Text>
+                                    <Text style={{ color: '#FCD34D', fontSize: 12, marginTop: 2 }}>{resumeError}</Text>
                                 </View>
-                                <Text style={{ color: '#b45309', fontWeight: '900' }}>Retomar ›</Text>
+                                <Text style={{ color: '#F59E0B', fontWeight: '900' }}>Retomar ›</Text>
                             </TouchableOpacity>
                         ) : null}
 
                         <View style={{ paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 10 }}>
                             {/* Filtro de período */}
-                            <View style={{ flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 12, padding: 3, marginBottom: 14 }}>
+                            <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, padding: 3, marginBottom: 14 }}>
                                 {[
                                     { key: 'hoje', label: 'Hoje' },
                                     { key: 'semana', label: 'Semana' },
@@ -1079,7 +1083,7 @@ const DriverHomeScreen = () => {
                                     </Text>
                                 </View>
                                 <View style={{ alignItems: 'flex-end' }}>
-                                    <View style={{ backgroundColor: 'rgba(58, 181, 107, 0.15)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(58, 181, 107, 0.3)' }}>
+                                    <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.3)' }}>
                                         <Text style={{ color: colors.primary, fontWeight: '900', fontSize: 16 }}>
                                             {earnings?.[{ hoje: 'qnt_hoje', semana: 'qnt_semana', mes: 'qnt_mes', total: 'qnt_fim' }[earningsPeriod]] ?? 0} Viagens
                                         </Text>
@@ -1095,7 +1099,7 @@ const DriverHomeScreen = () => {
 
                 {/* Alça minimalista acoplada (puxe pra recolher/expandir o saldo) */}
                 <View {...panelPan.panHandlers} hitSlop={{ top: 10, bottom: 12, left: 60, right: 60 }} style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 9 }}>
-                    <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.18)' }} />
+                    <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)' }} />
                 </View>
             </View>
 
@@ -1128,7 +1132,7 @@ const DriverHomeScreen = () => {
                               tracksViewChanges={false}
                               opacity={isOnline ? 1 : 0.7}
                             >
-                              <View style={{ backgroundColor: '#fff', padding: 5, borderRadius: 20, borderWidth: 1, borderColor: markerColor, elevation: 5 }}>
+                              <View style={{ backgroundColor: '#131C2E', padding: 5, borderRadius: 20, borderWidth: 1, borderColor: markerColor, elevation: 5 }}>
                                 <Icon name="directions-car" size={22} color={markerColor} />
                               </View>
                             </MapMarker>
@@ -1189,7 +1193,7 @@ const DriverHomeScreen = () => {
                 position: 'absolute', 
                 top: 0, bottom: 0, left: 0, 
                 width: width * 0.8, 
-                backgroundColor: colors.white, 
+                backgroundColor: colors.surface, 
                 zIndex: 10001, 
                 transform: [{ translateX: menuAnim }],
                 paddingTop: Platform.OS === 'ios' ? 60 : 40,
@@ -1204,7 +1208,7 @@ const DriverHomeScreen = () => {
                         <Text style={{ fontSize: 22, fontWeight: 'bold', color: colors.text }}>{driver.nome}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                             {[1,2,3,4,5].map((s) => (
-                                <Icon key={s} name="star" size={15} color={driver.ratingCount > 0 && s <= Math.round(driver.rating) ? '#fbbf24' : '#e2e8f0'} />
+                                <Icon key={s} name="star" size={15} color={driver.ratingCount > 0 && s <= Math.round(driver.rating) ? '#fbbf24' : '#243049'} />
                             ))}
                             <Text style={{ color: colors.textSecondary, fontSize: 14, marginLeft: 6 }}>
                                 {driver.ratingCount > 0 ? `${driver.rating.toFixed(1).replace('.', ',')} (${driver.ratingCount})` : 'Novo'}
@@ -1236,14 +1240,14 @@ const DriverHomeScreen = () => {
                 ))}
 
                 <TouchableOpacity style={{ marginTop: 'auto', marginBottom: 20, flexDirection: 'row', alignItems: 'center', padding: 15, paddingHorizontal: 20 }} onPress={handleLogout}>
-                    <Icon name="exit-to-app" size={24} color="#f44" />
-                    <Text style={{ fontSize: 16, color: '#f44', marginLeft: 15 }}>Sair do Modo Motorista</Text>
+                    <Icon name="exit-to-app" size={24} color="#EF4444" />
+                    <Text style={{ fontSize: 16, color: '#EF4444', marginLeft: 15 }}>Sair do Modo Motorista</Text>
                 </TouchableOpacity>
             </Animated.View>
 
             {newRide && (
                 <RideAlertContainer style={{ transform: [{ translateY: alertAnim }], opacity: alertOpacity }}>
-                    <AlertCard style={{ backgroundColor: colors.white, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5, transform: [{ scale: alertScale }] }}>
+                    <AlertCard style={{ backgroundColor: colors.surface, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5, transform: [{ scale: alertScale }] }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                             <View>
                                 <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>NOVA CHAMADA</Text>
@@ -1255,7 +1259,7 @@ const DriverHomeScreen = () => {
                                 </Text>
                             </View>
 
-                            <TimerSemicircle style={{ width: 58, height: 58, borderRadius: 29, marginBottom: 0, backgroundColor: 'rgba(58,181,107,0.1)', borderColor: colors.primary }}>
+                            <TimerSemicircle style={{ width: 58, height: 58, borderRadius: 29, marginBottom: 0, backgroundColor: 'rgba(34,197,94,0.1)', borderColor: colors.primary }}>
                                 <Text style={{ color: colors.text, fontSize: 20, fontWeight: '900' }}>
                                     {timerValue}
                                 </Text>
@@ -1291,7 +1295,7 @@ const DriverHomeScreen = () => {
                             </View>
                         )}
 
-                        <View style={{ width: '100%', padding: 14, backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: 16, marginBottom: 14 }}>
+                        <View style={{ width: '100%', padding: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, marginBottom: 14 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                                 <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginRight: 12 }} />
                                 <View style={{ flex: 1 }}>
@@ -1303,7 +1307,7 @@ const DriverHomeScreen = () => {
                             </View>
                             <View style={{ width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.15)', marginLeft: 4, marginBottom: 12 }} />
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#ef4444', marginRight: 12 }} />
+                                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#EF4444', marginRight: 12 }} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '700', textTransform: 'uppercase' }}>Destino</Text>
                                     <Text style={{ color: colors.text, fontWeight: '800' }} numberOfLines={2}>
@@ -1314,7 +1318,7 @@ const DriverHomeScreen = () => {
                         </View>
 
                         {(newRide.telefone_cliente || (newRide.obs && newRide.obs !== 'Não Informado')) && (
-                            <View style={{ width: '100%', marginBottom: 14, backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: 14, padding: 12 }}>
+                            <View style={{ width: '100%', marginBottom: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: 12 }}>
                                 {newRide.telefone_cliente ? (
                                     <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 6 }}>
                                         Telefone: <Text style={{ color: colors.text, fontWeight: '700' }}>{newRide.telefone_cliente}</Text>
@@ -1333,7 +1337,7 @@ const DriverHomeScreen = () => {
                             onPress={handleAccept}
                             disabled={isAccepting}
                             style={{ 
-                                backgroundColor: isAccepting ? '#444' : colors.primary, 
+                                backgroundColor: isAccepting ? '#243049' : colors.primary,
                                 width: '100%', 
                                 height: 58,
                                 borderRadius: 14,
@@ -1365,8 +1369,8 @@ const DriverHomeScreen = () => {
                 onRequestClose={() => setShowAlertModal(false)}
             >
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-                    <View style={{ width: '100%', backgroundColor: colors.white, borderRadius: 30, padding: 30, alignItems: 'center', borderBottomWidth: 4, borderBottomColor: colors.primary }}>
-                        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(58, 181, 107, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
+                    <View style={{ width: '100%', backgroundColor: colors.surface, borderRadius: 30, padding: 30, alignItems: 'center', borderBottomWidth: 4, borderBottomColor: colors.primary }}>
+                        <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(34, 197, 94, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
                             <Icon name="notifications-active" size={44} color={colors.primary} />
                         </View>
                         <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', marginBottom: 15, textAlign: 'center' }}>Novo Comunicado</Text>

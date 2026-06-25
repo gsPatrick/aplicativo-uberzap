@@ -12,7 +12,7 @@ const { width } = Dimensions.get('window');
 
 const Container = styled.View`
   flex: 1;
-  background-color: #f8f9fa;
+  background-color: #0B1220;
 `;
 
 const Content = styled.ScrollView`
@@ -32,7 +32,7 @@ const BackButton = styled.TouchableOpacity`
   width: 45px;
   height: 45px;
   border-radius: 22.5px;
-  background-color: #fff;
+  background-color: #131C2E;
   justify-content: center;
   align-items: center;
   elevation: 4;
@@ -45,7 +45,7 @@ const BackButton = styled.TouchableOpacity`
 const HeaderTitle = styled.Text`
   font-size: 22px;
   font-weight: bold;
-  color: ${colors.secondary};
+  color: #F1F5F9;
 `;
 
 const CardContainer = styled(Animated.View)`
@@ -124,7 +124,7 @@ const ActionIcon = styled.View`
   width: 55px;
   height: 55px;
   border-radius: 18px;
-  background-color: #fff;
+  background-color: #131C2E;
   justify-content: center;
   align-items: center;
   elevation: 5;
@@ -137,7 +137,7 @@ const ActionIcon = styled.View`
 
 const ActionText = styled.Text`
   font-size: 12px;
-  color: ${colors.secondary};
+  color: #F1F5F9;
   font-weight: 600;
 `;
 
@@ -153,7 +153,7 @@ const SectionHeader = styled.View`
 const SectionTitle = styled.Text`
   font-size: 18px;
   font-weight: bold;
-  color: ${colors.secondary};
+  color: #F1F5F9;
 `;
 
 const TransactionItem = styled(Animated.View)`
@@ -161,10 +161,10 @@ const TransactionItem = styled(Animated.View)`
   align-items: center;
   background-color: ${props => {
     const s = props.status?.toLowerCase() || '';
-    if (s.includes('conclui') || s.includes('aprov') || s.includes('valid')) return '#e8f5e9'; // Verde suave
-    if (s.includes('pend') || s.includes('aguard')) return '#fff9c4'; // Amarelo suave
-    if (s.includes('canc')) return '#ffebee'; // Vermelho suave
-    return '#fff';
+    if (s.includes('conclui') || s.includes('aprov') || s.includes('valid')) return '#131C2E';
+    if (s.includes('pend') || s.includes('aguard')) return '#131C2E';
+    if (s.includes('canc')) return '#131C2E';
+    return '#131C2E';
   }};
   padding: 16px;
   margin-horizontal: ${spacing.md}px;
@@ -173,10 +173,10 @@ const TransactionItem = styled(Animated.View)`
   border-width: 1px;
   border-color: ${props => {
     const s = props.status?.toLowerCase() || '';
-    if (s.includes('conclui') || s.includes('aprov') || s.includes('valid')) return '#c8e6c9';
-    if (s.includes('pend') || s.includes('aguard')) return '#fff176';
-    if (s.includes('canc')) return '#ffcdd2';
-    return '#f0f0f0';
+    if (s.includes('conclui') || s.includes('aprov') || s.includes('valid')) return '#243049';
+    if (s.includes('pend') || s.includes('aguard')) return '#243049';
+    if (s.includes('canc')) return '#243049';
+    return '#243049';
   }};
 `;
 
@@ -184,7 +184,7 @@ const IconBox = styled.View`
   width: 48px;
   height: 48px;
   border-radius: 16px;
-  background-color: ${props => props.type === 'Entrada' ? '#e8f5e9' : '#fef2f2'};
+  background-color: ${props => props.type === 'Entrada' ? '#131C2E' : '#131C2E'};
   justify-content: center;
   align-items: center;
   margin-right: 15px;
@@ -197,7 +197,7 @@ const ModalOverlay = styled.View`
 `;
 
 const ModalContent = styled.View`
-  background-color: #fff;
+  background-color: #131C2E;
   border-top-left-radius: 30px;
   border-top-right-radius: 30px;
   padding: 30px;
@@ -207,7 +207,7 @@ const ModalContent = styled.View`
 const AmountOption = styled.TouchableOpacity`
   flex: 1;
   height: 60px;
-  background-color: ${props => props.selected ? colors.primary : '#f5f5f5'};
+  background-color: ${props => props.selected ? colors.primary : '#1B2740'};
   border-radius: 15px;
   justify-content: center;
   align-items: center;
@@ -217,7 +217,7 @@ const AmountOption = styled.TouchableOpacity`
 const AmountText = styled.Text`
   font-size: 18px;
   font-weight: bold;
-  color: ${props => props.selected ? '#fff' : '#333'};
+  color: ${props => props.selected ? '#fff' : '#F1F5F9'};
 `;
 
 const TransactionItemComp = ({ item, index }) => {
@@ -227,15 +227,15 @@ const TransactionItemComp = ({ item, index }) => {
     const getStatusColors = (status) => {
         const s = status?.toLowerCase() || '';
         if (s.includes('conclui') || s.includes('aprov') || s.includes('valid')) {
-            return { bg: '#e8f5e9', border: '#c8e6c9', main: '#2e7d32', muted: '#66bb6a' };
+            return { bg: '#131C2E', border: '#243049', main: '#22C55E', muted: '#94A3B8' };
         }
         if (s.includes('pend') || s.includes('aguard')) {
-            return { bg: '#fff9c4', border: '#fff176', main: '#f57f17', muted: '#fbc02d' };
+            return { bg: '#131C2E', border: '#243049', main: '#F59E0B', muted: '#94A3B8' };
         }
         if (s.includes('canc')) {
-            return { bg: '#ffebee', border: '#ffcdd2', main: '#c62828', muted: '#ef5350' };
+            return { bg: '#131C2E', border: '#243049', main: '#EF4444', muted: '#94A3B8' };
         }
-        return { bg: '#fff', border: '#f0f0f0', main: colors.secondary, muted: '#94a3b8' };
+        return { bg: '#131C2E', border: '#243049', main: '#F1F5F9', muted: '#94a3b8' };
     };
 
     const stC = getStatusColors(item.status);
@@ -454,10 +454,10 @@ const WalletScreen = () => {
 
   return (
     <Container>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
       <Header>
         <BackButton onPress={() => navigation.goBack()}>
-          <Icon name="chevron-left" size={32} color={colors.secondary} />
+          <Icon name="chevron-left" size={32} color="#F1F5F9" />
         </BackButton>
         <HeaderTitle>Carteira</HeaderTitle>
         <View style={{ width: 45 }} />
@@ -512,7 +512,7 @@ const WalletScreen = () => {
             keyExtractor={item => item.id.toString()}
             scrollEnabled={false}
             contentContainerStyle={{ paddingBottom: 40 }}
-            ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#999', marginTop: 30 }}>Sem histórico.</Text>}
+            ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#94A3B8', marginTop: 30 }}>Sem histórico.</Text>}
           />
         )}
       </Content>
@@ -521,8 +521,8 @@ const WalletScreen = () => {
         <ModalOverlay>
           <ModalContent>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 }}>
-              <Text style={{ fontSize: 22, fontWeight: 'bold' }}>Quanto deseja recarregar?</Text>
-              <TouchableOpacity onPress={() => setRechargeModal(false)}><Icon name="close" size={28} color="#000" /></TouchableOpacity>
+              <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#F1F5F9' }}>Quanto deseja recarregar?</Text>
+              <TouchableOpacity onPress={() => setRechargeModal(false)}><Icon name="close" size={28} color="#F1F5F9" /></TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
@@ -533,8 +533,8 @@ const WalletScreen = () => {
               ))}
             </View>
 
-            <View style={{ backgroundColor: '#f9fafb', padding: 15, borderRadius: 12, marginBottom: 25, borderLeftWidth: 4, borderLeftColor: colors.primary }}>
-               <Text style={{ fontSize: 14, color: '#4b5563', lineHeight: 20 }}>
+            <View style={{ backgroundColor: '#131C2E', padding: 15, borderRadius: 12, marginBottom: 25, borderLeftWidth: 4, borderLeftColor: colors.primary }}>
+               <Text style={{ fontSize: 14, color: '#94A3B8', lineHeight: 20 }}>
                  Ao clicar em **GERAR PIX**, você será redirecionado para o ambiente seguro de pagamento da **PagMP** para concluir sua recarga.
                </Text>
             </View>

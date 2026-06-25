@@ -10,7 +10,7 @@ import { formatPhoneBr, normalizePhoneForApi, isValidPhoneDigits } from '../../u
 
 const Container = styled.KeyboardAvoidingView`
   flex: 1;
-  background-color: ${colors.white};
+  background-color: ${colors.background};
 `;
 
 const Content = styled.ScrollView.attrs({
@@ -27,7 +27,7 @@ const logoImageStyle = { width: 280, height: 120, marginBottom: spacing.md };
 const Title = styled.Text`
   font-size: 28px;
   font-weight: bold;
-  color: ${colors.secondary};
+  color: ${colors.text};
   text-align: center;
 `;
 
@@ -195,7 +195,7 @@ const LoginScreen = () => {
           <Label>Telefone</Label>
           <Input
             placeholder="(00) 00000-0000"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textMuted}
             keyboardType="phone-pad"
             value={telefone}
             onChangeText={(text) => setTelefone(formatPhoneBr(text))}
@@ -205,7 +205,7 @@ const LoginScreen = () => {
           <Label>Senha</Label>
           <Input
             placeholder="••••••••"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={colors.textMuted}
             secureTextEntry
             value={senha}
             onChangeText={setSenha}

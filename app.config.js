@@ -30,9 +30,10 @@ module.exports = ({ config }) => {
    * versionCode DEVE ser maior que o publicado (motorista 30000, passageiro 10000).
    * versionName é só rótulo de exibição (não afeta a aceitação da atualização).
    */
-  // Mesma versão para motorista e passageiro (pedido do cliente): 30003 em ambos.
-  const versionName = '30003';
-  const versionCode = 30003;
+  // Mesma versão para motorista e passageiro (pedido do cliente).
+  // Loja do motorista estava em 3002 -> sobe para 3003 (versionName 3.03).
+  const versionName = '3.03';
+  const versionCode = 3003;
 
   /**
    * google-services.json por variante (FCM / push remoto).
@@ -77,17 +78,18 @@ module.exports = ({ config }) => {
   // SDK 53 (RN 0.79/React 19) o auto-load assíncrono do @expo/vector-icons
   // corre com o primeiro paint no Android e os glifos ficam invisíveis
   // (no iOS o fallback re-renderiza, por isso só quebra no Android).
+  //
+  // IMPORTANTE: usar a forma simples (lista de caminhos de .ttf), NÃO a forma
+  // estruturada com `fontFamily`/`fontDefinitions`. A simples copia o arquivo
+  // para `android/app/src/main/assets/fonts/MaterialIcons.ttf`, e o Android
+  // resolve `fontFamily: 'MaterialIcons'` (o nome que o <MaterialIcons> do
+  // @expo/vector-icons usa) pelo NOME DO ARQUIVO. A forma estruturada registrava
+  // a fonte sob o nome `material`, que não bate com `MaterialIcons` → glifos
+  // invisíveis no APK.
   const fontPlugin = [
     'expo-font',
     {
-      fonts: [
-        {
-          fontFamily: 'material',
-          fontDefinitions: [
-            { path: './assets/fonts/MaterialIcons.ttf', weight: 400, style: 'normal' },
-          ],
-        },
-      ],
+      fonts: ['./assets/fonts/MaterialIcons.ttf'],
     },
   ];
 

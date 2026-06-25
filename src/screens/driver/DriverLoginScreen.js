@@ -177,7 +177,7 @@ const DriverLoginScreen = () => {
           <Label>CPF</Label>
           <Input
             placeholder="000.000.000-00"
-            placeholderTextColor="#64748b"
+            placeholderTextColor="#64748B"
             keyboardType="number-pad"
             value={cpf}
             onChangeText={(text) => setCpf(formatCpf(text))}
@@ -187,7 +187,7 @@ const DriverLoginScreen = () => {
           <Label>Senha</Label>
           <Input
             placeholder="••••••••"
-            placeholderTextColor="#64748b"
+            placeholderTextColor="#64748B"
             secureTextEntry
             value={senha}
             onChangeText={setSenha}
