@@ -101,6 +101,9 @@ module.exports = ({ config }) => {
     '@react-native-firebase/messaging',
     './plugins/withAndroidRideAlerts.js',
     ...rest,
+    // POR ÚLTIMO: resolve o conflito de meta-data FCM entre expo-notifications
+    // e @react-native-firebase/messaging (tools:replace).
+    './plugins/withFirebaseManifestFix.js',
   ];
 
   return {
