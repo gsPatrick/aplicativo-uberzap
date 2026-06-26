@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { triggerRideAlertNotification } from '../utils/notifications';
 import { wakeScreenForRideAlert } from '../utils/androidOverlay';
+import { startRideAlertSound } from '../utils/rideAlertSound';
 import { mapApiRideToRideRequest, showRideRequestNotification } from './rideNotification';
 import { STORAGE_KEYS as RIDE_STORAGE_KEYS } from './rideRequestController';
 import driverRideMonitor from './driverRideMonitor';
@@ -55,6 +56,12 @@ export async function notifyDriverNewRide(rawRide) {
 
   try {
     await wakeScreenForRideAlert();
+  } catch (_) {}
+
+  // Toque de chamada em loop (o card aparecia mudo). staysActiveInBackground
+  // permite tocar mesmo com o app fechado/acordado pelo push.
+  try {
+    await startRideAlertSound();
   } catch (_) {}
 
   return delivered;

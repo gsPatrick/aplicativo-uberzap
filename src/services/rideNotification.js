@@ -17,7 +17,9 @@ async function getNotifee() {
   }
 }
 
-export const RIDE_REQUEST_CHANNEL_ID = 'ride-requests';
+// v2: canal recriado com importância MAX + som. Bumpar o id força o Android a
+// criar um canal novo (canais são imutáveis — o antigo podia estar sem som).
+export const RIDE_REQUEST_CHANNEL_ID = 'ride-requests-v2';
 export const RIDE_REQUEST_TIMEOUT_MS = 30000;
 
 /** @typedef {import('./rideRequestController').RideRequest} RideRequest */
@@ -60,7 +62,7 @@ export async function setupRideNotificationChannel() {
   await notifee.createChannel({
     id: RIDE_REQUEST_CHANNEL_ID,
     name: 'Solicitações de Corrida',
-    importance: AndroidImportance.HIGH,
+    importance: AndroidImportance.MAX,
     visibility: AndroidVisibility.PUBLIC,
     sound: 'default',
     vibration: true,
