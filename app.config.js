@@ -95,15 +95,16 @@ module.exports = ({ config }) => {
   ];
 
   const plugins = [
+    // PRIMEIRO no array = mod de manifest roda por ÚLTIMO (a ordem de execução
+    // dos mods é inversa à do array). Resolve o conflito de meta-data FCM entre
+    // expo-notifications e @react-native-firebase/messaging (tools:replace).
+    './plugins/withFirebaseManifestFix.js',
     buildProps,
     fontPlugin,
     '@react-native-firebase/app',
     '@react-native-firebase/messaging',
     './plugins/withAndroidRideAlerts.js',
     ...rest,
-    // POR ÚLTIMO: resolve o conflito de meta-data FCM entre expo-notifications
-    // e @react-native-firebase/messaging (tools:replace).
-    './plugins/withFirebaseManifestFix.js',
   ];
 
   return {
