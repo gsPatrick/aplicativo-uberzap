@@ -31,9 +31,8 @@ module.exports = ({ config }) => {
    * versionName é só rótulo de exibição (não afeta a aceitação da atualização).
    */
   // Mesma versão para motorista e passageiro (pedido do cliente).
-  // Loja do motorista estava em 3002 -> sobe para 3003 (versionName 3.03).
-  const versionName = '3.03';
-  const versionCode = 3003;
+  const versionName = '3.02';
+  const versionCode = 30002;
 
   /**
    * google-services.json por variante (FCM / push remoto).
