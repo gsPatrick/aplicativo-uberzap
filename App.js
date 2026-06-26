@@ -148,9 +148,16 @@ export default function App() {
   const [fontsLoaded, fontError] = useFonts({
     ...MaterialIcons.font,
   });
-  // Se o load em runtime falhar, seguimos mesmo assim: a fonte também está
-  // embutida no binário (plugin expo-font), então os glifos ainda renderizam.
-  const fontsReady = fontsLoaded || Boolean(fontError);
+  // Espera a fonte de ícones REALMENTE carregar (até 4s). Antes caíamos na hora
+  // quando `fontError` aparecia, o que pintava os ícones ANTES da fonte registrar
+  // (glifos sumiam no Android release). Agora damos tempo do load concluir; se
+  // estourar 4s, seguimos (a fonte também está embutida no binário via expo-font).
+  const [fontWaitTimeout, setFontWaitTimeout] = React.useState(false);
+  React.useEffect(() => {
+    const t = setTimeout(() => setFontWaitTimeout(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+  const fontsReady = fontsLoaded || fontWaitTimeout;
 
   React.useEffect(() => {
     if (appVariant !== 'driver') return undefined;

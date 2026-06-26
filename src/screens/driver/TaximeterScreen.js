@@ -227,9 +227,49 @@ const TaximeterScreen = () => {
     const [showNavModal, setShowNavModal] = useState(false);
     
     const [lastCoords, setLastCoords] = useState(null);
-    const [ratePerKm] = useState(parseFloat(String(ride?.taxa_km || '1.20').replace(',', '.')));
-    const [ratePerMin] = useState(parseFloat(String(ride?.taxa_minuto || '0.25').replace(',', '.')));
+    // Tarifas: começam com o que veio na corrida (ou default) e são SOBRESCRITAS
+    // pelas tarifas do PAINEL (API por cidade) no efeito abaixo.
+    const [ratePerKm, setRatePerKm] = useState(parseFloat(String(ride?.taxa_km || '1.20').replace(',', '.')));
+    const [ratePerMin, setRatePerMin] = useState(parseFloat(String(ride?.taxa_minuto || '0.25').replace(',', '.')));
+    const [baseFare, setBaseFare] = useState(0); // bandeirada (tx_minima) do painel
     const [gpsAccuracy, setGpsAccuracy] = useState(0);
+
+    // Busca as tarifas do PAINEL (tabela taximetro) pela cidade do motorista.
+    // Aplica a bandeirada (tx_minima) como valor inicial do taxímetro livre.
+    useEffect(() => {
+        let active = true;
+        (async () => {
+            try {
+                const session = await getSession();
+                const cid = session?.cidade_id || ride?.cidade_id || 1;
+                let tx = null;
+                try {
+                    const r = await api.driver.getTaximetro(cid);
+                    if (r?.data && r.data.tx_km != null) tx = r.data;
+                } catch (_) {}
+                // Fallback: tarifas salvas na sessão no login
+                if (!tx && session && session.taxi_tx_km != null) {
+                    tx = { tx_km: session.taxi_tx_km, tx_minuto: session.taxi_tx_minuto, tx_minima: session.taxi_tx_minima };
+                }
+                if (!active || !tx) return;
+                const km = parseFloat(String(tx.tx_km ?? '').replace(',', '.'));
+                const mn = parseFloat(String(tx.tx_minuto ?? '').replace(',', '.'));
+                const base = parseFloat(String(tx.tx_minima ?? '').replace(',', '.'));
+                if (Number.isFinite(km) && km > 0) setRatePerKm(km);
+                if (Number.isFinite(mn) && mn > 0) setRatePerMin(mn);
+                if (Number.isFinite(base) && base >= 0) {
+                    setBaseFare(base);
+                    // Taxímetro livre (sem destino): começa na bandeirada, não em R$ 0,00.
+                    if (isNoDestinationRide && route.params?.initialPrice == null && base > 0) {
+                        setCurrentPrice(prev => (prev < base ? base : prev));
+                    }
+                }
+            } catch (_) {}
+        })();
+        return () => { active = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const gpsOpacity = useRef(new Animated.Value(0.4)).current;
     const statusRef = useRef(status);
     const lastCoordsRef = useRef(null);
@@ -412,7 +452,7 @@ const TaximeterScreen = () => {
             }, 1000);
         }
         return () => clearInterval(priceTimer);
-    }, [status, isWaiting, isNoDestinationRide]);
+    }, [status, isWaiting, isNoDestinationRide, ratePerMin]);
 
     // SINCRO EM TEMPO REAL: Heartbeat que atualiza a Taxa no Servidor
     useEffect(() => {

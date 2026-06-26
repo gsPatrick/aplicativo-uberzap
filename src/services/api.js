@@ -494,6 +494,11 @@ const api = {
         if (response.data === 'no' || !response.data) return { ...response, data: [] };
         return response;
     },
+    /** Tarifas do taxímetro definidas no PAINEL (por cidade): tx_minima/tx_minuto/tx_km. */
+    getTaximetro: async (cidade_id) => {
+        const response = await axiosInstance.post('motoristas/get_taximetro.php', toFormData({ cidade_id }));
+        return response;
+    },
     getDriverHistory: async (id_motorista, data, options = {}) => {
         if (CONFIG.USE_MOCKS) return { data: MOCK_DATA.driver_history };
         const payload = { id_motorista };

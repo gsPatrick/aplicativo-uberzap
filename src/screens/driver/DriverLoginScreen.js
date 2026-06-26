@@ -133,6 +133,10 @@ const DriverLoginScreen = () => {
           id,
           userType: 'driver',
           cidade_id: response.data.cidade_id || 1,
+          // Tarifas do painel (fallback caso o GET de tarifas falhe no taxímetro)
+          taxi_tx_minima: response.data.taxi_tx_minima,
+          taxi_tx_minuto: response.data.taxi_tx_minuto,
+          taxi_tx_km: response.data.taxi_tx_km,
         });
         await syncPushTokenWithServer().catch(() => {});
         const onboarded = await isPermissionsOnboarded();
