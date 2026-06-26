@@ -12,6 +12,7 @@ import {
 } from '../../utils/notifications';
 import { requestRideNotificationPermission } from '../../services/rideNotification';
 import { requestOverlayPermission, canDrawOverlays } from '../../utils/androidOverlay';
+import { canUseFullScreenIntent, openFullScreenIntentSettings } from '../../utils/fullScreenIntent';
 import { syncPushTokenWithServer } from '../../services/pushSync';
 
 export const PERMISSIONS_ONBOARDED_KEY = '@UbeZap:permissionsOnboarded';
@@ -137,6 +138,14 @@ const STEPS = [
     desc: 'Para o alerta de corrida aparecer por cima de qualquer tela, mesmo usando outro aplicativo.',
     cta: 'Permitir sobreposição',
   },
+  {
+    key: 'fullscreen',
+    icon: 'phone',
+    title: 'Chamada em tela cheia',
+    desc: 'OBRIGATÓRIO: para a corrida tocar e abrir em TELA CHEIA (estilo ligação) mesmo com o celular bloqueado. Ative "Notificações em tela cheia" para o UbeZap.',
+    cta: 'Ativar tela cheia',
+    required: true,
+  },
 ];
 
 export default function DriverPermissionsScreen() {
@@ -200,6 +209,18 @@ export default function DriverPermissionsScreen() {
         } else {
           setGranted(true);
         }
+      } else if (step.key === 'fullscreen') {
+        if (Platform.OS === 'android') {
+          const has = await canUseFullScreenIntent().catch(() => false);
+          if (has) {
+            setGranted(true);
+          } else {
+            // Abre a tela do sistema; confirmamos ao voltar pro app (AppState).
+            await openFullScreenIntentSettings().catch(() => {});
+          }
+        } else {
+          setGranted(true);
+        }
       }
     } finally {
       setLoading(false);
@@ -209,12 +230,28 @@ export default function DriverPermissionsScreen() {
   // Ao voltar do sistema (bateria/sobreposição), re-checa a sobreposição.
   React.useEffect(() => {
     const sub = AppState.addEventListener('change', async (s) => {
-      if (s === 'active' && step.key === 'overlay') {
+      if (s !== 'active') return;
+      if (step.key === 'overlay') {
         const has = await canDrawOverlays().catch(() => false);
+        if (has) setGranted(true);
+      } else if (step.key === 'fullscreen') {
+        const has = await canUseFullScreenIntent().catch(() => false);
         if (has) setGranted(true);
       }
     });
     return () => sub.remove();
+  }, [step.key]);
+
+  // Ao entrar num passo obrigatório, já verifica se a permissão existe.
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (step.key === 'fullscreen') {
+        const has = await canUseFullScreenIntent().catch(() => false);
+        if (alive && has) setGranted(true);
+      }
+    })();
+    return () => { alive = false; };
   }, [step.key]);
 
   return (
@@ -259,9 +296,17 @@ export default function DriverPermissionsScreen() {
         </PrimaryButton>
       )}
 
-      <SkipButton onPress={goNext} disabled={loading}>
-        <SkipText>{isLast ? 'Concluir mais tarde' : 'Pular este passo'}</SkipText>
-      </SkipButton>
+      {step.required && !granted ? (
+        <View style={{ padding: 16, marginTop: 4 }}>
+          <Text style={{ color: '#64748b', fontSize: 13, textAlign: 'center' }}>
+            Este passo é obrigatório para receber as corridas.
+          </Text>
+        </View>
+      ) : (
+        <SkipButton onPress={goNext} disabled={loading}>
+          <SkipText>{isLast ? 'Concluir mais tarde' : 'Pular este passo'}</SkipText>
+        </SkipButton>
+      )}
     </Container>
   );
 }

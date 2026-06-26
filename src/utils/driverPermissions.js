@@ -7,6 +7,7 @@ import {
 } from './notifications';
 import { requestRideNotificationPermission } from '../services/rideNotification';
 import { ensureOverlayPermission } from './androidOverlay';
+import { canUseFullScreenIntent, openFullScreenIntentSettings } from './fullScreenIntent';
 import { syncPushTokenWithServer } from '../services/pushSync';
 
 const PERMISSIONS_ONBOARDED_KEY = '@UbeZap:permissionsOnboarded';
@@ -115,6 +116,29 @@ export async function requestDriverPermissionsFlow(options = {}) {
     }
 
     if (Platform.OS === 'android') {
+      result.fullScreen = await canUseFullScreenIntent().catch(() => true);
+      if (!result.fullScreen) {
+        await new Promise((resolve) => {
+          Alert.alert(
+            'Chamada em tela cheia',
+            'OBRIGATÓRIO: ative "Notificações em tela cheia" para o UbeZap, assim a corrida abre em TELA CHEIA mesmo com o celular bloqueado.',
+            [
+              { text: 'Depois', style: 'cancel', onPress: () => resolve() },
+              {
+                text: 'Ativar',
+                onPress: async () => {
+                  await openFullScreenIntentSettings().catch(() => {});
+                  resolve();
+                },
+              },
+            ],
+            { cancelable: false }
+          );
+        });
+      }
+    }
+
+    if (Platform.OS === 'android') {
       Alert.alert(
         'Bateria',
         'Para não perder corridas em segundo plano, desative a otimização de bateria do UbeZap nas configurações do celular.',
@@ -146,5 +170,39 @@ export async function ensureDriverCanGoOnline() {
   }
 
   let notifOk = await ensureNotificationPermissions();
-  return locationOk && notifOk;
+
+  // OBRIGATÓRIO (Android 14+): permissão de "notificações em tela cheia".
+  // Sem ela, a corrida não abre em tela cheia (estilo ligação) com o celular
+  // bloqueado. Bloqueia ficar online até ativar.
+  let fullScreenOk = true;
+  if (Platform.OS === 'android') {
+    try {
+      fullScreenOk = await canUseFullScreenIntent();
+      if (!fullScreenOk) {
+        await new Promise((resolve) => {
+          Alert.alert(
+            'Ative a chamada em tela cheia',
+            'Obrigatório para você não perder corridas: ative "Notificações em tela cheia" para o UbeZap, assim o chamado abre em TELA CHEIA mesmo com o celular bloqueado.',
+            [
+              { text: 'Agora não', style: 'cancel', onPress: () => resolve() },
+              {
+                text: 'Ativar',
+                onPress: async () => {
+                  await openFullScreenIntentSettings().catch(() => {});
+                  resolve();
+                },
+              },
+            ],
+            { cancelable: false }
+          );
+        });
+        // Re-checa após o usuário voltar das configurações.
+        fullScreenOk = await canUseFullScreenIntent().catch(() => false);
+      }
+    } catch (_) {
+      fullScreenOk = true; // em erro, não trava o motorista
+    }
+  }
+
+  return locationOk && notifOk && fullScreenOk;
 }
