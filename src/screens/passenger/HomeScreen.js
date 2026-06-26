@@ -556,6 +556,7 @@ const HomeScreen = () => {
   const [ratingComment, setRatingComment] = useState('');
   const mapRef = useRef(null);
   const didCenterMapRef = useRef(false); // centra/zooma só na 1ª localização (não briga com o zoom/pan)
+  const userMovedMapRef = useRef(false); // true quando o usuário arrasta/pinça o mapa — impede recentralizar à força
 
   // Bottom sheet arrastável: arrasta a alça pra BAIXO recolhe (vê o mapa), pra CIMA expande
   const SHEET_PEEK = 60; // quanto fica visível (alça) quando recolhido
@@ -582,7 +583,7 @@ const HomeScreen = () => {
         else if (g.dy < -40 || g.vy < -0.5) collapse = false; // pra cima -> expande
         else collapse = sheetCollapsedRef.current;
         sheetCollapsedRef.current = collapse;
-        Animated.spring(sheetTranslate, { toValue: collapse ? max : 0, useNativeDriver: false, bounciness: 2, speed: 16 }).start();
+        Animated.spring(sheetTranslate, { toValue: collapse ? max : 0, useNativeDriver: true, bounciness: 2, speed: 16 }).start();
       },
     })
   ).current;
@@ -1907,6 +1908,9 @@ const HomeScreen = () => {
 
   useEffect(() => {
     if (!pickupCoords || driverDetails) return;
+    // Não recentraliza à força depois que o usuário arrastou/pinçou o mapa —
+    // senão cada update de GPS "puxa" a câmera de volta e cancela o gesto.
+    if (userMovedMapRef.current) return;
     if (mapRef.current) {
       mapRef.current.animateToRegion({
         ...pickupCoords,
@@ -1930,7 +1934,7 @@ const HomeScreen = () => {
     const mapDelta = driverDetails ? 0.035 : 0.05;
 
     return (
-      <MapView 
+      <MapView
         ref={mapRef}
         style={{ flex: 1 }}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
@@ -1940,12 +1944,32 @@ const HomeScreen = () => {
           latitudeDelta: mapDelta,
           longitudeDelta: mapDelta,
         }}
-        showsUserLocation={!!pickupCoords && !isSearchingDriver && !driverDetails}
+        // Gestos estilo Uber/99: pinça pra zoom (in/out), pan livre; rotação e
+        // inclinação travadas (atrapalham). showsUserLocation desligado porque já
+        // existe o marcador verde de embarque (evita dois "você está aqui").
+        zoomEnabled
+        scrollEnabled
+        pitchEnabled={false}
+        rotateEnabled={false}
+        moveOnMarkerPress={false}
+        toolbarEnabled={false}
+        showsUserLocation={false}
         showsMyLocationButton={false}
         loadingEnabled
+        onPanDrag={() => { userMovedMapRef.current = true; }}
+        onRegionChangeComplete={(region, details) => {
+          // só marca como "usuário mexeu" se foi gesto (não em animações nossas)
+          if (details?.isGesture) userMovedMapRef.current = true;
+        }}
       >
         {pickupCoords && (
-        <Marker coordinate={pickupCoords} zIndex={10} tracksViewChanges={false}>
+        <Marker
+          coordinate={pickupCoords}
+          zIndex={10}
+          tracksViewChanges={false}
+          onPress={() => setIsChoosingDestination(true)}
+          key={`pickup-${(pickup || '').slice(0, 24)}-${driverDetails ? 'd' : isSelecting ? 's' : 'n'}`}
+        >
            <View style={{ alignItems: 'center' }}>
              <MapLabel style={{ marginBottom: 6 }} activeOpacity={0.9} onPress={() => setIsChoosingDestination(true)}>
                 <View style={{ marginRight: 8 }}>
@@ -1971,7 +1995,13 @@ const HomeScreen = () => {
               geodesic={true}
             />
             )}
-            <Marker coordinate={destCoords} zIndex={11} tracksViewChanges={false}>
+            <Marker
+              coordinate={destCoords}
+              zIndex={11}
+              tracksViewChanges={false}
+              onPress={() => !driverDetails && setIsChoosingDestination(true)}
+              key={`dest-${(destination || '').slice(0, 24)}-${driverDetails ? 'd' : 'n'}`}
+            >
                <View style={{ alignItems: 'center' }}>
                  <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                    <View style={{ width: 24, height: 24, backgroundColor: '#333', borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}>
@@ -2238,6 +2268,31 @@ const HomeScreen = () => {
       </HeaderContainer>
 
       {renderMap()}
+
+      {/* Botão "Meu local" (recentralizar) — estilo Uber/99 */}
+      {!driverDetails && !isSearchingDriver && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => {
+            userMovedMapRef.current = false;
+            if (pickupCoords && mapRef.current) {
+              mapRef.current.animateToRegion(
+                { ...pickupCoords, latitudeDelta: 0.02, longitudeDelta: 0.02 },
+                500
+              );
+            }
+          }}
+          style={{
+            position: 'absolute', right: 16, bottom: 230, zIndex: 900,
+            width: 48, height: 48, borderRadius: 24,
+            backgroundColor: '#131C2E', borderWidth: 1, borderColor: '#243049',
+            justifyContent: 'center', alignItems: 'center',
+            elevation: 6, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+          }}
+        >
+          <Icon name="my-location" size={24} color={colors.primary} />
+        </TouchableOpacity>
+      )}
 
       {/* Side Menu Overlay */}
       {isMenuOpen && (
