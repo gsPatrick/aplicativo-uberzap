@@ -19,7 +19,7 @@ import {
 } from './rideNotification';
 import { startRideAlertSound, stopRideAlertSound } from '../utils/rideAlertSound';
 import { wakeScreenForRideAlert } from '../utils/androidOverlay';
-import { STORAGE_KEYS as RIDE_STORAGE_KEYS } from './rideRequestController';
+import { STORAGE_KEYS as RIDE_STORAGE_KEYS, presentRideRequest } from './rideRequestController';
 import driverRideMonitor from './driverRideMonitor';
 
 const IS_EXPO_GO = Constants?.appOwnership === 'expo';
@@ -93,6 +93,31 @@ export async function handleFcmRideAlert(data) {
   }
 }
 
+/**
+ * Caminho com o app ABERTO (foreground): mostra SÓ o card interno do app
+ * (modal RideRequestScreen) — NÃO dispara o overlay full-screen do sistema
+ * (Notifee), que seria redundante/duplicado por cima do próprio app.
+ */
+export async function handleFcmRideAlertForeground(data) {
+  try {
+    if (!data || data.type !== 'ride_alert') return;
+    const event = data.event;
+    if (event === 'ride_unavailable' || event === 'passenger_cancelled') {
+      await stopRideAlertSound().catch(() => {});
+      return; // o modal interno some sozinho (monitor/polling)
+    }
+    const raw = buildRawRide(data);
+    if (!raw) return;
+    if (driverRideMonitor.isRideBlocked?.(raw.id)) return;
+    if (driverRideMonitor.config?.isOnRide) return;
+    // Apresenta o modal interno (com dedup) — sem notificação de sistema.
+    await presentRideRequest(raw).catch(() => {});
+    await startRideAlertSound().catch(() => {});
+  } catch (e) {
+    console.warn('[fcmDirect] foreground:', e?.message);
+  }
+}
+
 let fgUnsub = null;
 
 /** Registra o handler de foreground (app aberto). Idempotente. */
@@ -100,8 +125,9 @@ export function registerFcmForegroundHandler() {
   const messaging = getMessaging();
   if (!messaging || fgUnsub) return () => {};
   try {
+    // onMessage SÓ dispara com o app em foreground -> usa o card interno.
     fgUnsub = messaging().onMessage(async (remoteMessage) => {
-      await handleFcmRideAlert(remoteMessage?.data);
+      await handleFcmRideAlertForeground(remoteMessage?.data);
     });
   } catch (e) {
     console.warn('[fcmDirect] onMessage:', e?.message);
