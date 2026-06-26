@@ -562,28 +562,38 @@ const HomeScreen = () => {
   const SHEET_PEEK = 60; // quanto fica visível (alça) quando recolhido
   const sheetHeightRef = useRef(0);
   const sheetTranslate = useRef(new Animated.Value(0)).current; // 0 = expandido, + = recolhido (desce)
-  const sheetCollapsedRef = useRef(false);
+  const sheetTargetRef = useRef(0); // posição atual em px: 0=expandido, meio, max=recolhido
+  // 3 posições estilo Uber/99: expandido (0), médio (~45%), recolhido (peek).
+  const sheetSnapTargets = () => {
+    const h = sheetHeightRef.current || 320;
+    const max = Math.max(0, h - SHEET_PEEK);
+    return { expanded: 0, middle: Math.round(max * 0.45), collapsed: max, max };
+  };
   const sheetPan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5 && Math.abs(g.dy) > Math.abs(g.dx),
       onPanResponderMove: (_, g) => {
-        const h = sheetHeightRef.current || 320;
-        const max = Math.max(0, h - SHEET_PEEK);
-        const base = sheetCollapsedRef.current ? max : 0;
-        let next = base + g.dy; // dy>0 (pra baixo) recolhe
+        const { max } = sheetSnapTargets();
+        let next = sheetTargetRef.current + g.dy; // dy>0 (pra baixo) recolhe
         if (next < 0) next = 0;
         if (next > max) next = max;
         sheetTranslate.setValue(next);
       },
       onPanResponderRelease: (_, g) => {
-        const h = sheetHeightRef.current || 320;
-        const max = Math.max(0, h - SHEET_PEEK);
-        let collapse;
-        if (g.dy > 40 || g.vy > 0.5) collapse = true;       // pra baixo -> recolhe
-        else if (g.dy < -40 || g.vy < -0.5) collapse = false; // pra cima -> expande
-        else collapse = sheetCollapsedRef.current;
-        sheetCollapsedRef.current = collapse;
-        Animated.spring(sheetTranslate, { toValue: collapse ? max : 0, useNativeDriver: true, bounciness: 2, speed: 16 }).start();
+        const { expanded, middle, collapsed } = sheetSnapTargets();
+        const current = sheetTargetRef.current + g.dy;
+        let target;
+        if (g.vy > 0.6) target = collapsed;        // jogou pra baixo
+        else if (g.vy < -0.6) target = expanded;   // jogou pra cima
+        else {
+          // snap pro mais próximo dos 3 pontos
+          target = [expanded, middle, collapsed].reduce(
+            (a, b) => (Math.abs(b - current) < Math.abs(a - current) ? b : a),
+            expanded
+          );
+        }
+        sheetTargetRef.current = target;
+        Animated.spring(sheetTranslate, { toValue: target, useNativeDriver: true, bounciness: 2, speed: 16 }).start();
       },
     })
   ).current;
@@ -754,12 +764,12 @@ const HomeScreen = () => {
       return () => sensorLoopRef.current?.stop();
     }
 
+    // Pulso contínuo (0 -> 1) do halo dos carros próximos. useNativeDriver:false
+    // de propósito: o marker do mapa precisa re-renderizar (tracksViewChanges) a
+    // cada frame para a animação aparecer sobre o mapa.
+    sensorAnim.setValue(0);
     sensorLoopRef.current = Animated.loop(
-      Animated.sequence([
-        Animated.timing(sensorAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(sensorAnim, { toValue: 0.3, duration: 300, useNativeDriver: true }),
-        Animated.delay(1200),
-      ])
+      Animated.timing(sensorAnim, { toValue: 1, duration: 1600, useNativeDriver: false })
     );
     sensorLoopRef.current.start();
 
@@ -822,6 +832,11 @@ const HomeScreen = () => {
   const [isNoDestination, setIsNoDestination] = useState(false);
   
   const [pickupCoords, setPickupCoords] = useState(null);
+  // Modo "ajustar embarque no mapa" (pin fixo no centro, mapa se move embaixo — estilo Uber)
+  const [adjustingPickup, setAdjustingPickup] = useState(false);
+  const [pendingPickupLabel, setPendingPickupLabel] = useState('');
+  const pendingPickupCoordsRef = useRef(null);
+  const adjustGeocodeTimer = useRef(null);
   const [destCoords, setDestCoords] = useState(null);
   const [rideDetails, setRideDetails] = useState({ distance: 0, time: 0, arrivalTime: 0 });
   const [routePoints, setRoutePoints] = useState([]);
@@ -1960,9 +1975,23 @@ const HomeScreen = () => {
         onRegionChangeComplete={(region, details) => {
           // só marca como "usuário mexeu" se foi gesto (não em animações nossas)
           if (details?.isGesture) userMovedMapRef.current = true;
+          // Modo ajuste: o centro do mapa é o embarque; resolve o endereço (debounce).
+          if (adjustingPickup) {
+            pendingPickupCoordsRef.current = { latitude: region.latitude, longitude: region.longitude };
+            setPendingPickupLabel('Buscando endereço…');
+            if (adjustGeocodeTimer.current) clearTimeout(adjustGeocodeTimer.current);
+            adjustGeocodeTimer.current = setTimeout(async () => {
+              try {
+                const { label, displayName } = await reverseGeocodeLocation(region.latitude, region.longitude);
+                setPendingPickupLabel(label || displayName || 'Local selecionado');
+              } catch (_) {
+                setPendingPickupLabel('Local selecionado');
+              }
+            }, 450);
+          }
         }}
       >
-        {pickupCoords && (
+        {pickupCoords && !adjustingPickup && (
         <Marker
           coordinate={pickupCoords}
           zIndex={10}
@@ -2040,23 +2069,31 @@ const HomeScreen = () => {
 
         {!driverDetails && Array.isArray(nearbyDrivers) && nearbyDrivers
           .filter(dr => dr && !isNaN(parseFloat(dr.latitude)) && !isNaN(parseFloat(dr.longitude)) && parseFloat(dr.latitude) !== 0 && parseFloat(dr.longitude) !== 0)
+          .slice(0, 10)
           .map(dr => (
             <Marker
               key={`nearby-${dr.id}`}
               coordinate={{ latitude: parseFloat(dr.latitude), longitude: parseFloat(dr.longitude) }}
-            tracksViewChanges={false}
-          >
-            <Animated.View style={{ 
-              width: 40, height: 40, 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              opacity: sensorAnim,
-              transform: [{ scale: sensorAnim.interpolate({ inputRange: [0.3, 1], outputRange: [1, 1.15] }) }] 
-            }}>
-                <Icon name="directions-car" size={26} color={colors.primary} />
-            </Animated.View>
-          </Marker>
-        ))}
+              anchor={{ x: 0.5, y: 0.5 }}
+              tracksViewChanges={true}
+            >
+              <View style={{ width: 58, height: 58, justifyContent: 'center', alignItems: 'center' }}>
+                {/* halo pulsante: sinaliza que há veículos por perto */}
+                <Animated.View
+                  style={{
+                    position: 'absolute', width: 58, height: 58, borderRadius: 29,
+                    backgroundColor: 'rgba(34,197,94,0.22)',
+                    opacity: sensorAnim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }),
+                    transform: [{ scale: sensorAnim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }) }],
+                  }}
+                />
+                {/* carro sólido — sempre visível */}
+                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#0B1220', borderWidth: 2, borderColor: '#22C55E', justifyContent: 'center', alignItems: 'center' }}>
+                  <Icon name="directions-car" size={17} color="#22C55E" />
+                </View>
+              </View>
+            </Marker>
+          ))}
       </MapView>
     );
   };
@@ -2294,6 +2331,75 @@ const HomeScreen = () => {
         </TouchableOpacity>
       )}
 
+      {/* Pin fixo no centro (modo ajustar embarque — o mapa se move embaixo) */}
+      {adjustingPickup && (
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 950 }}>
+          <View style={{ alignItems: 'center', marginBottom: 44 }}>
+            <View style={{ backgroundColor: '#0B1220', borderColor: '#22C55E', borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, marginBottom: 6 }}>
+              <Text style={{ color: '#F1F5F9', fontWeight: '700', fontSize: 12 }}>Arraste o mapa</Text>
+            </View>
+            <Icon name="place" size={46} color="#22C55E" />
+          </View>
+        </View>
+      )}
+
+      {/* Entrar no modo "ajustar embarque no mapa" (só antes de escolher destino) */}
+      {!adjustingPickup && !driverDetails && !isSearchingDriver && !isChoosingDestination && !destCoords && pickupCoords && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => {
+            pendingPickupCoordsRef.current = pickupCoords;
+            setPendingPickupLabel((pickup || '').split('(')[0].trim() || 'Buscando endereço…');
+            userMovedMapRef.current = true;
+            setAdjustingPickup(true);
+            if (mapRef.current) {
+              mapRef.current.animateToRegion({ ...pickupCoords, latitudeDelta: 0.006, longitudeDelta: 0.006 }, 400);
+            }
+          }}
+          style={{
+            position: 'absolute', right: 16, bottom: 286, zIndex: 900,
+            flexDirection: 'row', alignItems: 'center',
+            backgroundColor: '#131C2E', borderWidth: 1, borderColor: '#243049',
+            paddingHorizontal: 12, height: 40, borderRadius: 20,
+            elevation: 6, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+          }}
+        >
+          <Icon name="edit-location" size={18} color="#22C55E" />
+          <Text style={{ color: '#F1F5F9', fontWeight: '700', fontSize: 12, marginLeft: 6 }}>Ajustar no mapa</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Barra de confirmação do embarque (modo ajuste) */}
+      {adjustingPickup && (
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 1200, backgroundColor: '#131C2E', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 36 : 24, borderTopWidth: 1, borderColor: '#243049' }}>
+          <Text style={{ color: '#94A3B8', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Local de embarque</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+            <Icon name="place" size={22} color="#22C55E" style={{ marginRight: 8 }} />
+            <Text numberOfLines={2} style={{ flex: 1, color: '#F1F5F9', fontSize: 16, fontWeight: '600' }}>{pendingPickupLabel || 'Local selecionado'}</Text>
+          </View>
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity
+              onPress={() => { if (adjustGeocodeTimer.current) clearTimeout(adjustGeocodeTimer.current); setAdjustingPickup(false); }}
+              style={{ width: 56, height: 54, borderRadius: 16, borderWidth: 1, borderColor: '#243049', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}
+            >
+              <Icon name="close" size={22} color="#94A3B8" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                if (adjustGeocodeTimer.current) clearTimeout(adjustGeocodeTimer.current);
+                const c = pendingPickupCoordsRef.current;
+                if (c) { setPickupCoords(c); setPickup(pendingPickupLabel || 'Local selecionado'); }
+                setAdjustingPickup(false);
+              }}
+              style={{ flex: 1, height: 54, borderRadius: 16, backgroundColor: '#22C55E', justifyContent: 'center', alignItems: 'center' }}
+            >
+              <Text style={{ color: '#06210F', fontSize: 16, fontWeight: '900' }}>Confirmar embarque</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Side Menu Overlay */}
       {isMenuOpen && (
         <Overlay activeOpacity={1} onPress={toggleMenu} />
@@ -2436,7 +2542,8 @@ const HomeScreen = () => {
         style={{ transform: [{ translateY: sheetTranslate }] }}
         expanded={isSelecting || isSearchingDriver || !!driverDetails}
       >
-        <View {...sheetPan.panHandlers} hitSlop={{ top: 12, bottom: 12, left: 100, right: 100 }} style={{ alignItems: 'center', paddingTop: 4, paddingBottom: 6 }}>
+        {/* Faixa de arraste maior (cabeçalho), não só a alça de 40px */}
+        <View {...sheetPan.panHandlers} hitSlop={{ top: 16, bottom: 16, left: 140, right: 140 }} style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 16 }}>
           <Handle />
         </View>
         <ContentPadding>
