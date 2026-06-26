@@ -98,6 +98,7 @@ module.exports = ({ config }) => {
     buildProps,
     fontPlugin,
     '@react-native-firebase/app',
+    '@react-native-firebase/messaging',
     './plugins/withAndroidRideAlerts.js',
     ...rest,
   ];
