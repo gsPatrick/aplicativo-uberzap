@@ -2612,7 +2612,7 @@ const HomeScreen = () => {
                 </ScrollView>
               )}
 
-              <View style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 12, marginBottom: 10 }}>
+              <View style={{ backgroundColor: '#1B2740', borderRadius: 12, padding: 12, marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Icon name="local-offer" size={20} color={appliedCoupon ? colors.primary : "#64748b"} />
                   <TextInput 
@@ -2620,7 +2620,8 @@ const HomeScreen = () => {
                     value={couponCode}
                     onChangeText={setCouponCode}
                     autoCapitalize="characters"
-                    style={{ flex: 1, marginLeft: 10, fontSize: 14, color: colors.secondary }}
+                    placeholderTextColor="#64748B"
+                    style={{ flex: 1, marginLeft: 10, fontSize: 14, color: colors.text }}
                   />
                   <TouchableOpacity 
                     onPress={handleApplyCoupon}
@@ -2638,7 +2639,7 @@ const HomeScreen = () => {
               </View>
 
               <View style={{ marginTop: 10, marginBottom: 15 }}>
-                <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.secondary, marginBottom: 10 }}>Forma de Pagamento:</Text>
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text, marginBottom: 10 }}>Forma de Pagamento:</Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   {paymentOptions.map((opt) => (
                     <TouchableOpacity 
@@ -2651,8 +2652,8 @@ const HomeScreen = () => {
                         paddingHorizontal: 5,
                         borderRadius: 10, 
                         borderWidth: 2, 
-                        borderColor: paymentMethod.id === opt.id ? colors.primary : '#f1f5f9',
-                        backgroundColor: paymentMethod.id === opt.id ? colors.primary + '10' : '#fff',
+                        borderColor: paymentMethod.id === opt.id ? colors.primary : '#243049',
+                        backgroundColor: paymentMethod.id === opt.id ? colors.primary + '22' : '#1B2740',
                         alignItems: 'center',
                         justifyContent: 'center'
                       }}
@@ -2691,7 +2692,7 @@ const HomeScreen = () => {
                   </Text>
                 )}
               </ConfirmButton>
-              <Text style={{ fontSize: 10, color: '#999', textAlign: 'center', marginTop: 8 }}>
+              <Text style={{ fontSize: 10, color: '#94A3B8', textAlign: 'center', marginTop: 8 }}>
                 * Taxa de cancelamento de R$ 5,00 caso cancele após 5 min do aceite.
               </Text>
             </>
@@ -2712,7 +2713,7 @@ const HomeScreen = () => {
                   </ScrollView>
                 </View>
               )}
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1a1a1a', marginBottom: 5 }}>Para onde vamos hoje?</Text>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#F1F5F9', marginBottom: 5 }}>Para onde vamos hoje?</Text>
               <Text style={{ color: colors.textSecondary, marginBottom: 20 }}>Escolha um destino para ver os preços.</Text>
               
               <MainSearchButton 
@@ -2734,18 +2735,18 @@ const HomeScreen = () => {
                 <Text style={{ color: colors.primary, marginLeft: 8, fontWeight: '600' }}>Estou sem destino (Taxímetro)</Text>
               </TouchableOpacity>
 
-              <View style={{ marginTop: 25, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 15 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: '#999', marginBottom: 15 }}>HISTÓRICO RECENTE</Text>
+              <View style={{ marginTop: 25, borderTopWidth: 1, borderTopColor: '#243049', paddingTop: 15 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#94A3B8', marginBottom: 15 }}>HISTÓRICO RECENTE</Text>
                 {recentLocations.length > 0 ? recentLocations.map((loc, idx) => (
                   <SearchResultItem key={idx} onPress={() => selectDestination(loc)} style={{ paddingHorizontal: 0, borderBottomWidth: 0 }}>
-                    <ResultIcon style={{ backgroundColor: '#f5f5f5', width: 36, height: 36 }}><Icon name="history" size={18} color="#999" /></ResultIcon>
+                    <ResultIcon style={{ backgroundColor: '#1B2740', width: 36, height: 36 }}><Icon name="history" size={18} color="#94A3B8" /></ResultIcon>
                     <ResultTextContainer>
                       <ResultTitle style={{ fontSize: 14 }}>{loc.title}</ResultTitle>
                       <ResultSubtitle style={{ fontSize: 12 }}>{loc.subtitle}</ResultSubtitle>
                     </ResultTextContainer>
                   </SearchResultItem>
                 )) : (
-                  <Text style={{ color: '#ccc', fontSize: 13, textAlign: 'center', marginTop: 10 }}>Sem viagens recentes</Text>
+                  <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', marginTop: 10 }}>Sem viagens recentes</Text>
                 )}
               </View>
             </>
