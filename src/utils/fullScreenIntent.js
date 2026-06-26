@@ -3,7 +3,7 @@
  * Sem ela, o alerta de corrida NÃO abre em tela cheia (estilo ligação) com o
  * celular bloqueado — vira só uma notificação. É obrigatória pro motorista.
  */
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 import Constants from 'expo-constants';
 
 function getPackage() {
@@ -26,6 +26,37 @@ export async function canUseFullScreenIntent() {
   } catch (_) {
     return true;
   }
+}
+
+let promptingFsi = false;
+
+/**
+ * Se a permissão de tela cheia NÃO estiver ativa, mostra um alerta obrigatório
+ * (não-cancelável) levando o usuário pra ativar. Chamável de qualquer tela.
+ * @returns {Promise<boolean>} true se já estava ativa.
+ */
+export async function promptFullScreenIfNeeded() {
+  if (Platform.OS !== 'android') return true;
+  if (promptingFsi) return false;
+  const ok = await canUseFullScreenIntent().catch(() => true);
+  if (ok) return true;
+  promptingFsi = true;
+  Alert.alert(
+    'Ative a chamada em tela cheia',
+    'Obrigatório para não perder corridas: ative "Notificações em tela cheia" para o UbeZap. Assim o chamado abre em TELA CHEIA mesmo com o celular bloqueado.',
+    [
+      { text: 'Agora não', style: 'cancel', onPress: () => { promptingFsi = false; } },
+      {
+        text: 'Ativar',
+        onPress: async () => {
+          await openFullScreenIntentSettings().catch(() => {});
+          promptingFsi = false;
+        },
+      },
+    ],
+    { cancelable: false }
+  );
+  return false;
 }
 
 /** Abre a tela do sistema pra ativar "notificações em tela cheia" do app. */

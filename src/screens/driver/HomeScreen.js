@@ -20,6 +20,7 @@ import {
 import { requestDriverPermissionsFlow, ensureDriverCanGoOnline } from '../../utils/driverPermissions';
 import { startRideAlertSound, stopRideAlertSound, isRideAlertSoundPlaying } from '../../utils/rideAlertSound';
 import { wakeScreenForRideAlert } from '../../utils/androidOverlay';
+import { promptFullScreenIfNeeded } from '../../utils/fullScreenIntent';
 import {
     parseCoordinate,
     isNoDestinationRide,
@@ -243,6 +244,17 @@ const DriverHomeScreen = () => {
         interval = setInterval(fetchNearby, 25000);
         return () => { if (interval) clearInterval(interval); };
     }, [driver.cidade_id, isFocused]);
+
+    // OBRIGATÓRIO: se a permissão de tela cheia não estiver ativa, mostra o
+    // pedido aqui na Home (fora do login) — ao abrir e ao voltar do background.
+    useEffect(() => {
+        const t = setTimeout(() => { promptFullScreenIfNeeded().catch(() => {}); }, 1200);
+        const sub = AppState.addEventListener('change', (s) => {
+            if (s === 'active') promptFullScreenIfNeeded().catch(() => {});
+        });
+        return () => { clearTimeout(t); sub.remove(); };
+    }, []);
+
     const [sessionId, setSessionId] = useState(null);
     const [earnings, setEarnings] = useState('0,00');
     const [earningsPeriod, setEarningsPeriod] = useState('hoje'); // hoje | semana | mes | total
