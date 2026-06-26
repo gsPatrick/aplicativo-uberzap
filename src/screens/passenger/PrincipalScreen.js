@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StatusBar, SafeAreaView, TouchableOpacity, ScrollView, Image, Dimensions, Animated, Platform, ActivityIndicator, Linking } from 'react-native';
 import styled from 'styled-components/native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from '../../components/AppIcon';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
 import SmartImage from '../../components/SmartImage';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Image, View } from 'react-native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from './AppIcon';
 import api from '../services/api';
 
 /**

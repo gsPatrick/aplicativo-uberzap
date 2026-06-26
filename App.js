@@ -40,8 +40,6 @@ import {
 import RideRequestScreen from './src/screens/driver/RideRequestScreen';
 import NotificationPopup from 'react-native-push-notification-popup';
 import * as Notifications from 'expo-notifications';
-import { useFonts } from 'expo-font';
-import { MaterialIcons } from '@expo/vector-icons';
 
 const appVariant =
   Constants.expoConfig?.extra?.appVariant ||
@@ -141,23 +139,9 @@ export default function App() {
   const [initialRoute, setInitialRoute] = React.useState(null);
   const popupRef = React.useRef(null);
 
-  // Garante que a fonte de ícones (MaterialIcons) esteja registrada ANTES de
-  // qualquer ícone ser pintado. No SDK 53/Android o auto-load do
-  // @expo/vector-icons corre com o primeiro paint e os glifos somem; segurar o
-  // render até `fontsLoaded` elimina essa race. (Ver também o plugin expo-font.)
-  const [fontsLoaded, fontError] = useFonts({
-    ...MaterialIcons.font,
-  });
-  // Espera a fonte de ícones REALMENTE carregar (até 4s). Antes caíamos na hora
-  // quando `fontError` aparecia, o que pintava os ícones ANTES da fonte registrar
-  // (glifos sumiam no Android release). Agora damos tempo do load concluir; se
-  // estourar 4s, seguimos (a fonte também está embutida no binário via expo-font).
-  const [fontWaitTimeout, setFontWaitTimeout] = React.useState(false);
-  React.useEffect(() => {
-    const t = setTimeout(() => setFontWaitTimeout(true), 4000);
-    return () => clearTimeout(t);
-  }, []);
-  const fontsReady = fontsLoaded || fontWaitTimeout;
+  // Ícones agora são SVG (src/components/AppIcon via lucide) — não dependem de
+  // carregar fonte, então nada de gate de fonte aqui (some a race do Android e
+  // o cold start fica mais rápido).
 
   React.useEffect(() => {
     if (appVariant !== 'driver') return undefined;
@@ -400,10 +384,8 @@ export default function App() {
     };
   }, []);
 
-  // Segura o render até a fonte de ícones (MaterialIcons) estar registrada E a
-  // rota inicial resolvida. Sem o gate de `fontsLoaded`, no Android release os
-  // glifos podem pintar antes do font load assíncrono e ficar invisíveis.
-  if (!initialRoute || !fontsReady) {
+  // Só espera a rota inicial resolver (ícones SVG não precisam de fonte).
+  if (!initialRoute) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0B1220' }}>
         <ActivityIndicator size="large" color="#22C55E" />

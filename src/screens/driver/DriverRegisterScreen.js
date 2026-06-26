@@ -15,7 +15,7 @@ import {
   Dimensions,
 } from 'react-native';
 import styled from 'styled-components/native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '../../components/AppIcon';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing } from '../../theme/tokens';
 import api from '../../services/api';

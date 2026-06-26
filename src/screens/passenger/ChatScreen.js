@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, StatusBar, ActivityIndicator, Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import styled from 'styled-components/native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from '../../components/AppIcon';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors, spacing } from '../../theme/tokens';
 import api from '../../services/api';

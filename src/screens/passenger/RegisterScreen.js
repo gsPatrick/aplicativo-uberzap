@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Modal, FlatList, Image } from 'react-native';
 import styled from 'styled-components/native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '../../components/AppIcon';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
 import { useNavigation } from '@react-navigation/native';

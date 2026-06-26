@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StatusBar, SafeAreaView, TouchableOpacity, ScrollView, StyleSheet, Platform, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import styled from 'styled-components/native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from '../../components/AppIcon';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import { useNavigation } from '@react-navigation/native';
 import api from '../../services/api';

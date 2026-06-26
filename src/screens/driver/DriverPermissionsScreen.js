@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StatusBar, Platform, Linking, AppState } from 'react-native';
 import styled from 'styled-components/native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from '../../components/AppIcon';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';

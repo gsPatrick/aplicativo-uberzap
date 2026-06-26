@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StatusBar, TouchableOpacity, Animated, Dimensions, StyleSheet, SafeAreaView, Alert, Linking, Platform, Modal, Pressable, ActivityIndicator, BackHandler } from 'react-native';
 import styled from 'styled-components/native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from '../../components/AppIcon';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import Constants from 'expo-constants';

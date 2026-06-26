@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StatusBar, TouchableOpacity, ScrollView, TextInput, Alert, StyleSheet, Platform, ActivityIndicator, Image } from 'react-native';
 import styled from 'styled-components/native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from '../../components/AppIcon';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import { useNavigation, useRoute } from '@react-navigation/native';

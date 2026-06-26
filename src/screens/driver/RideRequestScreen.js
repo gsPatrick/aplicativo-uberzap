@@ -10,7 +10,7 @@ import {
   Alert,
   Animated,
 } from 'react-native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from '../../components/AppIcon';
 import Constants from 'expo-constants';
 import { colors } from '../../theme/tokens';
 import { getSession } from '../../utils/session';

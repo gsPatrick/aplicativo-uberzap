@@ -4,7 +4,7 @@ import { View, Text, StatusBar, SafeAreaView, Switch, TouchableOpacity, Animated
 import * as Location from 'expo-location';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import styled from 'styled-components/native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from '../../components/AppIcon';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import { useNavigation, useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';

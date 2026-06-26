@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StatusBar, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator, Alert, TextInput, Platform, ImageBackground, Animated, PanResponder, Image, StyleSheet, LayoutAnimation, UIManager, Dimensions, AppState } from 'react-native';
 import * as Location from 'expo-location';
 import styled from 'styled-components/native';
-import Icon from '@expo/vector-icons/MaterialIcons';
+import Icon from '../../components/AppIcon';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
 import api from '../../services/api';
 import SmartImage from '../../components/SmartImage';
