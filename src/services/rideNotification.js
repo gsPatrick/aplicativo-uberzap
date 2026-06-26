@@ -17,9 +17,12 @@ async function getNotifee() {
   }
 }
 
-// v2: canal recriado com importância MAX + som. Bumpar o id força o Android a
-// criar um canal novo (canais são imutáveis — o antigo podia estar sem som).
-export const RIDE_REQUEST_CHANNEL_ID = 'ride-requests-v2';
+// v3: canal recriado com som CUSTOMIZADO (toque_status, em res/raw via
+// expo-notifications). Bumpar o id força o Android a criar um canal novo
+// (canais são imutáveis) — agora toca nativamente MESMO COM O APP MORTO.
+export const RIDE_REQUEST_CHANNEL_ID = 'ride-requests-v3';
+// Nome do som em android/app/src/main/res/raw (sem extensão).
+const RIDE_ALERT_SOUND = 'toque_status';
 export const RIDE_REQUEST_TIMEOUT_MS = 30000;
 
 /** @typedef {import('./rideRequestController').RideRequest} RideRequest */
@@ -64,7 +67,7 @@ export async function setupRideNotificationChannel() {
     name: 'Solicitações de Corrida',
     importance: AndroidImportance.MAX,
     visibility: AndroidVisibility.PUBLIC,
-    sound: 'default',
+    sound: RIDE_ALERT_SOUND,
     vibration: true,
     vibrationPattern: [300, 500, 300, 500, 300, 500],
     lights: true,
@@ -102,12 +105,26 @@ export async function showRideRequestNotification(ride) {
     AndroidImportance,
     AndroidVisibility,
     AndroidCategory,
+    AndroidStyle,
   } = require('@notifee/react-native');
 
   await setupRideNotificationChannel();
 
   const pickup = String(ride.pickupAddress || '').split('(')[0].trim();
   const dest = String(ride.dropoffAddress || '').split('(')[0].trim();
+  const priceTxt = `R$ ${Number(ride.price || 0).toFixed(2).replace('.', ',')}`;
+  const payMap = { pix: 'Pix', cartao: 'Cartão', dinheiro: 'Dinheiro' };
+  const payTxt = payMap[ride.paymentMethod] || 'Dinheiro';
+  const ratingTxt = ride.passengerRating ? `⭐ ${Number(ride.passengerRating).toFixed(1)}` : '';
+  const kmTxt = ride.distanceKm ? `${Number(ride.distanceKm).toFixed(1).replace('.', ',')} km` : '';
+  const minTxt = ride.estimatedMinutes ? `~${ride.estimatedMinutes} min` : '';
+  // Texto expandido (BigText) — mostra TODAS as infos da corrida no card.
+  const bigText =
+    `💰 ${priceTxt}  •  ${payTxt}\n` +
+    `👤 ${ride.passengerName || 'Passageiro'} ${ratingTxt}\n` +
+    `📍 Embarque: ${pickup}\n` +
+    `🏁 Destino: ${dest}` +
+    (kmTxt || minTxt ? `\n📏 ${[kmTxt, minTxt].filter(Boolean).join('  •  ')}` : '');
 
   const compactPayload = JSON.stringify({
     rideId: ride.rideId,
@@ -136,7 +153,8 @@ export async function showRideRequestNotification(ride) {
     importance: AndroidImportance.HIGH,
     visibility: AndroidVisibility.PUBLIC,
     category: AndroidCategory.CALL,
-    sound: 'default',
+    sound: RIDE_ALERT_SOUND,
+    style: { type: AndroidStyle.BIGTEXT, text: bigText },
     vibrationPattern: [300, 500, 300, 500, 300, 500],
     lightUpScreen: true,
     pressAction: { id: 'default', launchActivity: 'default' },
@@ -164,8 +182,8 @@ export async function showRideRequestNotification(ride) {
 
   await notifee.displayNotification({
     id: `ride-${ride.rideId}`,
-    title: `Nova corrida — R$ ${ride.price.toFixed(2).replace('.', ',')}`,
-    body: `${ride.passengerName} • ${pickup} → ${dest}`,
+    title: `🚕 Nova corrida — ${priceTxt}`,
+    body: `${ride.passengerName || 'Passageiro'} • ${pickup} → ${dest}`,
     data: {
       type: 'ride_request',
       ride: compactPayload,

@@ -73,7 +73,8 @@
           "icon": "./assets/images/icon-passenger-store.png",
           "color": "#3AB56B",
           "defaultChannel": "default",
-          "enableBackgroundRemoteNotifications": true
+          "enableBackgroundRemoteNotifications": true,
+          "sounds": ["./assets/sounds/toque_status.mp3"]
         }
       ]
     ],
