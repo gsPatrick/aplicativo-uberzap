@@ -31,7 +31,7 @@ module.exports = ({ config }) => {
    * versionName é só rótulo de exibição (não afeta a aceitação da atualização).
    */
   // Mesma versão para motorista e passageiro (pedido do cliente).
-  const versionName = '3.02';
+  const versionName = '3.0002';
   const versionCode = 30002;
 
   /**
