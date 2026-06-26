@@ -62,6 +62,8 @@ module.exports = ({ config }) => {
       },
       ios: {
         newArchEnabled: false,
+        // @react-native-firebase exige frameworks estáticos no iOS.
+        useFrameworks: 'static',
       },
     },
   ];
@@ -95,6 +97,7 @@ module.exports = ({ config }) => {
   const plugins = [
     buildProps,
     fontPlugin,
+    '@react-native-firebase/app',
     './plugins/withAndroidRideAlerts.js',
     ...rest,
   ];

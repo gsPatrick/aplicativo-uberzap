@@ -31,6 +31,7 @@ import {
 import { isPermissionsOnboarded } from './src/utils/driverPermissions';
 import { recordRemotePush, rideAlertKey, tripStatusKey } from './src/utils/notificationDedup';
 import { registerBackgroundRideNotificationTask } from './src/services/backgroundRideNotification';
+import { getAndSaveFcmToken, registerFcmForegroundHandler } from './src/services/fcmDirect';
 import {
   presentRideRequest,
   processPendingRideActions,
@@ -331,10 +332,13 @@ export default function App() {
       if (appVariant === 'driver') {
         setupRideNotificationChannel().catch(() => {});
         registerBackgroundRideNotificationTask().catch(() => {});
+        registerFcmForegroundHandler(); // FCM direto: alerta com app aberto
         try {
           await driverRideMonitor.restoreState();
           const session = await getSession();
           if (session?.id) {
+            // FCM direto: token nativo p/ overlay com app morto
+            getAndSaveFcmToken(session.id).catch(() => {});
             await driverRideMonitor.updateConfig({
               sessionId: session.id,
               cidadeId: session.cidade_id || 1,

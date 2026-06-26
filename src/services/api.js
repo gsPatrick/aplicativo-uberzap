@@ -353,6 +353,11 @@ const api = {
       if (CONFIG.USE_MOCKS) return { data: { status: 'ok' } };
       return axiosInstance.post('motoristas/salva_push_token.php', toFormData({ id_motorista, id_signal }));
     },
+    /** Token FCM nativo (@react-native-firebase) — push direto p/ overlay com app morto. */
+    saveFcmToken: async (id_motorista, fcm_token) => {
+      if (CONFIG.USE_MOCKS) return { data: { status: 'ok' } };
+      return axiosInstance.post('motoristas/salva_fcm_token.php', toFormData({ id_motorista, fcm_token }));
+    },
     updateLocation: async (id_motorista, status, latitude, longitude) => {
         if (CONFIG.USE_MOCKS) return { data: 'ok' };
         return axiosInstance.post('motoristas/atualiza_local.php', toFormData({ id_motorista, status, latitude, longitude }));
