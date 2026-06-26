@@ -106,6 +106,7 @@ export async function showRideRequestNotification(ride) {
     AndroidVisibility,
     AndroidCategory,
     AndroidStyle,
+    AndroidForegroundServiceType,
   } = require('@notifee/react-native');
 
   await setupRideNotificationChannel();
@@ -168,9 +169,13 @@ export async function showRideRequestNotification(ride) {
         pressAction: { id: 'decline' },
       },
     ],
-    timeoutAfter: RIDE_REQUEST_TIMEOUT_MS,
     autoCancel: false,
     ongoing: true,
+    // Foreground service de ÁUDIO: o serviço (registrado em rideAlertSound)
+    // toca o som em LOOP até aceitar/recusar, mesmo com o app MORTO e a tela
+    // ligada ou apagada. tipo mediaPlayback (exigido no Android 14+).
+    asForegroundService: true,
+    foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK],
   };
 
   if (canFullScreen) {

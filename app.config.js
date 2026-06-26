@@ -99,6 +99,8 @@ module.exports = ({ config }) => {
     // dos mods é inversa à do array). Resolve o conflito de meta-data FCM entre
     // expo-notifications e @react-native-firebase/messaging (tools:replace).
     './plugins/withFirebaseManifestFix.js',
+    // Tipo mediaPlayback no foreground service do Notifee (Android 14+).
+    './plugins/withNotifeeMediaForegroundService.js',
     buildProps,
     fontPlugin,
     '@react-native-firebase/app',
