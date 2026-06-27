@@ -27,6 +27,7 @@ import {
     buildTaximeterRide,
     serverStatusToTaximeterStatus,
     animateMapToCoords,
+    followMapToCoords,
 } from '../../utils/driverRideUtils';
 import { safeRemoveLocationSubscriptionAsync } from '../../utils/locationSubscription';
 import { startRideForegroundService, stopRideForegroundService } from '../../services/rideForegroundService';
@@ -188,7 +189,8 @@ const DriverHomeScreen = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuAnim = useRef(new Animated.Value(-width * 0.8)).current;
     const mapRef = useRef(null);
-    const didCenterMapRef = useRef(false); // centra o mapa só na 1ª localização (não briga com o zoom/pan)
+    const didCenterMapRef = useRef(false); // 1ª localização: aplica o zoom inicial
+    const followMapRef = useRef(true); // modo "seguir": câmera acompanha o motorista em tempo real
 
     // Saldo colapsável estilo nativo: arrasta a alça (header fica fixo, saldo encolhe)
     const collapseAnim = useRef(new Animated.Value(0)).current; // 0 = expandido, 1 = recolhido
@@ -607,11 +609,16 @@ const DriverHomeScreen = () => {
             console.warn('Erro ao atualizar localização:', e);
         }
         
-        // Centra o mapa só na PRIMEIRA localização. Depois respeita o zoom/pan do usuário
-        // (o botão "minha localização" recentra manualmente quando ele quiser).
-        if (mapRef.current && location && location.coords && !didCenterMapRef.current) {
-            didCenterMapRef.current = true;
-            animateMapToCoords(mapRef, location.coords);
+        // Mapa em TEMPO REAL: a câmera segue o motorista a cada atualização de GPS.
+        // Na 1ª vez aplica o zoom inicial; depois só move o centro (preserva o zoom).
+        // Se o usuário arrastar o mapa, o "seguir" desliga até ele tocar em recentrar.
+        if (mapRef.current && location?.coords) {
+            if (!didCenterMapRef.current) {
+                didCenterMapRef.current = true;
+                animateMapToCoords(mapRef, location.coords);
+            } else if (followMapRef.current) {
+                followMapToCoords(mapRef, location.coords);
+            }
         }
     };
 
@@ -667,9 +674,9 @@ const DriverHomeScreen = () => {
 
                 if (isFocused) {
                     locationSubPromise = Location.watchPositionAsync({
-                        accuracy: Location.Accuracy.Balanced,
-                        timeInterval: 15000,
-                        distanceInterval: 10
+                        accuracy: Location.Accuracy.High,
+                        timeInterval: 4000,
+                        distanceInterval: 6
                     }, (loc) => {
                         updateLocation(loc);
                     });
@@ -1129,6 +1136,7 @@ const DriverHomeScreen = () => {
                         }}
                         showsUserLocation={true}
                         showsMyLocationButton={false}
+                        onPanDrag={() => { followMapRef.current = false; }}
                     >
                         {(nearbyDrivers || [])
                           .filter(d => d && !isNaN(parseFloat(d.latitude)) && !isNaN(parseFloat(d.longitude)) && parseFloat(d.latitude) !== 0 && parseFloat(d.longitude) !== 0)
@@ -1187,7 +1195,9 @@ const DriverHomeScreen = () => {
                         )}
 
                         <FloatingButton onPress={() => {
-                            Location.getCurrentPositionAsync({}).then((loc) => {
+                            // Religa o modo "seguir" e recentra na posição atual.
+                            followMapRef.current = true;
+                            Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }).then((loc) => {
                                 animateMapToCoords(mapRef, loc.coords);
                             }).catch(() => {});
                         }}>

@@ -96,3 +96,20 @@ export const animateMapToCoords = (mapRef, coords, delta = 0.02) => {
     console.warn('animateToRegion failed:', e);
   }
 };
+
+/**
+ * Segue a posição em TEMPO REAL preservando o zoom atual do usuário.
+ * Usa animateCamera (só move o centro) — diferente do animateMapToCoords, que
+ * reseta o zoom. Ideal pra chamar a cada atualização de GPS.
+ */
+export const followMapToCoords = (mapRef, coords, duration = 700) => {
+  if (!mapRef?.current?.animateCamera || !coords?.latitude || !coords?.longitude) return;
+  try {
+    mapRef.current.animateCamera(
+      { center: { latitude: coords.latitude, longitude: coords.longitude } },
+      { duration }
+    );
+  } catch (e) {
+    // silencioso — não polui o log a cada update
+  }
+};
