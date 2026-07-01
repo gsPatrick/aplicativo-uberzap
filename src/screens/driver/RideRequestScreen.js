@@ -21,6 +21,8 @@ import {
   dismissRideRequest,
 } from '../../services/rideRequestController';
 import { RIDE_REQUEST_TIMEOUT_MS } from '../../services/rideNotification';
+import * as Location from 'expo-location';
+import { isCoordinateText, parseLatLngText, formatReverseGeocode } from '../../utils/driverRideUtils';
 import driverRideMonitor from '../../services/driverRideMonitor';
 import { startRideAlertSound, stopRideAlertSound } from '../../utils/rideAlertSound';
 import { wakeScreenForRideAlert } from '../../utils/androidOverlay';
@@ -56,6 +58,8 @@ export default function RideRequestScreen({ navigationRef }) {
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(TIMER_SECONDS);
+  // Endereços resolvidos (quando o embarque/destino vem como coordenada crua).
+  const [addrLabels, setAddrLabels] = useState({ pickup: null, dropoff: null });
   const timerRef = useRef(null);
   const progressAnim = useRef(new Animated.Value(1)).current;
   const sessionRef = useRef(null);
@@ -144,6 +148,29 @@ export default function RideRequestScreen({ navigationRef }) {
     };
   }, [openRide]);
 
+  // Quando o embarque/destino vem como COORDENADA crua (corridas do bot/API
+  // antiga), converte pra endereço legível (reverse-geocode), como no taxímetro.
+  useEffect(() => {
+    setAddrLabels({ pickup: null, dropoff: null });
+    if (!ride?.rideId) return;
+    let active = true;
+    const resolve = async (text, key) => {
+      if (!text || !isCoordinateText(text)) return;
+      try {
+        const coords = parseLatLngText(text);
+        if (!coords) return;
+        const [geo] = await Location.reverseGeocodeAsync(coords);
+        const addr = formatReverseGeocode(geo);
+        if (active && addr) {
+          setAddrLabels((prev) => ({ ...prev, [key]: addr }));
+        }
+      } catch (_) {}
+    };
+    resolve(ride.pickupAddress, 'pickup');
+    resolve(ride.dropoffAddress, 'dropoff');
+    return () => { active = false; };
+  }, [ride?.rideId]);
+
   const handleAccept = async () => {
     if (!ride?.rideId || loading) return;
     setLoading(true);
@@ -226,14 +253,18 @@ export default function RideRequestScreen({ navigationRef }) {
             <View style={styles.routeRow}>
               <Text style={styles.routeIcon}>📍</Text>
               <Text style={styles.routeText} numberOfLines={2}>
-                {ride?.pickupAddress || 'Embarque'}
+                {isCoordinateText(ride?.pickupAddress)
+                  ? (addrLabels.pickup || 'Localizando endereço…')
+                  : (ride?.pickupAddress || 'Embarque')}
               </Text>
             </View>
             <View style={styles.routeDivider} />
             <View style={styles.routeRow}>
               <Text style={styles.routeIcon}>🏁</Text>
               <Text style={styles.routeText} numberOfLines={2}>
-                {ride?.dropoffAddress || 'Destino'}
+                {isCoordinateText(ride?.dropoffAddress)
+                  ? (addrLabels.dropoff || 'Localizando endereço…')
+                  : (ride?.dropoffAddress || 'Destino')}
               </Text>
             </View>
           </View>
