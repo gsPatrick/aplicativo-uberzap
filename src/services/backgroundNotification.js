@@ -38,6 +38,11 @@ if (Platform.OS === 'android' && !IS_EXPO_GO) {
 
       handleNotifeeEvent(type, detail, EventType, {
         onAccept: async (acceptedRide) => {
+          // Para o som/loop + encerra o foreground service ANTES de tudo.
+          try {
+            const { stopRideAlertSound } = require('../utils/rideAlertSound');
+            await stopRideAlertSound();
+          } catch (_) {}
           await AsyncStorage.setItem(
             STORAGE_KEYS.PENDING_ACCEPT,
             JSON.stringify(acceptedRide)
@@ -47,6 +52,11 @@ if (Platform.OS === 'android' && !IS_EXPO_GO) {
           }
         },
         onDecline: async (declinedRide) => {
+          // Para o som/loop + encerra o foreground service.
+          try {
+            const { stopRideAlertSound } = require('../utils/rideAlertSound');
+            await stopRideAlertSound();
+          } catch (_) {}
           try {
             const sessionRaw = await AsyncStorage.getItem(SESSION_KEY);
             const session = sessionRaw ? JSON.parse(sessionRaw) : null;
