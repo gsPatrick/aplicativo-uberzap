@@ -868,15 +868,24 @@ const DriverHomeScreen = () => {
 
         if (sessionId) {
             try {
+                if (newStatus) {
+                    // Token FCM ANTES de ficar online — senão o servidor bloqueia (403).
+                    await syncDriverPushTokens({ force: true });
+                }
                 const location = await Location.getCurrentPositionAsync({});
-                await api.driver.updateLocation(
+                const res = await api.driver.updateLocation(
                     sessionId,
                     newStatus ? 1 : 0,
                     location.coords.latitude,
                     location.coords.longitude
                 );
-                if (newStatus) {
-                    await syncDriverPushTokens().catch(() => {});
+                const body = res?.data;
+                if (newStatus && body?.status === 'erro') {
+                    const codigo = body?.codigo || '';
+                    if (codigo === 'sem_fcm_token' || codigo === 'sem_token_push') {
+                        await syncDriverPushTokens({ force: true }).catch(() => {});
+                        throw new Error(body?.mensagem || 'Token de push não registrado. Permita notificações e tente de novo.');
+                    }
                 }
             } catch (e) {
                 console.log('Status push error:', e);
@@ -888,7 +897,13 @@ const DriverHomeScreen = () => {
                     isOnRide,
                     rejectedRides,
                 });
-                Alert.alert('Erro', 'Não foi possível atualizar seu status. Tente novamente.');
+                const apiMsg =
+                    e?.response?.data?.mensagem ||
+                    (typeof e?.response?.data === 'object' ? e.response.data.mensagem : null);
+                Alert.alert(
+                    'Não foi possível ficar online',
+                    apiMsg || e?.message || 'Verifique notificações e conexão, depois tente novamente.'
+                );
             }
         }
     };
