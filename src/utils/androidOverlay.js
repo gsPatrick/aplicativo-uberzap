@@ -1,5 +1,6 @@
 import { Platform, Linking, NativeModules, Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { promptRestrictedSettingsGuide } from './restrictedSettings';
 
 const { UbezapOverlay } = NativeModules;
 
@@ -165,6 +166,10 @@ export async function ensureOverlayPermission({ variant = 'driver', force = fals
         text: 'Conceder',
         onPress: async () => {
           await requestOverlayPermission();
+          const grantedAfter = await canDrawOverlays();
+          if (!grantedAfter) {
+            await promptRestrictedSettingsGuide({ context: 'overlay' });
+          }
           resolve(false);
         },
       },

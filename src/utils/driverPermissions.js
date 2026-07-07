@@ -4,11 +4,14 @@ import * as Location from 'expo-location';
 import {
   ensureNotificationPermissions,
   registerForPushNotificationsAsync,
+  getNotificationPermissionState,
+  openAppNotificationSettings,
 } from './notifications';
 import { requestRideNotificationPermission } from '../services/rideNotification';
 import { ensureOverlayPermission } from './androidOverlay';
 import { canUseFullScreenIntent, openFullScreenIntentSettings } from './fullScreenIntent';
-import { syncPushTokenWithServer } from '../services/pushSync';
+import { syncDriverPushTokens } from '../services/pushSync';
+import { openBatteryOptimizationSettings } from './batteryOptimization';
 
 const PERMISSIONS_ONBOARDED_KEY = '@UbeZap:permissionsOnboarded';
 
@@ -90,14 +93,26 @@ export async function requestDriverPermissionsFlow(options = {}) {
     result.notifee = await requestRideNotificationPermission();
 
     if (!result.notifications && !result.notifee) {
-      Alert.alert(
-        'Notificações',
-        'Ative as notificações para receber chamadas de corrida quando o app estiver em segundo plano.'
-      );
+      const perm = await getNotificationPermissionState().catch(() => ({}));
+      if (perm.denied && perm.canAskAgain === false) {
+        Alert.alert(
+          'Notificações bloqueadas',
+          'Abra as configurações do UbeZap e ative as notificações manualmente.',
+          [
+            { text: 'Depois', style: 'cancel' },
+            { text: 'Abrir configurações', onPress: () => openAppNotificationSettings().catch(() => {}) },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Notificações',
+          'Ative as notificações para receber chamadas de corrida quando o app estiver em segundo plano.'
+        );
+      }
     }
 
     result.pushToken = await registerForPushNotificationsAsync();
-    await syncPushTokenWithServer().catch(() => {});
+    await syncDriverPushTokens({ force: true }).catch(() => {});
 
     const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
     result.locationForeground = fgStatus === 'granted';
@@ -141,10 +156,10 @@ export async function requestDriverPermissionsFlow(options = {}) {
     if (Platform.OS === 'android') {
       Alert.alert(
         'Bateria',
-        'Para não perder corridas em segundo plano, desative a otimização de bateria do UbeZap nas configurações do celular.',
+        'Para não perder corridas em segundo plano (Samsung/Motorola), desative a otimização de bateria do UbeZap.',
         [
           { text: 'Depois', style: 'cancel' },
-          { text: 'Abrir configurações', onPress: () => Linking.openSettings().catch(() => {}) },
+          { text: 'Abrir configurações', onPress: () => openBatteryOptimizationSettings().catch(() => {}) },
         ]
       );
     }

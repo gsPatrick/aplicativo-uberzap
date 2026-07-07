@@ -31,7 +31,7 @@ import {
 } from '../../utils/driverRideUtils';
 import { safeRemoveLocationSubscriptionAsync } from '../../utils/locationSubscription';
 import { startRideForegroundService, stopRideForegroundService } from '../../services/rideForegroundService';
-import { syncPushTokenWithServer } from '../../services/pushSync';
+import { syncDriverPushTokens } from '../../services/pushSync';
 import { subscribeRideRequest, STORAGE_KEYS as RIDE_UI_KEYS } from '../../services/rideRequestController';
 import Constants from 'expo-constants';
 
@@ -559,7 +559,7 @@ const DriverHomeScreen = () => {
                 await syncSessionRideState();
                 if (!mounted || !sessionId) return;
 
-                await syncPushTokenWithServer().catch(() => {});
+                await syncDriverPushTokens().catch(() => {});
 
                 await resumeActiveRideIfNeeded();
                 if (!mounted) return;
@@ -876,7 +876,7 @@ const DriverHomeScreen = () => {
                     location.coords.longitude
                 );
                 if (newStatus) {
-                    await syncPushTokenWithServer().catch(() => {});
+                    await syncDriverPushTokens().catch(() => {});
                 }
             } catch (e) {
                 console.log('Status push error:', e);

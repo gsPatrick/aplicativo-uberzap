@@ -3,8 +3,8 @@ import { Text, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'reac
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styled from 'styled-components/native';
 import { colors, spacing, borderRadius } from '../../theme/tokens';
-import { getStoredPushToken, registerForPushNotificationsAsync } from '../../utils/notifications';
-import { syncPushTokenWithServer } from '../../services/pushSync';
+import { getStoredPushToken } from '../../utils/notifications';
+import { syncDriverPushTokens } from '../../services/pushSync';
 import api from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import { saveSession } from '../../utils/session';
@@ -119,10 +119,9 @@ const DriverLoginScreen = () => {
 
     setLoading(true);
     try {
-      let id_signal = (await getStoredPushToken()) || '';
-      if (!id_signal) {
-        id_signal = (await registerForPushNotificationsAsync()) || '';
-      }
+      // NÃO pedir notificação aqui — se o motorista negar no login, o Android
+      // não mostra o popup de novo (Samsung/Motorola). A tela de permissões cuida disso.
+      const id_signal = (await getStoredPushToken()) || '';
       const response = await api.driver.login(cpfNorm, senha, id_signal);
       if (response.data && response.data.id) {
         const id = response.data.id;
@@ -138,7 +137,7 @@ const DriverLoginScreen = () => {
           taxi_tx_minuto: response.data.taxi_tx_minuto,
           taxi_tx_km: response.data.taxi_tx_km,
         });
-        await syncPushTokenWithServer().catch(() => {});
+        await syncDriverPushTokens({ force: true }).catch(() => {});
         const onboarded = await isPermissionsOnboarded();
         navigation.reset({
           index: 0,

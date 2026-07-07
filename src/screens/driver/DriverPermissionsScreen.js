@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StatusBar, Platform, Linking, AppState } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StatusBar, Platform, AppState, Alert } from 'react-native';
 import styled from 'styled-components/native';
 import Icon from '../../components/AppIcon';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,11 +9,15 @@ import { colors, spacing } from '../../theme/tokens';
 import {
   ensureNotificationPermissions,
   registerForPushNotificationsAsync,
+  getNotificationPermissionState,
+  openAppNotificationSettings,
 } from '../../utils/notifications';
 import { requestRideNotificationPermission } from '../../services/rideNotification';
 import { requestOverlayPermission, canDrawOverlays } from '../../utils/androidOverlay';
 import { canUseFullScreenIntent, openFullScreenIntentSettings } from '../../utils/fullScreenIntent';
-import { syncPushTokenWithServer } from '../../services/pushSync';
+import { syncDriverPushTokens } from '../../services/pushSync';
+import { openBatteryOptimizationSettings } from '../../utils/batteryOptimization';
+import { promptRestrictedSettingsGuide } from '../../utils/restrictedSettings';
 
 export const PERMISSIONS_ONBOARDED_KEY = '@UbeZap:permissionsOnboarded';
 
@@ -135,7 +139,7 @@ const STEPS = [
     key: 'overlay',
     icon: 'layers',
     title: 'Exibir sobre outros apps',
-    desc: 'Para o alerta de corrida aparecer por cima de qualquer tela, mesmo usando outro aplicativo.',
+    desc: 'Opcional. Se o Motorola bloquear com "Acesso negado", ative "Permitir configurações restritas" na ficha do app (⋮). As corridas chegam por notificação mesmo sem esta permissão.',
     cta: 'Permitir sobreposição',
   },
   {
@@ -178,10 +182,24 @@ export default function DriverPermissionsScreen() {
     setLoading(true);
     try {
       if (step.key === 'notifications') {
-        const ok = await ensureNotificationPermissions();
+        let ok = await ensureNotificationPermissions();
         await requestRideNotificationPermission().catch(() => {});
+        if (!ok) {
+          const perm = await getNotificationPermissionState().catch(() => ({}));
+          if (perm.denied && perm.canAskAgain === false) {
+            Alert.alert(
+              'Ative as notificações',
+              'O Android não mostra o popup de novo. Abra as configurações e ative as notificações do UbeZap.',
+              [
+                { text: 'Depois', style: 'cancel' },
+                { text: 'Abrir configurações', onPress: () => openAppNotificationSettings().catch(() => {}) },
+              ]
+            );
+          }
+          ok = (await getNotificationPermissionState()).granted;
+        }
         await registerForPushNotificationsAsync().catch(() => {});
-        await syncPushTokenWithServer().catch(() => {});
+        await syncDriverPushTokens({ force: true }).catch(() => {});
         setGranted(Boolean(ok));
       } else if (step.key === 'location') {
         const { status: fg } = await Location.requestForegroundPermissionsAsync();
@@ -194,16 +212,14 @@ export default function DriverPermissionsScreen() {
         }
         setGranted(fg === 'granted');
       } else if (step.key === 'battery') {
-        // Não há API direta; abre as configurações do app para o usuário desativar.
         if (Platform.OS === 'android') {
-          await Linking.openSettings().catch(() => {});
+          await openBatteryOptimizationSettings().catch(() => {});
         }
         setGranted(true);
       } else if (step.key === 'overlay') {
         if (Platform.OS === 'android') {
+          await promptRestrictedSettingsGuide({ context: 'overlay' }).catch(() => {});
           await requestOverlayPermission().catch(() => {});
-          // A permissão de sobreposição é concedida em outra tela do sistema;
-          // confirmamos ao voltar pro app.
           const has = await canDrawOverlays().catch(() => false);
           setGranted(Boolean(has));
         } else {

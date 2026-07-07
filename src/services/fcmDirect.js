@@ -140,15 +140,49 @@ export async function getAndSaveFcmToken(sessionId) {
   const messaging = getMessaging();
   if (!messaging || !sessionId) return null;
   try {
-    await messaging().requestPermission().catch(() => {});
+    // Android 13+: POST_NOTIFICATIONS antes do getToken (Samsung/Motorola exigem).
+    if (Platform.OS === 'android') {
+      const { ensureNotificationPermissions } = require('../utils/notifications');
+      await ensureNotificationPermissions().catch(() => {});
+    } else {
+      await messaging().requestPermission().catch(() => {});
+    }
+
     const token = await messaging().getToken();
     if (token) {
       const api = require('./api').default;
       await api.driver.saveFcmToken(sessionId, token);
+      console.log('[FCM] token salvo no servidor:', token.substring(0, 24) + '...');
     }
     return token;
   } catch (e) {
     console.warn('[fcmDirect] getToken:', e?.message);
     return null;
   }
+}
+
+let tokenRefreshUnsub = null;
+
+/** Re-sincroniza fcm_token quando o Firebase rotaciona o token do aparelho. */
+export function registerFcmTokenRefreshHandler(sessionId) {
+  const messaging = getMessaging();
+  if (!messaging || !sessionId || tokenRefreshUnsub) return () => {};
+  try {
+    tokenRefreshUnsub = messaging().onTokenRefresh(async (token) => {
+      if (!token) return;
+      try {
+        const api = require('./api').default;
+        await api.driver.saveFcmToken(sessionId, token);
+        console.log('[FCM] token refresh salvo:', token.substring(0, 24) + '...');
+      } catch (e) {
+        console.warn('[fcmDirect] onTokenRefresh:', e?.message);
+      }
+    });
+  } catch (e) {
+    console.warn('[fcmDirect] onTokenRefresh register:', e?.message);
+  }
+  return () => {
+    try { tokenRefreshUnsub && tokenRefreshUnsub(); } catch (_) {}
+    tokenRefreshUnsub = null;
+  };
 }

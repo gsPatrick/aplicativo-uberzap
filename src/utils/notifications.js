@@ -1,7 +1,15 @@
 import * as Notifications from 'expo-notifications';
-import { AppState, Platform } from 'react-native';
+import { AppState, Linking, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+function getAndroidPackage() {
+  return (
+    Constants?.expoConfig?.android?.package ||
+    Constants?.manifest?.android?.package ||
+    'app.br.uberzap.motorista'
+  );
+}
 
 export const RIDE_ALERT_CHANNEL_ID = 'ride_alert';
 export const TRIP_STATUS_CHANNEL_ID = 'trip_status';
@@ -100,6 +108,35 @@ export async function setupNotificationChannels() {
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     sound: 'default',
   });
+}
+
+export async function getNotificationPermissionState() {
+  if (Platform.OS === 'web') {
+    return { granted: false, denied: true, canAskAgain: false };
+  }
+  const result = await Notifications.getPermissionsAsync();
+  const status = result?.status;
+  return {
+    granted: status === 'granted',
+    denied: status === 'denied',
+    canAskAgain: result?.canAskAgain !== false,
+  };
+}
+
+/** Abre Configurações → Notificações deste app (quando o popup do Android não reaparece). */
+export async function openAppNotificationSettings() {
+  if (Platform.OS === 'ios') {
+    await Linking.openSettings().catch(() => {});
+    return;
+  }
+  try {
+    const IntentLauncher = require('expo-intent-launcher');
+    await IntentLauncher.startActivityAsync('android.settings.APP_NOTIFICATION_SETTINGS', {
+      extra: { 'android.provider.extra.APP_PACKAGE': getAndroidPackage() },
+    });
+  } catch (_) {
+    await Linking.openSettings().catch(() => {});
+  }
 }
 
 export async function ensureNotificationPermissions() {

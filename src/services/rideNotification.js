@@ -106,7 +106,6 @@ export async function showRideRequestNotification(ride) {
     AndroidVisibility,
     AndroidCategory,
     AndroidStyle,
-    AndroidForegroundServiceType,
   } = require('@notifee/react-native');
 
   await setupRideNotificationChannel();
@@ -169,13 +168,14 @@ export async function showRideRequestNotification(ride) {
         pressAction: { id: 'decline' },
       },
     ],
+    timeoutAfter: RIDE_REQUEST_TIMEOUT_MS + 5000, // segurança: para o loop na expiração
     autoCancel: false,
     ongoing: true,
-    // Foreground service de ÁUDIO: o serviço (registrado em rideAlertSound)
-    // toca o som em LOOP até aceitar/recusar, mesmo com o app MORTO e a tela
-    // ligada ou apagada. tipo mediaPlayback (exigido no Android 14+).
-    asForegroundService: true,
-    foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK],
+    // loopSound (flag INSISTENT): o SISTEMA Android toca o som em LOOP até a
+    // notificação ser cancelada (aceitar/recusar/expirar). Como quem toca é o
+    // SISTEMA (não o processo do app), sobrevive ao "matador" de fabricantes
+    // agressivos (Motorola/Xiaomi) — que era o que fazia o som parar no 1º toque.
+    loopSound: true,
   };
 
   if (canFullScreen) {

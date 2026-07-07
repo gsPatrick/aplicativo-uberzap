@@ -22,7 +22,7 @@ import {
 import { wakeScreenForRideAlert, refreshOverlayPermissionState } from './src/utils/androidOverlay';
 import { startRideAlertSound, stopRideAlertSound, isRideAlertSoundPlaying } from './src/utils/rideAlertSound';
 import { startRideForegroundService } from './src/services/rideForegroundService';
-import { syncPushTokenWithServer } from './src/services/pushSync';
+import { syncPushTokenWithServer, syncDriverPushTokens } from './src/services/pushSync';
 import {
   setupRideNotificationChannel,
   listenToRideNotificationActions,
@@ -31,7 +31,7 @@ import {
 import { isPermissionsOnboarded } from './src/utils/driverPermissions';
 import { recordRemotePush, rideAlertKey, tripStatusKey } from './src/utils/notificationDedup';
 import { registerBackgroundRideNotificationTask } from './src/services/backgroundRideNotification';
-import { getAndSaveFcmToken, registerFcmForegroundHandler } from './src/services/fcmDirect';
+import { getAndSaveFcmToken, registerFcmForegroundHandler, registerFcmTokenRefreshHandler } from './src/services/fcmDirect';
 import {
   presentRideRequest,
   processPendingRideActions,
@@ -189,7 +189,7 @@ export default function App() {
   React.useEffect(() => {
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active' && appVariant === 'driver') {
-        syncPushTokenWithServer().catch(() => {});
+        syncDriverPushTokens().catch(() => {});
         processPendingRideActions(navigationRef).catch(() => {});
       }
     });
@@ -337,8 +337,9 @@ export default function App() {
           await driverRideMonitor.restoreState();
           const session = await getSession();
           if (session?.id) {
-            // FCM direto: token nativo p/ overlay com app morto
             getAndSaveFcmToken(session.id).catch(() => {});
+            registerFcmTokenRefreshHandler(session.id);
+            syncDriverPushTokens({ force: true }).catch(() => {});
             await driverRideMonitor.updateConfig({
               sessionId: session.id,
               cidadeId: session.cidade_id || 1,
