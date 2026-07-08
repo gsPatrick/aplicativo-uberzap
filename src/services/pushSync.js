@@ -1,8 +1,11 @@
-import { AppState } from 'react-native';
+import { AppState, Alert } from 'react-native';
 import { CONFIG } from '../config';
 import {
   registerForPushNotificationsAsync,
   getStoredPushToken,
+  ensureNotificationPermissions,
+  getNotificationPermissionState,
+  openAppNotificationSettings,
 } from '../utils/notifications';
 import { getSession } from '../utils/session';
 import api from '../services/api';
@@ -10,6 +13,10 @@ import { getAndSaveFcmToken } from './fcmDirect';
 
 let lastSync = { token: null, at: 0 };
 const EXPO_SYNC_MIN_INTERVAL_MS = 5 * 60 * 1000;
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /** Passageiro (e legado): Expo Push Token em id_signal. */
 export async function syncPushTokenWithServer({ force = false } = {}) {
@@ -107,4 +114,99 @@ export async function recoverDriverFcmFromApiError(error) {
   const codigo = error?.response?.data?.codigo || '';
   if (codigo !== 'sem_fcm_token' && codigo !== 'sem_token_push') return null;
   return syncDriverFcmToken({ force: true });
+}
+
+/**
+ * Obrigatório antes de ficar online: obtém token FCM do aparelho e grava no servidor.
+ * Repete tentativas e abre configurações se notificação estiver bloqueada.
+ */
+export async function ensureDriverFcmTokenForOnline({ maxAttempts = 5 } = {}) {
+  if (CONFIG.APP_BUILD !== 'driver') return null;
+
+  const session = await getSession();
+  if (!session?.id) {
+    throw new Error('Sessão inválida. Faça login novamente.');
+  }
+
+  let notifOk = await ensureNotificationPermissions();
+  if (!notifOk) {
+    const perm = await getNotificationPermissionState().catch(() => ({}));
+    if (perm.denied && perm.canAskAgain === false) {
+      await new Promise((resolve) => {
+        Alert.alert(
+          'Notificações obrigatórias',
+          'Para ficar online e receber corridas, ative as notificações do UbeZap nas configurações do celular.',
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: resolve },
+            {
+              text: 'Abrir configurações',
+              onPress: async () => {
+                await openAppNotificationSettings().catch(() => {});
+                resolve();
+              },
+            },
+          ]
+        );
+      });
+      notifOk = await ensureNotificationPermissions();
+    } else {
+      notifOk = await ensureNotificationPermissions();
+    }
+  }
+
+  if (!notifOk) {
+    throw new Error('Permita notificações para ficar online e receber corridas.');
+  }
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const token = await getAndSaveFcmToken(session.id, { force: true });
+    if (token) return token;
+    await delay(600 * attempt);
+  }
+
+  throw new Error(
+    'Não foi possível registrar o token de push. Verifique notificações e tente ficar online de novo.'
+  );
+}
+
+/**
+ * Fica online no servidor SOMENTE após fcm_token válido salvo.
+ * Repete sync + updateLocation se o servidor ainda não enxergar o token.
+ */
+export async function registerDriverOnlineOnServer(
+  sessionId,
+  latitude,
+  longitude,
+  { maxAttempts = 4 } = {}
+) {
+  await ensureDriverFcmTokenForOnline();
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await api.driver.updateLocation(sessionId, 1, latitude, longitude);
+      const body = res?.data;
+      if (body?.status === 'ok' || body === 'ok') {
+        return res;
+      }
+      const codigo = body?.codigo || '';
+      if (codigo === 'sem_fcm_token' || codigo === 'sem_token_push') {
+        await getAndSaveFcmToken(sessionId, { force: true });
+        await delay(400 * attempt);
+        continue;
+      }
+      lastError = new Error(body?.mensagem || 'Não foi possível ficar online.');
+    } catch (e) {
+      lastError = e;
+      const codigo = e?.response?.data?.codigo || '';
+      if (e?.response?.status === 403 || codigo === 'sem_fcm_token' || codigo === 'sem_token_push') {
+        await getAndSaveFcmToken(sessionId, { force: true });
+        await delay(400 * attempt);
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  throw lastError || new Error('Não foi possível ficar online. Tente novamente.');
 }

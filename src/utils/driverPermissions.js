@@ -10,7 +10,7 @@ import {
 import { requestRideNotificationPermission } from '../services/rideNotification';
 import { ensureOverlayPermission } from './androidOverlay';
 import { canUseFullScreenIntent, openFullScreenIntentSettings } from './fullScreenIntent';
-import { syncDriverPushTokens } from '../services/pushSync';
+import { syncDriverFcmToken } from '../services/pushSync';
 import { openBatteryOptimizationSettings } from './batteryOptimization';
 
 const PERMISSIONS_ONBOARDED_KEY = '@UbeZap:permissionsOnboarded';
@@ -112,7 +112,7 @@ export async function requestDriverPermissionsFlow(options = {}) {
     }
 
     result.pushToken = await registerForPushNotificationsAsync();
-    await syncDriverPushTokens({ force: true }).catch(() => {});
+    await syncDriverFcmToken({ force: true }).catch(() => {});
 
     const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
     result.locationForeground = fgStatus === 'granted';

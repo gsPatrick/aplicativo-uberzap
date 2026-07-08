@@ -31,7 +31,7 @@ import {
 } from '../../utils/driverRideUtils';
 import { safeRemoveLocationSubscriptionAsync } from '../../utils/locationSubscription';
 import { startRideForegroundService, stopRideForegroundService } from '../../services/rideForegroundService';
-import { syncDriverFcmToken, recoverDriverFcmFromApiError } from '../../services/pushSync';
+import { syncDriverFcmToken, recoverDriverFcmFromApiError, registerDriverOnlineOnServer } from '../../services/pushSync';
 import { subscribeRideRequest, STORAGE_KEYS as RIDE_UI_KEYS } from '../../services/rideRequestController';
 import Constants from 'expo-constants';
 
@@ -221,10 +221,10 @@ const DriverHomeScreen = () => {
     ).current;
     
     const [isAvailable, setIsAvailable] = useState(true);
+    const [goingOnline, setGoingOnline] = useState(false);
     const [isOnRide, setIsOnRide] = useState(false);
     const [newRide, setNewRide] = useState(null);
     const newRideRef = useRef(null);
-    const fcmOfflineAlertAtRef = useRef(0);
     const [alertsHistory, setAlertsHistory] = useState([]);
     const [driver, setDriver] = useState({ nome: 'Motorista', rating: 0, ratingCount: 0, nivel: 'Platina', cidade_id: 1, img: '' });
     const [nearbyDrivers, setNearbyDrivers] = useState([]); // carrinhos no mapa (outros motoristas online)
@@ -613,24 +613,8 @@ const DriverHomeScreen = () => {
                         console.warn('GPS após recover FCM:', retryErr);
                     }
                 }
-                if (isAvailable && !isOnRide) {
-                    setIsAvailable(false);
-                    await driverRideMonitor.updateConfig({
-                        sessionId,
-                        cidadeId: driver?.cidade_id,
-                        isAvailable: false,
-                        isOnRide,
-                        rejectedRides,
-                    }).catch(() => {});
-                    const now = Date.now();
-                    if (now - fcmOfflineAlertAtRef.current > 60000) {
-                        fcmOfflineAlertAtRef.current = now;
-                        Alert.alert(
-                            'Você ficou offline',
-                            'Token de notificação inválido. Permita notificações e fique online de novo.'
-                        );
-                    }
-                }
+                // Mantém online na UI; heartbeat/GPS re-tentam registrar o token.
+                console.warn('[Home] FCM pendente — re-tentando no próximo ping');
                 return;
             }
             console.warn('Erro ao atualizar localização:', e);
@@ -869,6 +853,8 @@ const DriverHomeScreen = () => {
     };
 
     const toggleStatus = async () => {
+        if (goingOnline) return;
+
         const newStatus = !isAvailable;
 
         if (newStatus) {
@@ -880,56 +866,85 @@ const DriverHomeScreen = () => {
                 );
                 return;
             }
+
+            setGoingOnline(true);
+            try {
+                const location = await Location.getCurrentPositionAsync({});
+                await registerDriverOnlineOnServer(
+                    sessionId,
+                    location.coords.latitude,
+                    location.coords.longitude
+                );
+
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setIsAvailable(true);
+                await driverRideMonitor.updateConfig({
+                    sessionId,
+                    cidadeId: driver.cidade_id,
+                    isAvailable: true,
+                    isOnRide,
+                    rejectedRides,
+                });
+                startRideForegroundService({
+                    title: 'UbeZap Motorista Online',
+                    body: 'Monitorando novas solicitações de corrida em segundo plano...',
+                }).catch((e) => console.warn('Driver FG online:', e));
+            } catch (e) {
+                const apiMsg =
+                    e?.response?.data?.mensagem ||
+                    (typeof e?.response?.data === 'object' ? e.response.data.mensagem : null) ||
+                    e?.message;
+                Alert.alert(
+                    'Não foi possível ficar online',
+                    apiMsg || 'Verifique notificações e conexão, depois toque em ONLINE novamente.',
+                    [
+                        { text: 'OK' },
+                        {
+                            text: 'Abrir configurações',
+                            onPress: () => {
+                                const { openAppNotificationSettings } = require('../../utils/notifications');
+                                openAppNotificationSettings().catch(() => {});
+                            },
+                        },
+                    ]
+                );
+            } finally {
+                setGoingOnline(false);
+            }
+            return;
         }
 
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setIsAvailable(newStatus);
+        setIsAvailable(false);
 
         await driverRideMonitor.updateConfig({
             sessionId,
             cidadeId: driver.cidade_id,
-            isAvailable: newStatus,
+            isAvailable: false,
             isOnRide,
             rejectedRides,
         });
 
         if (sessionId) {
             try {
-                if (newStatus) {
-                    await syncDriverFcmToken({ force: true });
-                }
                 const location = await Location.getCurrentPositionAsync({});
-                const res = await api.driver.updateLocation(
+                await api.driver.updateLocation(
                     sessionId,
-                    newStatus ? 1 : 0,
+                    0,
                     location.coords.latitude,
                     location.coords.longitude
                 );
-                const body = res?.data;
-                if (newStatus && body?.status === 'erro') {
-                    const codigo = body?.codigo || '';
-                    if (codigo === 'sem_fcm_token' || codigo === 'sem_token_push') {
-                        await syncDriverFcmToken({ force: true }).catch(() => {});
-                        throw new Error(body?.mensagem || 'Token de push não registrado. Permita notificações e tente de novo.');
-                    }
-                }
             } catch (e) {
-                console.log('Status push error:', e);
-                setIsAvailable(!newStatus);
+                console.log('Status offline error:', e);
+                setIsAvailable(true);
                 await driverRideMonitor.updateConfig({
                     sessionId,
                     cidadeId: driver.cidade_id,
-                    isAvailable: !newStatus,
+                    isAvailable: true,
                     isOnRide,
                     rejectedRides,
                 });
-                const apiMsg =
-                    e?.response?.data?.mensagem ||
-                    (typeof e?.response?.data === 'object' ? e.response.data.mensagem : null);
-                Alert.alert(
-                    'Não foi possível ficar online',
-                    apiMsg || e?.message || 'Verifique notificações e conexão, depois tente novamente.'
-                );
+                Alert.alert('Erro', 'Não foi possível ficar offline. Tente novamente.');
             }
         }
     };
@@ -1093,9 +1108,15 @@ const DriverHomeScreen = () => {
                             </View>
                         </TouchableOpacity>
 
-                        <OnlineToggle active={isAvailable} onPress={toggleStatus}>
-                            <GlowDot active={isAvailable} style={{ transform: [{ scale: pulseAnim }], opacity: isAvailable ? 1 : 0.6 }} />
-                            <Text style={{ color: isAvailable ? colors.primary : colors.textSecondary, fontWeight: 'bold' }}>{isAvailable ? 'ONLINE' : 'OFFLINE'}</Text>
+                        <OnlineToggle active={isAvailable} onPress={toggleStatus} disabled={goingOnline}>
+                            {goingOnline ? (
+                                <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 6 }} />
+                            ) : (
+                                <GlowDot active={isAvailable} style={{ transform: [{ scale: pulseAnim }], opacity: isAvailable ? 1 : 0.6 }} />
+                            )}
+                            <Text style={{ color: isAvailable ? colors.primary : colors.textSecondary, fontWeight: 'bold' }}>
+                                {goingOnline ? 'CONECTANDO...' : (isAvailable ? 'ONLINE' : 'OFFLINE')}
+                            </Text>
                         </OnlineToggle>
                     </TopRow>
                 </StatusHeader>
