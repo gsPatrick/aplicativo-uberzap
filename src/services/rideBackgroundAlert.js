@@ -1,8 +1,8 @@
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { triggerRideAlertNotification } from '../utils/notifications';
-import { wakeScreenForRideAlert, launchAppForRideAlert } from '../utils/androidOverlay';
+import { wakeScreenForRideAlert } from '../utils/androidOverlay';
 import { startRideAlertSound } from '../utils/rideAlertSound';
 import { mapApiRideToRideRequest, showRideRequestNotification } from './rideNotification';
 import { STORAGE_KEYS as RIDE_STORAGE_KEYS } from './rideRequestController';
@@ -31,9 +31,21 @@ export async function notifyDriverNewRide(rawRide) {
     console.warn('[rideBackgroundAlert] pending show:', e?.message);
   }
 
+  // App aberto: modal interno (HomeScreen / RideRequestScreen) — sem banner do sistema.
+  if (AppState.currentState === 'active') {
+    try {
+      const { presentRideRequest } = require('./rideRequestController');
+      await presentRideRequest(rawRide);
+      await startRideAlertSound();
+      return true;
+    } catch (e) {
+      console.warn('[rideBackgroundAlert] foreground:', e?.message);
+    }
+  }
+
   let delivered = false;
 
-  // Notifee: banner heads-up + Aceitar/Recusar + foreground service (som em loop).
+  // 2º plano / app morto: banner Notifee por cima de outros apps (WhatsApp etc.).
   if (Platform.OS === 'android' && !IS_EXPO_GO) {
     delivered = await showRideRequestNotification(ride).catch((e) => {
       console.warn('[rideBackgroundAlert] Notifee:', e?.message);
@@ -41,7 +53,6 @@ export async function notifyDriverNewRide(rawRide) {
     });
   }
 
-  // Fallback se Notifee falhar (Expo Go / iOS / erro nativo).
   if (!delivered) {
     try {
       await triggerRideAlertNotification(rawRide);
@@ -49,7 +60,10 @@ export async function notifyDriverNewRide(rawRide) {
     } catch (e) {
       console.warn('[rideBackgroundAlert] Expo:', e?.message);
     }
-    // Sem FG service do Notifee — força o loop pelo expo-av.
+  }
+
+  // Som em loop: expo-av + FG service do Notifee (não abrir o app automaticamente).
+  if (delivered) {
     try {
       await startRideAlertSound();
     } catch (_) {}
@@ -58,13 +72,6 @@ export async function notifyDriverNewRide(rawRide) {
   try {
     await wakeScreenForRideAlert();
   } catch (_) {}
-
-  // Abre o app em tela cheia (RideRequestScreen) — além do banner Notifee.
-  if (delivered) {
-    try {
-      await launchAppForRideAlert();
-    } catch (_) {}
-  }
 
   return delivered;
 }
