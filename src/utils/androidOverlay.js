@@ -190,3 +190,19 @@ export async function wakeScreenForRideAlert() {
     console.warn('[Overlay] Erro ao acordar tela:', e);
   }
 }
+
+/**
+ * Traz o app para frente para exibir a tela cheia da corrida (RideRequestScreen).
+ * Complementa o fullScreenIntent do Notifee quando a tela está ligada.
+ */
+export async function launchAppForRideAlert() {
+  if (Platform.OS !== 'android') return false;
+  try {
+    if (UbezapOverlay?.launchAppForRideAlert) {
+      return await UbezapOverlay.launchAppForRideAlert();
+    }
+  } catch (e) {
+    console.warn('[Overlay] Erro ao abrir app para corrida:', e);
+  }
+  return false;
+}

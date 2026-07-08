@@ -43,7 +43,7 @@ export async function promptFullScreenIfNeeded() {
   promptingFsi = true;
   Alert.alert(
     'Ative a chamada em tela cheia',
-    'Obrigatório para não perder corridas: ative "Notificações em tela cheia" para o UbeZap. Assim o chamado abre em TELA CHEIA mesmo com o celular bloqueado.',
+    'Obrigatório para a corrida abrir em TELA CHEIA (não só o banner no topo).\n\nVá em: Configurações → Apps → UbeZap Motorista → Notificações em tela cheia → ATIVAR.\n\n(Isso é diferente do "modo desenvolvedor".)',
     [
       { text: 'Agora não', style: 'cancel', onPress: () => { promptingFsi = false; } },
       {

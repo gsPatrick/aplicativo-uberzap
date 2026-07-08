@@ -180,11 +180,14 @@ export async function showRideRequestNotification(ride) {
     loopSound: true,
   };
 
-  if (canFullScreen) {
-    androidConfig.fullScreenAction = {
-      id: 'ride_screen',
-      launchActivity: 'default',
-    };
+  // Sempre pede tela cheia — sem a permissão o Android só mostra o banner.
+  androidConfig.fullScreenAction = {
+    id: 'ride_screen',
+    launchActivity: 'default',
+  };
+
+  if (!canFullScreen) {
+    console.warn('[rideNotification] fullScreenIntent desativado no sistema — ative "Notificações em tela cheia"');
   }
 
   try {

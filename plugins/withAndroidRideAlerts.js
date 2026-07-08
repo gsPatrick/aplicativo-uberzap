@@ -56,6 +56,28 @@ class UbezapOverlayModule(reactContext: ReactApplicationContext) :
   }
 
   @ReactMethod
+  fun launchAppForRideAlert(promise: Promise) {
+    try {
+      val intent = reactApplicationContext.packageManager
+        .getLaunchIntentForPackage(reactApplicationContext.packageName)
+      if (intent == null) {
+        promise.resolve(false)
+        return
+      }
+      intent.addFlags(
+        Intent.FLAG_ACTIVITY_NEW_TASK or
+          Intent.FLAG_ACTIVITY_SINGLE_TOP or
+          Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+          Intent.FLAG_ACTIVITY_CLEAR_TOP
+      )
+      reactApplicationContext.startActivity(intent)
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("LAUNCH_ERROR", e)
+    }
+  }
+
+  @ReactMethod
   fun wakeScreen(promise: Promise) {
     try {
       val activity = reactApplicationContext.currentActivity

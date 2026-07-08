@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { triggerRideAlertNotification } from '../utils/notifications';
-import { wakeScreenForRideAlert } from '../utils/androidOverlay';
+import { wakeScreenForRideAlert, launchAppForRideAlert } from '../utils/androidOverlay';
 import { startRideAlertSound } from '../utils/rideAlertSound';
 import { mapApiRideToRideRequest, showRideRequestNotification } from './rideNotification';
 import { STORAGE_KEYS as RIDE_STORAGE_KEYS } from './rideRequestController';
@@ -58,6 +58,13 @@ export async function notifyDriverNewRide(rawRide) {
   try {
     await wakeScreenForRideAlert();
   } catch (_) {}
+
+  // Abre o app em tela cheia (RideRequestScreen) — além do banner Notifee.
+  if (delivered) {
+    try {
+      await launchAppForRideAlert();
+    } catch (_) {}
+  }
 
   return delivered;
 }
