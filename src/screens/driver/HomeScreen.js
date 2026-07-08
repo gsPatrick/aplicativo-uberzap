@@ -31,7 +31,7 @@ import {
 } from '../../utils/driverRideUtils';
 import { safeRemoveLocationSubscriptionAsync } from '../../utils/locationSubscription';
 import { startRideForegroundService, stopRideForegroundService } from '../../services/rideForegroundService';
-import { syncDriverPushTokens } from '../../services/pushSync';
+import { syncDriverFcmToken, recoverDriverFcmFromApiError } from '../../services/pushSync';
 import { subscribeRideRequest, STORAGE_KEYS as RIDE_UI_KEYS } from '../../services/rideRequestController';
 import Constants from 'expo-constants';
 
@@ -559,7 +559,7 @@ const DriverHomeScreen = () => {
                 await syncSessionRideState();
                 if (!mounted || !sessionId) return;
 
-                await syncDriverPushTokens().catch(() => {});
+                await syncDriverFcmToken({ force: true }).catch(() => {});
 
                 await resumeActiveRideIfNeeded();
                 if (!mounted) return;
@@ -597,15 +597,22 @@ const DriverHomeScreen = () => {
         if (!sessionId || !location || !location.coords) return;
         try {
             const { latitude, longitude } = location.coords;
-            // API expects (id_motorista, status, latitude, longitude)
-            // status 2 = Em corrida, 1 = Online, 0 = Offline
-            await api.driver.updateLocation(
-                sessionId, 
-                isAvailable ? (isOnRide ? 2 : 1) : 0, 
-                latitude, 
-                longitude
-            );
+            const status = isAvailable ? (isOnRide ? 2 : 1) : 0;
+            await api.driver.updateLocation(sessionId, status, latitude, longitude);
         } catch (e) {
+            const codigo = e?.response?.data?.codigo || '';
+            if (codigo === 'sem_fcm_token' || codigo === 'sem_token_push') {
+                const token = await recoverDriverFcmFromApiError(e);
+                if (token && isAvailable && !isOnRide) {
+                    try {
+                        const { latitude, longitude } = location.coords;
+                        await api.driver.updateLocation(sessionId, 1, latitude, longitude);
+                        return;
+                    } catch (retryErr) {
+                        console.warn('GPS após recover FCM:', retryErr);
+                    }
+                }
+            }
             console.warn('Erro ao atualizar localização:', e);
         }
         

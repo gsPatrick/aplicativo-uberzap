@@ -22,7 +22,7 @@ import {
 import { wakeScreenForRideAlert, refreshOverlayPermissionState } from './src/utils/androidOverlay';
 import { startRideAlertSound, stopRideAlertSound, isRideAlertSoundPlaying } from './src/utils/rideAlertSound';
 import { startRideForegroundService } from './src/services/rideForegroundService';
-import { syncPushTokenWithServer, syncDriverPushTokens } from './src/services/pushSync';
+import { syncPushTokenWithServer, syncDriverFcmToken, startDriverFcmHeartbeat, stopDriverFcmHeartbeat } from './src/services/pushSync';
 import {
   setupRideNotificationChannel,
   listenToRideNotificationActions,
@@ -189,7 +189,7 @@ export default function App() {
   React.useEffect(() => {
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active' && appVariant === 'driver') {
-        syncDriverPushTokens().catch(() => {});
+        syncDriverFcmToken({ force: true }).catch(() => {});
         processPendingRideActions(navigationRef).catch(() => {});
       }
     });
@@ -337,9 +337,9 @@ export default function App() {
           await driverRideMonitor.restoreState();
           const session = await getSession();
           if (session?.id) {
-            getAndSaveFcmToken(session.id).catch(() => {});
+            getAndSaveFcmToken(session.id, { force: true }).catch(() => {});
             registerFcmTokenRefreshHandler(session.id);
-            syncDriverPushTokens({ force: true }).catch(() => {});
+            startDriverFcmHeartbeat();
             await driverRideMonitor.updateConfig({
               sessionId: session.id,
               cidadeId: session.cidade_id || 1,

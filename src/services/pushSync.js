@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import { CONFIG } from '../config';
 import {
   registerForPushNotificationsAsync,
@@ -7,14 +8,10 @@ import { getSession } from '../utils/session';
 import api from '../services/api';
 import { getAndSaveFcmToken } from './fcmDirect';
 
-// Throttle: evita salvar o token a cada 1-2s (era chamado em loop por vários
-// effects, gerando spam de rede e travando o app). Só salva de novo se o token
-// mudou ou se passou o intervalo mínimo.
 let lastSync = { token: null, at: 0 };
-let lastFcmSync = { token: null, at: 0 };
-const SYNC_MIN_INTERVAL_MS = 5 * 60 * 1000; // 5 min
+const EXPO_SYNC_MIN_INTERVAL_MS = 5 * 60 * 1000;
 
-/** Sincroniza Expo Push Token com o servidor (passageiro ou motorista). */
+/** Passageiro (e legado): Expo Push Token em id_signal. */
 export async function syncPushTokenWithServer({ force = false } = {}) {
   try {
     const session = await getSession();
@@ -27,8 +24,8 @@ export async function syncPushTokenWithServer({ force = false } = {}) {
     if (!token) return null;
 
     const now = Date.now();
-    if (!force && token === lastSync.token && (now - lastSync.at) < SYNC_MIN_INTERVAL_MS) {
-      return token; // já salvo recentemente — não repete
+    if (!force && token === lastSync.token && (now - lastSync.at) < EXPO_SYNC_MIN_INTERVAL_MS) {
+      return token;
     }
 
     if (CONFIG.APP_BUILD === 'driver' && session.id) {
@@ -40,35 +37,74 @@ export async function syncPushTokenWithServer({ force = false } = {}) {
     lastSync = { token, at: now };
     return token;
   } catch (e) {
-    console.warn('[PushSync] Falha ao sincronizar token:', e);
+    console.warn('[PushSync] Falha ao sincronizar token Expo:', e);
     return null;
   }
 }
 
 /**
- * Motorista: sincroniza Expo Push Token (id_signal) E token FCM nativo (fcm_token).
- * O FCM direto é o único caminho confiável com app morto no Samsung/Motorola.
+ * Motorista: sincroniza SOMENTE o token FCM nativo (fcm_token).
+ * Heartbeat a cada 60s enquanto logado — garante token sempre no servidor.
  */
-export async function syncDriverPushTokens({ force = false } = {}) {
-  const expo = await syncPushTokenWithServer({ force });
-  let fcm = null;
+export async function syncDriverFcmToken({ force = false } = {}) {
   try {
-    if (CONFIG.APP_BUILD !== 'driver') return { expo, fcm };
+    if (CONFIG.APP_BUILD !== 'driver') return null;
     const session = await getSession();
-    if (!session?.id) return { expo, fcm: null };
-
-    const now = Date.now();
-    if (!force && lastFcmSync.token && (now - lastFcmSync.at) < SYNC_MIN_INTERVAL_MS) {
-      return { expo, fcm: lastFcmSync.token };
+    if (!session?.id) return null;
+    const token = await getAndSaveFcmToken(session.id, { force });
+    if (token) {
+      console.log('[PushSync] FCM ok:', token.substring(0, 24) + '...');
     }
-
-    fcm = await getAndSaveFcmToken(session.id);
-    if (fcm) {
-      lastFcmSync = { token: fcm, at: now };
-      console.log('[PushSync] FCM token salvo:', fcm.substring(0, 24) + '...');
-    }
+    return token;
   } catch (e) {
     console.warn('[PushSync] Falha ao sincronizar FCM:', e);
+    return null;
   }
-  return { expo, fcm };
+}
+
+/** @deprecated use syncDriverFcmToken — mantido p/ compatibilidade de imports. */
+export async function syncDriverPushTokens({ force = false } = {}) {
+  const fcm = await syncDriverFcmToken({ force });
+  return { expo: null, fcm };
+}
+
+const FCM_HEARTBEAT_MS = 60 * 1000;
+let heartbeatTimer = null;
+let heartbeatAppStateSub = null;
+
+/** Mantém fcm_token fresco no servidor enquanto o motorista está logado. */
+export function startDriverFcmHeartbeat() {
+  stopDriverFcmHeartbeat();
+
+  syncDriverFcmToken({ force: true }).catch(() => {});
+
+  heartbeatTimer = setInterval(() => {
+    syncDriverFcmToken({ force: true }).catch(() => {});
+  }, FCM_HEARTBEAT_MS);
+
+  heartbeatAppStateSub = AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      syncDriverFcmToken({ force: true }).catch(() => {});
+    }
+  });
+
+  return stopDriverFcmHeartbeat;
+}
+
+export function stopDriverFcmHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+  if (heartbeatAppStateSub) {
+    heartbeatAppStateSub.remove();
+    heartbeatAppStateSub = null;
+  }
+}
+
+/** GPS retornou sem_fcm_token — tenta registrar de novo antes de desistir. */
+export async function recoverDriverFcmFromApiError(error) {
+  const codigo = error?.response?.data?.codigo || '';
+  if (codigo !== 'sem_fcm_token' && codigo !== 'sem_token_push') return null;
+  return syncDriverFcmToken({ force: true });
 }

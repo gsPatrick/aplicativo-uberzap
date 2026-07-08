@@ -1,13 +1,6 @@
 /**
  * FCM DIRETO (@react-native-firebase/messaging) para o alerta de corrida do
  * MOTORISTA — o único caminho que entrega com o app MORTO no Android.
- *
- * O servidor envia FCM v1 data-only (high priority). O setBackgroundMessageHandler
- * (registrado em index.js) roda mesmo com o app fechado e chama handleFcmRideAlert,
- * que desenha o card full-screen (Notifee) + acorda a tela + toca o som.
- *
- * messaging é carregado de forma "lazy" (require dentro das funções) para não
- * quebrar onde o módulo nativo não existe (ex.: Expo Go).
  */
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
@@ -23,6 +16,9 @@ import { STORAGE_KEYS as RIDE_STORAGE_KEYS, presentRideRequest } from './rideReq
 import driverRideMonitor from './driverRideMonitor';
 
 const IS_EXPO_GO = Constants?.appOwnership === 'expo';
+const FCM_SYNCED_KEY = '@UbeZap:lastFcmTokenSynced';
+const FCM_MIN_RESEND_MS = 15 * 1000;
+let lastServerSave = { token: null, at: 0 };
 
 function getMessaging() {
   if (Platform.OS === 'web' || IS_EXPO_GO) return null;
@@ -51,10 +47,6 @@ function buildRawRide(d) {
   };
 }
 
-/**
- * Processa o data do push FCM de corrida. Chamado pelo background handler
- * (app morto, em index.js) E pelo onMessage (app em foreground).
- */
 export async function handleFcmRideAlert(data) {
   try {
     if (!data || data.type !== 'ride_alert') return;
@@ -62,7 +54,6 @@ export async function handleFcmRideAlert(data) {
     const rideId = data.rideId || data.id;
     const event = data.event;
 
-    // Corrida aceita por outro / cancelada -> remove o card e para o som.
     if (event === 'ride_unavailable' || event === 'passenger_cancelled') {
       if (rideId) await cancelRideRequestNotification(rideId).catch(() => {});
       await stopRideAlertSound().catch(() => {});
@@ -83,9 +74,7 @@ export async function handleFcmRideAlert(data) {
       await AsyncStorage.setItem(RIDE_STORAGE_KEYS.PENDING_SHOW, JSON.stringify(compact));
     } catch (_) {}
 
-    // Card full-screen (Notifee, Aceitar/Recusar) — funciona com app morto.
     await showRideRequestNotification(ride).catch(() => {});
-    // Acorda a tela + toque em loop.
     await wakeScreenForRideAlert().catch(() => {});
     await startRideAlertSound().catch(() => {});
   } catch (e) {
@@ -93,24 +82,18 @@ export async function handleFcmRideAlert(data) {
   }
 }
 
-/**
- * Caminho com o app ABERTO (foreground): mostra SÓ o card interno do app
- * (modal RideRequestScreen) — NÃO dispara o overlay full-screen do sistema
- * (Notifee), que seria redundante/duplicado por cima do próprio app.
- */
 export async function handleFcmRideAlertForeground(data) {
   try {
     if (!data || data.type !== 'ride_alert') return;
     const event = data.event;
     if (event === 'ride_unavailable' || event === 'passenger_cancelled') {
       await stopRideAlertSound().catch(() => {});
-      return; // o modal interno some sozinho (monitor/polling)
+      return;
     }
     const raw = buildRawRide(data);
     if (!raw) return;
     if (driverRideMonitor.isRideBlocked?.(raw.id)) return;
     if (driverRideMonitor.config?.isOnRide) return;
-    // Apresenta o modal interno (com dedup) — sem notificação de sistema.
     await presentRideRequest(raw).catch(() => {});
     await startRideAlertSound().catch(() => {});
   } catch (e) {
@@ -120,12 +103,10 @@ export async function handleFcmRideAlertForeground(data) {
 
 let fgUnsub = null;
 
-/** Registra o handler de foreground (app aberto). Idempotente. */
 export function registerFcmForegroundHandler() {
   const messaging = getMessaging();
   if (!messaging || fgUnsub) return () => {};
   try {
-    // onMessage SÓ dispara com o app em foreground -> usa o card interno.
     fgUnsub = messaging().onMessage(async (remoteMessage) => {
       await handleFcmRideAlertForeground(remoteMessage?.data);
     });
@@ -135,35 +116,68 @@ export function registerFcmForegroundHandler() {
   return () => { try { fgUnsub && fgUnsub(); } catch (_) {} fgUnsub = null; };
 }
 
-/** Pega o token FCM nativo e salva no servidor (motorista). */
-export async function getAndSaveFcmToken(sessionId) {
+async function persistFcmTokenOnServer(sessionId, token, { force = false } = {}) {
+  const now = Date.now();
+  if (
+    !force &&
+    token === lastServerSave.token &&
+    (now - lastServerSave.at) < FCM_MIN_RESEND_MS
+  ) {
+    return token;
+  }
+  const api = require('./api').default;
+  await api.driver.saveFcmToken(sessionId, token);
+  await AsyncStorage.setItem(FCM_SYNCED_KEY, token);
+  lastServerSave = { token, at: now };
+  console.log('[FCM] token salvo no servidor:', token.substring(0, 24) + '...');
+  return token;
+}
+
+async function fetchFreshFcmToken(messaging) {
+  if (Platform.OS === 'android') {
+    const { ensureNotificationPermissions } = require('../utils/notifications');
+    const granted = await ensureNotificationPermissions().catch(() => false);
+    if (!granted) return null;
+  } else {
+    await messaging().requestPermission().catch(() => {});
+  }
+  return messaging().getToken();
+}
+
+/**
+ * Obtém token FCM do aparelho e grava no servidor.
+ * force=true: sempre reenvia (heartbeat). Se falhar, tenta deleteToken + getToken.
+ */
+export async function getAndSaveFcmToken(sessionId, { force = false } = {}) {
   const messaging = getMessaging();
   if (!messaging || !sessionId) return null;
-  try {
-    // Android 13+: POST_NOTIFICATIONS antes do getToken (Samsung/Motorola exigem).
-    if (Platform.OS === 'android') {
-      const { ensureNotificationPermissions } = require('../utils/notifications');
-      await ensureNotificationPermissions().catch(() => {});
-    } else {
-      await messaging().requestPermission().catch(() => {});
-    }
 
-    const token = await messaging().getToken();
+  try {
+    let token = await fetchFreshFcmToken(messaging);
     if (token) {
-      const api = require('./api').default;
-      await api.driver.saveFcmToken(sessionId, token);
-      console.log('[FCM] token salvo no servidor:', token.substring(0, 24) + '...');
+      await persistFcmTokenOnServer(sessionId, token, { force });
+      return token;
     }
-    return token;
   } catch (e) {
     console.warn('[fcmDirect] getToken:', e?.message);
-    return null;
   }
+
+  try {
+    await messaging().deleteToken();
+    const fresh = await fetchFreshFcmToken(messaging);
+    if (fresh) {
+      await persistFcmTokenOnServer(sessionId, fresh, { force: true });
+      return fresh;
+    }
+  } catch (e) {
+    console.warn('[fcmDirect] deleteToken/getToken:', e?.message);
+  }
+
+  return null;
 }
 
 let tokenRefreshUnsub = null;
 
-/** Re-sincroniza fcm_token quando o Firebase rotaciona o token do aparelho. */
 export function registerFcmTokenRefreshHandler(sessionId) {
   const messaging = getMessaging();
   if (!messaging || !sessionId || tokenRefreshUnsub) return () => {};
@@ -171,9 +185,7 @@ export function registerFcmTokenRefreshHandler(sessionId) {
     tokenRefreshUnsub = messaging().onTokenRefresh(async (token) => {
       if (!token) return;
       try {
-        const api = require('./api').default;
-        await api.driver.saveFcmToken(sessionId, token);
-        console.log('[FCM] token refresh salvo:', token.substring(0, 24) + '...');
+        await persistFcmTokenOnServer(sessionId, token, { force: true });
       } catch (e) {
         console.warn('[fcmDirect] onTokenRefresh:', e?.message);
       }
