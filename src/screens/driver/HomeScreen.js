@@ -224,6 +224,7 @@ const DriverHomeScreen = () => {
     const [isOnRide, setIsOnRide] = useState(false);
     const [newRide, setNewRide] = useState(null);
     const newRideRef = useRef(null);
+    const fcmOfflineAlertAtRef = useRef(0);
     const [alertsHistory, setAlertsHistory] = useState([]);
     const [driver, setDriver] = useState({ nome: 'Motorista', rating: 0, ratingCount: 0, nivel: 'Platina', cidade_id: 1, img: '' });
     const [nearbyDrivers, setNearbyDrivers] = useState([]); // carrinhos no mapa (outros motoristas online)
@@ -612,6 +613,25 @@ const DriverHomeScreen = () => {
                         console.warn('GPS após recover FCM:', retryErr);
                     }
                 }
+                if (isAvailable && !isOnRide) {
+                    setIsAvailable(false);
+                    await driverRideMonitor.updateConfig({
+                        sessionId,
+                        cidadeId: driver?.cidade_id,
+                        isAvailable: false,
+                        isOnRide,
+                        rejectedRides,
+                    }).catch(() => {});
+                    const now = Date.now();
+                    if (now - fcmOfflineAlertAtRef.current > 60000) {
+                        fcmOfflineAlertAtRef.current = now;
+                        Alert.alert(
+                            'Você ficou offline',
+                            'Token de notificação inválido. Permita notificações e fique online de novo.'
+                        );
+                    }
+                }
+                return;
             }
             console.warn('Erro ao atualizar localização:', e);
         }
@@ -876,8 +896,7 @@ const DriverHomeScreen = () => {
         if (sessionId) {
             try {
                 if (newStatus) {
-                    // Token FCM ANTES de ficar online — senão o servidor bloqueia (403).
-                    await syncDriverPushTokens({ force: true });
+                    await syncDriverFcmToken({ force: true });
                 }
                 const location = await Location.getCurrentPositionAsync({});
                 const res = await api.driver.updateLocation(
@@ -890,7 +909,7 @@ const DriverHomeScreen = () => {
                 if (newStatus && body?.status === 'erro') {
                     const codigo = body?.codigo || '';
                     if (codigo === 'sem_fcm_token' || codigo === 'sem_token_push') {
-                        await syncDriverPushTokens({ force: true }).catch(() => {});
+                        await syncDriverFcmToken({ force: true }).catch(() => {});
                         throw new Error(body?.mensagem || 'Token de push não registrado. Permita notificações e tente de novo.');
                     }
                 }
