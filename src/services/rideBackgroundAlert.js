@@ -10,9 +10,22 @@ import driverRideMonitor from './driverRideMonitor';
 
 const IS_EXPO_GO = Constants?.appOwnership === 'expo';
 
+function persistRideForLater(ride, rawRide) {
+  const jobs = [driverRideMonitor.setPendingRide(rawRide)];
+  if (ride) {
+    const { rawRide: _drop, ...compact } = ride;
+    jobs.push(
+      AsyncStorage.setItem(RIDE_STORAGE_KEYS.PENDING_SHOW, JSON.stringify(compact))
+    );
+  }
+  Promise.all(jobs).catch((e) => {
+    console.warn('[rideBackgroundAlert] persist:', e?.message);
+  });
+}
+
 /**
- * Dispara alertas de corrida no 2º plano (Notifee + Expo + acordar tela).
- * Payload leve — objeto grande no data{} faz o Android rejeitar a notificação.
+ * Dispara alertas de corrida.
+ * Caminho crítico: desenha o banner Notifee ANTES de AsyncStorage/I/O lento.
  */
 export async function notifyDriverNewRide(rawRide) {
   if (!rawRide?.id) return false;
@@ -22,21 +35,13 @@ export async function notifyDriverNewRide(rawRide) {
   const ride = mapApiRideToRideRequest(rawRide);
   if (!ride) return false;
 
-  await driverRideMonitor.setPendingRide(rawRide);
-
-  try {
-    const { rawRide: _drop, ...compact } = ride;
-    await AsyncStorage.setItem(RIDE_STORAGE_KEYS.PENDING_SHOW, JSON.stringify(compact));
-  } catch (e) {
-    console.warn('[rideBackgroundAlert] pending show:', e?.message);
-  }
-
-  // App aberto: modal interno (HomeScreen / RideRequestScreen) — sem banner do sistema.
+  // App aberto: modal interno — sem banner do sistema.
   if (AppState.currentState === 'active') {
+    persistRideForLater(ride, rawRide);
     try {
       const { presentRideRequest } = require('./rideRequestController');
       await presentRideRequest(rawRide);
-      await startRideAlertSound();
+      startRideAlertSound().catch(() => {});
       return true;
     } catch (e) {
       console.warn('[rideBackgroundAlert] foreground:', e?.message);
@@ -45,12 +50,19 @@ export async function notifyDriverNewRide(rawRide) {
 
   let delivered = false;
 
-  // 2º plano / app morto: banner Notifee por cima de outros apps (WhatsApp etc.).
+  // 2º plano / app morto: banner primeiro (não esperar gravação no disco).
   if (Platform.OS === 'android' && !IS_EXPO_GO) {
     delivered = await showRideRequestNotification(ride).catch((e) => {
       console.warn('[rideBackgroundAlert] Notifee:', e?.message);
       return false;
     });
+  }
+
+  if (delivered) {
+    startRideAlertSound().catch(() => {});
+    wakeScreenForRideAlert().catch(() => {});
+    persistRideForLater(ride, rawRide);
+    return true;
   }
 
   if (!delivered) {
@@ -60,18 +72,12 @@ export async function notifyDriverNewRide(rawRide) {
     } catch (e) {
       console.warn('[rideBackgroundAlert] Expo:', e?.message);
     }
+    if (delivered) {
+      startRideAlertSound().catch(() => {});
+      wakeScreenForRideAlert().catch(() => {});
+    }
   }
 
-  // Som em loop: expo-av + FG service do Notifee (não abrir o app automaticamente).
-  if (delivered) {
-    try {
-      await startRideAlertSound();
-    } catch (_) {}
-  }
-
-  try {
-    await wakeScreenForRideAlert();
-  } catch (_) {}
-
+  persistRideForLater(ride, rawRide);
   return delivered;
 }

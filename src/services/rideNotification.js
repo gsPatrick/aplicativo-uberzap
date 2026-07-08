@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 const IS_EXPO_GO = Constants?.appOwnership === 'expo';
 
 let notifeeModule = null;
+let channelReady = false;
 
 async function getNotifee() {
   if (Platform.OS !== 'android' || IS_EXPO_GO) return null;
@@ -56,6 +57,7 @@ export function mapApiRideToRideRequest(raw) {
 }
 
 export async function setupRideNotificationChannel() {
+  if (channelReady) return;
   const notifee = await getNotifee();
   if (!notifee) return;
 
@@ -73,6 +75,7 @@ export async function setupRideNotificationChannel() {
     lightColor: '#3AB56B',
     bypassDnd: true,
   });
+  channelReady = true;
 }
 
 export async function requestRideNotificationPermission() {
@@ -139,7 +142,7 @@ export async function showRideRequestNotification(ride) {
     cidadeId: ride.cidadeId,
   });
 
-  let canFullScreen = true;
+  let canFullScreen = false;
   try {
     if (typeof notifee.canUseFullScreenIntent === 'function') {
       canFullScreen = await notifee.canUseFullScreenIntent();
@@ -180,14 +183,12 @@ export async function showRideRequestNotification(ride) {
     loopSound: true,
   };
 
-  // Sempre pede tela cheia — sem a permissão o Android só mostra o banner.
-  androidConfig.fullScreenAction = {
-    id: 'ride_screen',
-    launchActivity: 'default',
-  };
-
-  if (!canFullScreen) {
-    console.warn('[rideNotification] fullScreenIntent desativado no sistema — ative "Notificações em tela cheia"');
+  // Tela cheia só com permissão + tela bloqueada — não atrasa o banner no topo.
+  if (canFullScreen) {
+    androidConfig.fullScreenAction = {
+      id: 'ride_screen',
+      launchActivity: 'default',
+    };
   }
 
   try {

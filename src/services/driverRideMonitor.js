@@ -7,7 +7,7 @@ const STORAGE_KEYS = {
   MONITOR_STATE: '@UbeZap:driverMonitorState',
 };
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 3000;
 
 class DriverRideMonitor {
   constructor() {
