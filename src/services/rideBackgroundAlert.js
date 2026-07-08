@@ -33,18 +33,15 @@ export async function notifyDriverNewRide(rawRide) {
 
   let delivered = false;
 
-  // Notifee é a notificação RICA (full-screen, Aceitar/Recusar) — preferida.
+  // Notifee: banner heads-up + Aceitar/Recusar + foreground service (som em loop).
   if (Platform.OS === 'android' && !IS_EXPO_GO) {
-    try {
-      await showRideRequestNotification(ride);
-      delivered = true;
-    } catch (e) {
+    delivered = await showRideRequestNotification(ride).catch((e) => {
       console.warn('[rideBackgroundAlert] Notifee:', e?.message);
-    }
+      return false;
+    });
   }
 
-  // Expo só como FALLBACK quando o Notifee não está disponível (Expo Go / iOS).
-  // Evita a duplicata Notifee + Expo que aparecia para o mesmo alerta.
+  // Fallback se Notifee falhar (Expo Go / iOS / erro nativo).
   if (!delivered) {
     try {
       await triggerRideAlertNotification(rawRide);
@@ -52,16 +49,14 @@ export async function notifyDriverNewRide(rawRide) {
     } catch (e) {
       console.warn('[rideBackgroundAlert] Expo:', e?.message);
     }
+    // Sem FG service do Notifee — força o loop pelo expo-av.
+    try {
+      await startRideAlertSound();
+    } catch (_) {}
   }
 
   try {
     await wakeScreenForRideAlert();
-  } catch (_) {}
-
-  // Toque de chamada em loop (o card aparecia mudo). staysActiveInBackground
-  // permite tocar mesmo com o app fechado/acordado pelo push.
-  try {
-    await startRideAlertSound();
   } catch (_) {}
 
   return delivered;

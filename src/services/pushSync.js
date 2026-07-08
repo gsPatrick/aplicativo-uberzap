@@ -9,7 +9,7 @@ import {
 } from '../utils/notifications';
 import { getSession } from '../utils/session';
 import api from '../services/api';
-import { getAndSaveFcmToken } from './fcmDirect';
+import { getAndSaveFcmToken, beginFcmDiagnosticSession, recordFcmAttemptForPushSync, rebuildFcmDiagnosticReport } from './fcmDirect';
 
 let lastSync = { token: null, at: 0 };
 const EXPO_SYNC_MIN_INTERVAL_MS = 5 * 60 * 1000;
@@ -123,14 +123,23 @@ export async function recoverDriverFcmFromApiError(error) {
 export async function ensureDriverFcmTokenForOnline({ maxAttempts = 5 } = {}) {
   if (CONFIG.APP_BUILD !== 'driver') return null;
 
+  beginFcmDiagnosticSession();
+
   const session = await getSession();
   if (!session?.id) {
-    throw new Error('Sessão inválida. Faça login novamente.');
+    recordFcmAttemptForPushSync('sessao', 'Sessao invalida — faca login novamente');
+    const err = new Error('Sessão inválida. Faça login novamente.');
+    err.fcmDiagnosticReport = await rebuildFcmDiagnosticReport();
+    throw err;
   }
 
   let notifOk = await ensureNotificationPermissions();
   if (!notifOk) {
     const perm = await getNotificationPermissionState().catch(() => ({}));
+    recordFcmAttemptForPushSync(
+      'permissao',
+      `negada | denied=${!!perm.denied} | canAskAgain=${perm.canAskAgain !== false}`
+    );
     if (perm.denied && perm.canAskAgain === false) {
       await new Promise((resolve) => {
         Alert.alert(
@@ -155,24 +164,28 @@ export async function ensureDriverFcmTokenForOnline({ maxAttempts = 5 } = {}) {
   }
 
   if (!notifOk) {
-    throw new Error('Permita notificações para ficar online e receber corridas.');
+    recordFcmAttemptForPushSync('permissao', 'usuario nao concedeu notificacoes');
+    const err = new Error('Permita notificações para ficar online e receber corridas.');
+    err.fcmDiagnosticReport = await rebuildFcmDiagnosticReport(session.id);
+    throw err;
   }
 
+  recordFcmAttemptForPushSync('permissao', 'ok');
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    recordFcmAttemptForPushSync('ciclo_online', `tentativa ${attempt}/${maxAttempts}`);
     const token = await getAndSaveFcmToken(session.id, { force: true });
     if (token) return token;
     await delay(600 * attempt);
   }
 
-  throw new Error(
+  const err = new Error(
     'Não foi possível registrar o token de push. Verifique notificações e tente ficar online de novo.'
   );
+  err.fcmDiagnosticReport = await rebuildFcmDiagnosticReport(session.id);
+  throw err;
 }
 
-/**
- * Fica online no servidor SOMENTE após fcm_token válido salvo.
- * Repete sync + updateLocation se o servidor ainda não enxergar o token.
- */
 export async function registerDriverOnlineOnServer(
   sessionId,
   latitude,
@@ -190,23 +203,35 @@ export async function registerDriverOnlineOnServer(
         return res;
       }
       const codigo = body?.codigo || '';
+      recordFcmAttemptForPushSync(
+        'servidor_online',
+        `tentativa ${attempt}/${maxAttempts} | codigo=${codigo || 'sem_codigo'} | body=${JSON.stringify(body).slice(0, 500)}`
+      );
       if (codigo === 'sem_fcm_token' || codigo === 'sem_token_push') {
         await getAndSaveFcmToken(sessionId, { force: true });
         await delay(400 * attempt);
         continue;
       }
       lastError = new Error(body?.mensagem || 'Não foi possível ficar online.');
+      lastError.response = { data: body, status: res?.status };
     } catch (e) {
       lastError = e;
       const codigo = e?.response?.data?.codigo || '';
+      recordFcmAttemptForPushSync(
+        'servidor_online',
+        `tentativa ${attempt}/${maxAttempts} | erro=${codigo || e?.message || 'desconhecido'}`
+      );
       if (e?.response?.status === 403 || codigo === 'sem_fcm_token' || codigo === 'sem_token_push') {
         await getAndSaveFcmToken(sessionId, { force: true });
         await delay(400 * attempt);
         continue;
       }
+      e.fcmDiagnosticReport = await rebuildFcmDiagnosticReport(sessionId);
       throw e;
     }
   }
 
-  throw lastError || new Error('Não foi possível ficar online. Tente novamente.');
+  const err = lastError || new Error('Não foi possível ficar online. Tente novamente.');
+  err.fcmDiagnosticReport = await rebuildFcmDiagnosticReport(sessionId);
+  throw err;
 }

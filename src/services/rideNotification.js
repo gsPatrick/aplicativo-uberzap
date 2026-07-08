@@ -17,10 +17,9 @@ async function getNotifee() {
   }
 }
 
-// v3: canal recriado com som CUSTOMIZADO (toque_status, em res/raw via
-// expo-notifications). Bumpar o id força o Android a criar um canal novo
-// (canais são imutáveis) — agora toca nativamente MESMO COM O APP MORTO.
-export const RIDE_REQUEST_CHANNEL_ID = 'ride-requests-v3';
+// v4: canal MAX + heads-up (banner desce) + som customizado em res/raw.
+// Bumpar o id força o Android a criar um canal novo (canais são imutáveis).
+export const RIDE_REQUEST_CHANNEL_ID = 'ride-requests-v4';
 // Nome do som em android/app/src/main/res/raw (sem extensão).
 const RIDE_ALERT_SOUND = 'toque_status';
 export const RIDE_REQUEST_TIMEOUT_MS = 30000;
@@ -106,6 +105,7 @@ export async function showRideRequestNotification(ride) {
     AndroidVisibility,
     AndroidCategory,
     AndroidStyle,
+    AndroidForegroundServiceType,
   } = require('@notifee/react-native');
 
   await setupRideNotificationChannel();
@@ -150,13 +150,18 @@ export async function showRideRequestNotification(ride) {
 
   const androidConfig = {
     channelId: RIDE_REQUEST_CHANNEL_ID,
-    importance: AndroidImportance.HIGH,
+    // MAX = heads-up (banner desce de cima) em qualquer fabricante compatível.
+    importance: AndroidImportance.MAX,
     visibility: AndroidVisibility.PUBLIC,
     category: AndroidCategory.CALL,
     sound: RIDE_ALERT_SOUND,
     style: { type: AndroidStyle.BIGTEXT, text: bigText },
     vibrationPattern: [300, 500, 300, 500, 300, 500],
     lightUpScreen: true,
+    color: '#3AB56B',
+    // Mantém o processo vivo + som em loop até aceitar/recusar (Motorola/Samsung).
+    asForegroundService: true,
+    foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK],
     pressAction: { id: 'default', launchActivity: 'default' },
     actions: [
       {
@@ -168,13 +173,10 @@ export async function showRideRequestNotification(ride) {
         pressAction: { id: 'decline' },
       },
     ],
-    timeoutAfter: RIDE_REQUEST_TIMEOUT_MS + 5000, // segurança: para o loop na expiração
+    timeoutAfter: RIDE_REQUEST_TIMEOUT_MS + 5000,
     autoCancel: false,
     ongoing: true,
-    // loopSound (flag INSISTENT): o SISTEMA Android toca o som em LOOP até a
-    // notificação ser cancelada (aceitar/recusar/expirar). Como quem toca é o
-    // SISTEMA (não o processo do app), sobrevive ao "matador" de fabricantes
-    // agressivos (Motorola/Xiaomi) — que era o que fazia o som parar no 1º toque.
+    // Som do sistema em loop até cancelar a notificação (complementa o FG service).
     loopSound: true,
   };
 
@@ -185,19 +187,23 @@ export async function showRideRequestNotification(ride) {
     };
   }
 
-  await notifee.displayNotification({
-    id: `ride-${ride.rideId}`,
-    title: `🚕 Nova corrida — ${priceTxt}`,
-    body: `${ride.passengerName || 'Passageiro'} • ${pickup} → ${dest}`,
-    data: {
-      type: 'ride_request',
-      ride: compactPayload,
-      rideId: ride.rideId,
-    },
-    android: androidConfig,
-  });
-
-  return true;
+  try {
+    await notifee.displayNotification({
+      id: `ride-${ride.rideId}`,
+      title: `🚕 Nova corrida — ${priceTxt}`,
+      body: `${ride.passengerName || 'Passageiro'} • ${pickup} → ${dest}`,
+      data: {
+        type: 'ride_request',
+        ride: compactPayload,
+        rideId: ride.rideId,
+      },
+      android: androidConfig,
+    });
+    return true;
+  } catch (e) {
+    console.warn('[rideNotification] displayNotification:', e?.message || e);
+    return false;
+  }
 }
 
 export async function cancelRideRequestNotification(rideId) {

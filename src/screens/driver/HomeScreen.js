@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, StatusBar, SafeAreaView, Switch, TouchableOpacity, Animated, PanResponder, Dimensions, Platform, LayoutAnimation, UIManager, ActivityIndicator, Modal, Alert, AppState, InteractionManager } from 'react-native';
+import { View, Text, StatusBar, SafeAreaView, Switch, TouchableOpacity, Animated, PanResponder, Dimensions, Platform, LayoutAnimation, UIManager, ActivityIndicator, Modal, Alert, AppState, InteractionManager, ScrollView, Clipboard } from 'react-native';
 import * as Location from 'expo-location';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import styled from 'styled-components/native';
@@ -32,6 +32,7 @@ import {
 import { safeRemoveLocationSubscriptionAsync } from '../../utils/locationSubscription';
 import { startRideForegroundService, stopRideForegroundService } from '../../services/rideForegroundService';
 import { syncDriverFcmToken, recoverDriverFcmFromApiError, registerDriverOnlineOnServer } from '../../services/pushSync';
+import { getLastFcmDiagnosticReport } from '../../services/fcmDirect';
 import { subscribeRideRequest, STORAGE_KEYS as RIDE_UI_KEYS } from '../../services/rideRequestController';
 import Constants from 'expo-constants';
 
@@ -263,6 +264,10 @@ const DriverHomeScreen = () => {
     const [earningsPeriod, setEarningsPeriod] = useState('hoje'); // hoje | semana | mes | total
     const [alertMessage, setAlertMessage] = useState('');
     const [showAlertModal, setShowAlertModal] = useState(false);
+    const [showFcmErrorModal, setShowFcmErrorModal] = useState(false);
+    const [fcmErrorTitle, setFcmErrorTitle] = useState('');
+    const [fcmErrorMessage, setFcmErrorMessage] = useState('');
+    const [fcmDiagnosticReport, setFcmDiagnosticReport] = useState('');
     const [isAccepting, setIsAccepting] = useState(false);
     const [rejectedRides, setRejectedRides] = useState([]);
     const [resumeError, setResumeError] = useState('');
@@ -852,6 +857,24 @@ const DriverHomeScreen = () => {
         setIsMenuOpen(!isMenuOpen);
     };
 
+    const showFcmFailureModal = (title, message, report) => {
+        setFcmErrorTitle(title);
+        setFcmErrorMessage(message);
+        setFcmDiagnosticReport(report || 'Diagnostico indisponivel. Tente ficar online novamente.');
+        setShowFcmErrorModal(true);
+    };
+
+    const copyFcmDiagnosticReport = () => {
+        const text = [
+            fcmErrorTitle,
+            fcmErrorMessage,
+            '',
+            fcmDiagnosticReport,
+        ].join('\n');
+        Clipboard.setString(text);
+        Alert.alert('Copiado', 'Cole no WhatsApp e envie para o suporte.');
+    };
+
     const toggleStatus = async () => {
         if (goingOnline) return;
 
@@ -894,20 +917,33 @@ const DriverHomeScreen = () => {
                     e?.response?.data?.mensagem ||
                     (typeof e?.response?.data === 'object' ? e.response.data.mensagem : null) ||
                     e?.message;
-                Alert.alert(
-                    'Não foi possível ficar online',
-                    apiMsg || 'Verifique notificações e conexão, depois toque em ONLINE novamente.',
-                    [
-                        { text: 'OK' },
-                        {
-                            text: 'Abrir configurações',
-                            onPress: () => {
-                                const { openAppNotificationSettings } = require('../../utils/notifications');
-                                openAppNotificationSettings().catch(() => {});
+                const report = e?.fcmDiagnosticReport || getLastFcmDiagnosticReport() || '';
+                const isFcmError =
+                    !!report ||
+                    /token de push|fcm|notifica/i.test(apiMsg || '');
+
+                if (isFcmError) {
+                    showFcmFailureModal(
+                        'Não foi possível ficar online',
+                        apiMsg || 'Falha ao registrar o token de push (FCM).',
+                        report
+                    );
+                } else {
+                    Alert.alert(
+                        'Não foi possível ficar online',
+                        apiMsg || 'Verifique notificações e conexão, depois toque em ONLINE novamente.',
+                        [
+                            { text: 'OK' },
+                            {
+                                text: 'Abrir configurações',
+                                onPress: () => {
+                                    const { openAppNotificationSettings } = require('../../utils/notifications');
+                                    openAppNotificationSettings().catch(() => {});
+                                },
                             },
-                        },
-                    ]
-                );
+                        ]
+                    );
+                }
             } finally {
                 setGoingOnline(false);
             }
@@ -1473,6 +1509,80 @@ const DriverHomeScreen = () => {
                                 elevation: 5
                             }}>
                             <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>ENTENDI</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+            <Modal
+                visible={showFcmErrorModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowFcmErrorModal(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+                    <View style={{ width: '100%', maxHeight: '88%', backgroundColor: colors.surface, borderRadius: 24, padding: 22, borderBottomWidth: 4, borderBottomColor: '#ef4444' }}>
+                        <View style={{ alignItems: 'center', marginBottom: 14 }}>
+                            <Icon name="error-outline" size={42} color="#ef4444" />
+                            <Text style={{ color: colors.text, fontSize: 20, fontWeight: '900', marginTop: 10, textAlign: 'center' }}>
+                                {fcmErrorTitle}
+                            </Text>
+                            <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 8 }}>
+                                {fcmErrorMessage}
+                            </Text>
+                        </View>
+                        <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 8, fontWeight: '700' }}>
+                            Diagnóstico técnico (copie e envie no WhatsApp):
+                        </Text>
+                        <ScrollView
+                            style={{
+                                maxHeight: 280,
+                                backgroundColor: '#0f172a',
+                                borderRadius: 12,
+                                padding: 12,
+                                marginBottom: 16,
+                            }}
+                        >
+                            <Text
+                                selectable
+                                style={{ color: '#e2e8f0', fontSize: 11, lineHeight: 16, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}
+                            >
+                                {fcmDiagnosticReport}
+                            </Text>
+                        </ScrollView>
+                        <TouchableOpacity
+                            onPress={copyFcmDiagnosticReport}
+                            style={{
+                                backgroundColor: colors.primary,
+                                height: 52,
+                                borderRadius: 12,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                marginBottom: 10,
+                            }}
+                        >
+                            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>COPIAR DIAGNÓSTICO</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => {
+                                const { openAppNotificationSettings } = require('../../utils/notifications');
+                                openAppNotificationSettings().catch(() => {});
+                            }}
+                            style={{
+                                backgroundColor: '#334155',
+                                height: 48,
+                                borderRadius: 12,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                marginBottom: 10,
+                            }}
+                        >
+                            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>ABRIR CONFIGURAÇÕES</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => setShowFcmErrorModal(false)}
+                            style={{ alignItems: 'center', paddingVertical: 8 }}
+                        >
+                            <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>FECHAR</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
